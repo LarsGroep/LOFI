@@ -126,6 +126,14 @@ def _enrich(name: str) -> dict | None:
     if not best:
         return None
 
+    # Fetch full artist object — search results may omit followers
+    try:
+        full = _api_get(f"https://api.spotify.com/v1/artists/{best['id']}")
+        if full and full.get("id"):
+            best = full
+    except Exception:
+        pass
+
     images  = best.get("images") or []
     img_url = None
     img_sm  = None
@@ -140,12 +148,14 @@ def _enrich(name: str) -> dict | None:
     except Exception:
         pass
 
+    followers = (best.get("followers") or {}).get("total")
+
     return {
         "name":           name,
         "spotify_id":     best["id"],
         "spotify_name":   best["name"],
         "spotify_url":    (best.get("external_urls") or {}).get("spotify"),
-        "followers":      (best.get("followers") or {}).get("total"),
+        "followers":      followers,
         "popularity":     best.get("popularity"),
         "genres":         best.get("genres") or [],
         "image_url":      img_url,
@@ -177,10 +187,12 @@ def main() -> None:
             if line:
                 try:
                     rec = json.loads(line)
-                    cached[rec["name"]] = rec
+                    # Skip cache entries with null followers — the API bug produced them
+                    if rec.get("followers") is not None or not rec.get("spotify_id"):
+                        cached[rec["name"]] = rec
                 except Exception:
                     pass
-    print(f"Already cached: {len(cached)}")
+    print(f"Already cached (with valid followers): {len(cached)}")
 
     to_fetch = [n for n in all_names if n not in cached]
     print(f"To fetch: {len(to_fetch)}  (~{len(to_fetch) * _RATE_SLEEP / _MAX_WORKERS:.0f}s estimated)")
