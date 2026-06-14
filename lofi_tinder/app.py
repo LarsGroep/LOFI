@@ -136,6 +136,15 @@ def _handle_swipe(
             fvec = extract_feature_vector(enriched)
             mab.update(fvec.astype("float64"), reward)
             mab.save()
+    # Track session counts (persists even when swipes.jsonl is ephemeral on Cloud)
+    if decision != "skip":
+        st.session_state["session_swiped"] = st.session_state.get("session_swiped", 0) + 1
+    if decision == "yes":
+        st.session_state["session_yes"] = st.session_state.get("session_yes", 0) + 1
+    elif decision == "monitor":
+        st.session_state["session_monitor"] = st.session_state.get("session_monitor", 0) + 1
+    elif decision in _NEGATIVE_DECISIONS:
+        st.session_state["session_no"] = st.session_state.get("session_no", 0) + 1
     st.session_state["queue_idx"] = st.session_state.get("queue_idx", 0) + 1
     st.rerun()
 
@@ -275,27 +284,32 @@ def main() -> None:
     queue: list[ArtistProfile] = st.session_state["queue"]
     idx: int = st.session_state["queue_idx"]
 
-    # Session stats
+    # Session stats — use session_state counters so they work on Cloud (ephemeral filesystem)
+    _ss_swiped  = st.session_state.get("session_swiped",  0)
+    _ss_yes     = st.session_state.get("session_yes",     0)
+    _ss_monitor = st.session_state.get("session_monitor", 0)
+    _ss_no      = st.session_state.get("session_no",      0)
     col_stat1, col_stat2, col_stat3, col_stat4, col_stat5 = st.columns(5)
-    col_stat1.metric("Total swiped", len(swiped_ids))
-    col_stat2.metric("YES", yes_count)
-    col_stat3.metric("Monitor", sum(1 for s in swipes if s.decision == "monitor"))
-    col_stat4.metric("No", neg_count)
+    col_stat1.metric("Reviewed (session)", _ss_swiped)
+    col_stat2.metric("YES", _ss_yes)
+    col_stat3.metric("Monitor", _ss_monitor)
+    col_stat4.metric("No", _ss_no)
     col_stat5.metric("Remaining", max(0, len(queue) - idx))
 
-    # Centroid update progress
-    next_update_in = _CENTROID_UPDATE_EVERY - (yes_count % _CENTROID_UPDATE_EVERY)
-    if yes_count > 0 and next_update_in == _CENTROID_UPDATE_EVERY:
-        st.success(f"Taste profile updated! ({yes_count} YES swipes total)")
+    # Centroid update progress (use session YES count so it works on Cloud)
+    _yes_for_centroid = _ss_yes
+    next_update_in = _CENTROID_UPDATE_EVERY - (_yes_for_centroid % _CENTROID_UPDATE_EVERY)
+    if _yes_for_centroid > 0 and next_update_in == _CENTROID_UPDATE_EVERY:
+        st.success(f"Taste profile updated! ({_yes_for_centroid} YES swipes this session)")
     else:
         st.info(f"Centroid update in {next_update_in} more YES swipe(s)")
 
     # Check if centroid update is due
-    if yes_count > 0 and yes_count % _CENTROID_UPDATE_EVERY == 0:
-        if st.session_state.get("last_centroid_update") != yes_count:
+    if _yes_for_centroid > 0 and _yes_for_centroid % _CENTROID_UPDATE_EVERY == 0:
+        if st.session_state.get("last_centroid_update") != _yes_for_centroid:
             _update_centroid_from_swipes(swipes, profiles)
             mab.save()
-            st.session_state["last_centroid_update"] = yes_count
+            st.session_state["last_centroid_update"] = _yes_for_centroid
             st.session_state["queue_stale"] = True
 
     # Show current card
@@ -877,99 +891,6 @@ def _compute_card_scores(enriched: dict, cosine_dist: float) -> dict:
     }
 
 
-def _show_lofi_feel_matrix(enriched: dict) -> None:
-    """Horizontal grouped bar chart: artist vs both LOFI centroids (core + emerging)."""
-    import numpy as np
-    import altair as alt
-    import pandas as pd
-    from lofi_tinder.embedder import (
-        extract_feature_vector, load_dual_feature_centroids, load_feature_centroid,
-    )
-
-    core_centroid, emerging_centroid = load_dual_feature_centroids()
-    single_centroid = load_feature_centroid()
-
-    if core_centroid is None and single_centroid is None:
-        st.warning("LOFI centroid not built yet. Run: python run.py --seed")
-        return
-
-    artist_vec = extract_feature_vector(enriched)
-
-    labels = [
-        "Listeners",
-        "Listener growth",
-        "Momentum",
-        "Career bookings",
-        "Booking velocity",
-        "Recent bookings",
-        "Geo spread",
-        "NL ratio",
-        "Beatport releases",
-        "Label tier",
-        "Mixcloud",
-        "RA credibility",
-        "Festival history",
-        "Partyflock fans",
-    ]
-
-    rows = []
-    for i, label in enumerate(labels):
-        rows.append({"Feature": label, "Series": "Artist",           "Score": float(artist_vec[i])})
-        if core_centroid is not None:
-            rows.append({"Feature": label, "Series": "LOFI core",    "Score": float(core_centroid[i])})
-        if emerging_centroid is not None:
-            rows.append({"Feature": label, "Series": "LOFI emerging","Score": float(emerging_centroid[i])})
-        if core_centroid is None and single_centroid is not None:
-            rows.append({"Feature": label, "Series": "LOFI avg",     "Score": float(single_centroid[i])})
-
-    series_order = ["Artist", "LOFI core", "LOFI emerging"]
-    color_range  = ["#4ade80", "#818cf8", "#34d399"]
-
-    df = pd.DataFrame(rows)
-    feature_order = list(reversed(labels))
-
-    chart = (
-        alt.Chart(df)
-        .mark_bar(cornerRadiusEnd=3)
-        .encode(
-            y=alt.Y("Feature:N", sort=feature_order, title=None,
-                    axis=alt.Axis(labelLimit=140, labelFontSize=12)),
-            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 1]), title="Score (0–1)",
-                    axis=alt.Axis(grid=True, gridOpacity=0.3)),
-            color=alt.Color(
-                "Series:N",
-                scale=alt.Scale(domain=series_order, range=color_range),
-                legend=alt.Legend(orient="top", title=None, symbolSize=80),
-            ),
-            yOffset=alt.YOffset("Series:N", sort=series_order),
-            tooltip=["Feature", "Series", alt.Tooltip("Score:Q", format=".3f")],
-        )
-        .properties(
-            height=430,
-            title=alt.TitleParams(
-                "LOFI Feel Matrix — artist vs Core (established) and Emerging centroids",
-                fontSize=12,
-            ),
-        )
-    )
-    st.altair_chart(chart, use_container_width=True)
-
-    # Nearest-cluster similarity summary
-    def _sim(v, c):
-        vn, cn = np.linalg.norm(v), np.linalg.norm(c)
-        return float(np.dot(v, c) / (vn * cn)) if vn > 0 and cn > 0 else 0.0
-
-    lines = []
-    if core_centroid is not None:
-        cs = _sim(artist_vec, core_centroid)
-        lines.append(f"Core (established): **{cs:.0%}**")
-    if emerging_centroid is not None:
-        es = _sim(artist_vec, emerging_centroid)
-        lines.append(f"Emerging: **{es:.0%}**")
-    if lines:
-        nearest = "core" if (core_centroid is not None and emerging_centroid is not None and
-                             _sim(artist_vec, core_centroid) >= _sim(artist_vec, emerging_centroid)) else "emerging"
-        st.caption("Similarity — " + "  ·  ".join(lines) + f"  ·  Nearest cluster: **{nearest}**")
 
 
 def _show_stats(artist_id: str, profile_text: str, cosine_dist: float = 1.0,
@@ -1291,10 +1212,6 @@ def _show_stats(artist_id: str, profile_text: str, cosine_dist: float = 1.0,
                 label = _MILESTONE_LABELS.get(k, k.replace("_", " ").title())
                 items.append((label, str(v)))
             _kv_grid(items)
-
-    # ── LOFI Feel Matrix ─────────────────────────────────────────────────────
-    with st.expander("LOFI Feel Matrix — compare against LOFI taste profile", expanded=False):
-        _show_lofi_feel_matrix(enriched)
 
     # ── LOFI history ─────────────────────────────────────────────────────────
     feedback = enriched.get("lofi_feedback_history") or []
