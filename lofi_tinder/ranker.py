@@ -22,8 +22,27 @@ _SWIPES_FILE = _DATA_DIR / "swipes.jsonl"
 
 # Primary ranking: structured feature similarity (15-dim, interpretable)
 # MAB: also trained on feature vectors — blended in once ≥20 swipes exist
-_FEATURE_WEIGHT = 0.7
-_MAB_WEIGHT = 0.3
+_FEATURE_WEIGHT = 0.6
+_MAB_WEIGHT = 0.25
+_COVERAGE_WEIGHT = 0.15   # bonus for artists with data from multiple sources
+
+
+def _data_coverage_score(enriched: dict) -> float:
+    """0–1 score: how many data sources are populated for this artist."""
+    if not enriched:
+        return 0.0
+    bs = enriched.get("booking_stats") or {}
+    gh = enriched.get("growth_history") or {}
+    sources = [
+        bool(enriched.get("beatport_releases") or enriched.get("beatport_labels")),
+        bool(bs.get("total", 0) > 0),           # Partyflock club lineups
+        bool(bs.get("festival_count", 0) > 0 or enriched.get("festival_history")),
+        bool(gh.get("current_listeners")),        # Last.fm
+        bool(enriched.get("ra_events") or enriched.get("ra_genre_events", 0) > 0),
+        bool(enriched.get("spotify_followers") or enriched.get("spotify_id")),
+        bool(enriched.get("sc_followers") or enriched.get("sc_tracks")),
+    ]
+    return sum(sources) / len(sources)
 
 
 def _cosine_sim(vec: np.ndarray, centroid: np.ndarray) -> float:
@@ -116,8 +135,9 @@ def rank_candidates(
 
         profile.cosine_dist_to_centroid = 1.0 - feat_sim
 
-        mab = mab_scores.get(artist_id, 0.0) if mab_scores else 0.0
-        final_score = _FEATURE_WEIGHT * feat_sim + _MAB_WEIGHT * mab
+        mab      = mab_scores.get(artist_id, 0.0) if mab_scores else 0.0
+        coverage = _data_coverage_score(enriched)
+        final_score = _FEATURE_WEIGHT * feat_sim + _MAB_WEIGHT * mab + _COVERAGE_WEIGHT * coverage
 
         ranked.append((final_score, profile))
 
