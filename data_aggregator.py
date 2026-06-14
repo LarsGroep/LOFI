@@ -36,6 +36,9 @@ RA_SCRAPER     = HERE.parent / "ra-scraper-master" / "scraper"
 V2_SCRAPER     = HERE.parent / "v2-scraper" / "scraper"
 SPOTIFY_FILE   = HERE / "scraper_data" / "spotify_artists.jsonl"
 SOUNDCLOUD_FILE= HERE / "scraper_data" / "soundcloud_artists.jsonl"
+DISCOGS_FILE   = HERE / "scraper_data" / "discogs_artists.jsonl"
+YOUTUBE_FILE   = HERE / "scraper_data" / "youtube_artists.jsonl"
+MIXCLOUD_FILE  = HERE / "scraper_data" / "mixcloud_artists.jsonl"
 
 _TIER_ORDER = {"A+": 0, "A": 1, "B": 2}
 
@@ -195,6 +198,34 @@ def load_spotify_enriched() -> dict[str, dict]:
     """Returns {artist_name_lower: spotify_record} from spotify_enricher output."""
     by_artist: dict[str, dict] = {}
     for row in _read_jsonl(SPOTIFY_FILE):
+        key = (row.get("name") or "").lower()
+        if key:
+            by_artist[key] = row
+    return by_artist
+
+
+def load_discogs_enriched() -> dict[str, dict]:
+    by_artist: dict[str, dict] = {}
+    for row in _read_jsonl(DISCOGS_FILE):
+        key = (row.get("name") or "").lower()
+        if key:
+            by_artist[key] = row
+    return by_artist
+
+
+def load_youtube_enriched() -> dict[str, dict]:
+    by_artist: dict[str, dict] = {}
+    for row in _read_jsonl(YOUTUBE_FILE):
+        key = (row.get("name") or "").lower()
+        if key:
+            by_artist[key] = row
+    return by_artist
+
+
+def load_mixcloud_enriched() -> dict[str, dict]:
+    """Last record per artist wins (append-mode snapshots)."""
+    by_artist: dict[str, dict] = {}
+    for row in _read_jsonl(MIXCLOUD_FILE):
         key = (row.get("name") or "").lower()
         if key:
             by_artist[key] = row
@@ -526,6 +557,9 @@ def build_enriched_artist(
     spotify: dict | None,
     spotify_enriched: dict | None,
     sc_snapshots: list[dict] | None = None,
+    discogs: dict | None = None,
+    youtube: dict | None = None,
+    mc_enriched: dict | None = None,
 ) -> dict:
     growth     = compute_growth_history(lastfm_snapshots)
     booking    = compute_booking_stats(pf_events or pf_lineup_events)
@@ -618,6 +652,25 @@ def build_enriched_artist(
         "sc_url":        (sc_snapshots[-1].get("sc_url") if sc_snapshots else None),
         "sc_username":   (sc_snapshots[-1].get("sc_username") if sc_snapshots else None),
 
+        # Discogs
+        "discogs_id":           (discogs or {}).get("discogs_id"),
+        "discogs_releases":     (discogs or {}).get("release_count"),
+        "discogs_labels":       (discogs or {}).get("top_labels") or [],
+        "discogs_styles":       (discogs or {}).get("styles") or [],
+        "discogs_first_year":   (discogs or {}).get("first_year"),
+
+        # YouTube
+        "yt_channel_id":        (youtube or {}).get("yt_channel_id"),
+        "yt_subscribers":       (youtube or {}).get("yt_subscribers"),
+        "yt_views":             (youtube or {}).get("yt_views"),
+        "yt_boiler_room":       (youtube or {}).get("boiler_room", False),
+        "yt_ra_exchange":       (youtube or {}).get("ra_exchange", False),
+
+        # Mixcloud (dedicated enricher — richer than MixcloudEpisodeItem count)
+        "mc_followers":         (mc_enriched or {}).get("mc_followers"),
+        "mc_listen_count":      (mc_enriched or {}).get("mc_listen_count"),
+        "mc_track_count":       (mc_enriched or {}).get("mc_track_count"),
+
         # LOFI
         "lofi_booked":                  lofi_count > 0,
         "lofi_appearance_count":        lofi_count,
@@ -644,6 +697,14 @@ def run_aggregation(verbose: bool = True) -> int:
     ra_genre_map      = load_ra_genre()
     spotify_enriched  = load_spotify_enriched()
     soundcloud_map    = load_soundcloud()
+    discogs_map       = load_discogs_enriched()
+    youtube_map       = load_youtube_enriched()
+    mc_enriched_map   = load_mixcloud_enriched()
+
+    if verbose:
+        print(f"  Discogs: {len(discogs_map)} records")
+        print(f"  YouTube: {len(youtube_map)} records")
+        print(f"  Mixcloud enriched: {len(mc_enriched_map)} records")
 
     # Load Spotify if available
     spotify_map: dict[str, dict] = {}
@@ -718,6 +779,9 @@ def run_aggregation(verbose: bool = True) -> int:
                 spotify           = spotify_map.get(key),
                 spotify_enriched  = spotify_enriched.get(key),
                 sc_snapshots      = soundcloud_map.get(key) or [],
+                discogs           = discogs_map.get(key),
+                youtube           = youtube_map.get(key),
+                mc_enriched       = mc_enriched_map.get(key),
             )
             # Store legacy slugs (pre-unicode-normalization) so the app can look up
             # artists by any artist_id that existed before the slug fix
