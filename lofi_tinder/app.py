@@ -540,7 +540,7 @@ def _plot_growth(snapshots: list[dict], y_col: str = "Listeners", color: str = "
             )
             .properties(height=150)
         )
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width='stretch')
     except Exception:
         pass
 
