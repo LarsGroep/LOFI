@@ -63,6 +63,22 @@ def _legacy_slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
+# Route-map Tier A benchmarks — artists whose billing signals a meaningful support slot.
+# Defined after _slug() so the frozenset comprehension resolves correctly.
+_TIER_A_BENCHMARKS: frozenset[str] = frozenset(_slug(n) for n in [
+    # Route map A+
+    "Chris Stussy", "PAWSA", "Mau P", "The Martinez Brothers", "Marco Carola",
+    # Route map A
+    "East End Dubs", "Josh Baker", "Rossi.", "Kolter", "Dennis Cruz", "Jamback",
+    # Globally established headliners frequently on the same bills
+    "Ben Klock", "Marcel Dettmann", "Nina Kraviz", "Ricardo Villalobos",
+    "Seth Troxler", "Maceo Plex", "Richie Hawtin", "Laurent Garnier",
+    "Helena Hauff", "Dixon", "Ame", "Svreca", "Surgeon", "Alan Fitzpatrick",
+    "Slam", "Joseph Capriati", "Marco Faraone", "Enrico Sangiuliano",
+    "Charlotte de Witte", "Amelie Lens", "Peggy Gou", "Bicep",
+])
+
+
 def _read_jsonl(path: Path) -> list[dict]:
     if not path.exists():
         return []
@@ -141,6 +157,17 @@ def load_pf_lineups() -> dict[str, list[dict]]:
     return dict(by_artist)
 
 
+def load_pf_lineup_map() -> dict[str, list[str]]:
+    """Returns {event_url: [ordered artist names]} for billing-position computation."""
+    result: dict[str, list[str]] = {}
+    for row in _read_jsonl(RA_SCRAPER / "PartyflockLineupItem.jsonl"):
+        url    = row.get("event_url")
+        lineup = row.get("lineup") or []
+        if url and lineup:
+            result[url] = lineup
+    return result
+
+
 def load_festival_lineups() -> dict[str, list[dict]]:
     """Returns {artist_name_lower: [{festival_name, year}]}."""
     by_artist: dict[str, list[dict]] = defaultdict(list)
@@ -167,6 +194,16 @@ def load_ra_events() -> dict[str, list[dict]]:
                 "city":  row.get("city"),
                 "url":   row.get("link"),
             })
+    return dict(by_artist)
+
+
+def load_ra_billing() -> dict[str, list[dict]]:
+    """Returns {artist_name_lower: [ArtistBillingItem dicts]} from ArtistBillingItem.jsonl."""
+    by_artist: dict[str, list[dict]] = defaultdict(list)
+    for row in _read_jsonl(RA_SCRAPER / "ArtistBillingItem.jsonl"):
+        name = row.get("artist")
+        if name:
+            by_artist[name.lower()].append(row)
     return dict(by_artist)
 
 
@@ -462,6 +499,98 @@ def compute_momentum_score(
     return round(score, 1)
 
 
+def compute_billing_stats(
+    artist_name: str,
+    pf_events: list[dict],
+    pf_lineup_map: dict[str, list[str]],
+    ra_billing: list[dict],
+) -> dict:
+    """
+    Compute billing position metrics from RA ArtistBillingItem + PF lineup join.
+
+    RA data: headline boolean is reliable (scraped from RA GraphQL headliner field).
+    PF data: billing position inferred from DOM order (position 1 = top-billed).
+    """
+    name_lower = artist_name.lower()
+
+    headline_count          = 0
+    support_count           = 0
+    festival_headline_count = 0
+    festival_support_count  = 0
+    tier_a_support_count    = 0
+    tier_a_b2b_count        = 0
+    first_tier_a_support: str | None = None
+    first_tier_a_b2b:    str | None = None
+    lineup_sizes: list[int] = []
+
+    for bill in ra_billing:
+        is_headliner    = bill.get("is_headliner", False)
+        headliner_names = bill.get("headliner_names") or []
+        lineup          = bill.get("lineup") or []
+        date            = bill.get("date", "")
+        lsize           = bill.get("lineup_size") or len(lineup)
+        is_fest         = _is_festival(bill.get("title"), bill.get("venue"))
+
+        if lsize:
+            lineup_sizes.append(lsize)
+
+        if is_headliner:
+            headline_count += 1
+            if is_fest:
+                festival_headline_count += 1
+        else:
+            support_count += 1
+            if is_fest:
+                festival_support_count += 1
+            # Support slot for a Tier-A headliner on same bill
+            for hn in headliner_names:
+                if _slug(hn) in _TIER_A_BENCHMARKS:
+                    tier_a_support_count += 1
+                    if first_tier_a_support is None or date < first_tier_a_support:
+                        first_tier_a_support = date
+                    break
+
+        # B2B with a Tier-A artist (event title contains "b2b")
+        if " b2b " in (bill.get("title") or "").lower():
+            for other in lineup:
+                if other.lower() != name_lower and _slug(other) in _TIER_A_BENCHMARKS:
+                    tier_a_b2b_count += 1
+                    if first_tier_a_b2b is None or date < first_tier_a_b2b:
+                        first_tier_a_b2b = date
+                    break
+
+    # PF billing position (DOM order — reliable only for smaller lineups)
+    pf_headline_from_pos = 0
+    for ev in pf_events:
+        url    = ev.get("url")
+        lineup = pf_lineup_map.get(url) if url else None
+        if not lineup or len(lineup) < 2:
+            continue
+        try:
+            pos = next(i + 1 for i, n in enumerate(lineup) if n.lower() == name_lower)
+        except StopIteration:
+            continue
+        if pos == 1:
+            pf_headline_from_pos += 1
+
+    avg_lineup_size = (
+        round(sum(lineup_sizes) / len(lineup_sizes), 1) if lineup_sizes else None
+    )
+
+    return {
+        "headline_count":          headline_count,
+        "support_count":           support_count,
+        "festival_headline_count": festival_headline_count,
+        "festival_support_count":  festival_support_count,
+        "pf_headline_count":       pf_headline_from_pos,
+        "tier_a_support_count":    tier_a_support_count,
+        "tier_a_b2b_count":        tier_a_b2b_count,
+        "first_tier_a_support":    first_tier_a_support,
+        "first_tier_a_b2b":        first_tier_a_b2b,
+        "avg_lineup_size":         avg_lineup_size,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Milestone detection
 # ---------------------------------------------------------------------------
@@ -560,6 +689,7 @@ def build_enriched_artist(
     discogs: dict | None = None,
     youtube: dict | None = None,
     mc_enriched: dict | None = None,
+    billing_stats: dict | None = None,
 ) -> dict:
     growth     = compute_growth_history(lastfm_snapshots)
     booking    = compute_booking_stats(pf_events or pf_lineup_events)
@@ -584,6 +714,13 @@ def build_enriched_artist(
         beatport_charts = beatport_charts,
         festival_history= festival_history,
     )
+
+    # Auto-fill billing-derived milestones when RA billing data is available
+    bs = billing_stats or {}
+    if bs.get("first_tier_a_support") and milestones.get("first_tier_a_support") is None:
+        milestones["first_tier_a_support"] = bs["first_tier_a_support"]
+    if bs.get("first_tier_a_b2b") and milestones.get("first_tier_a_b2b") is None:
+        milestones["first_tier_a_b2b"] = bs["first_tier_a_b2b"]
 
     return {
         "artist_id":   _slug(name),
@@ -676,6 +813,9 @@ def build_enriched_artist(
         "lofi_appearance_count":        lofi_count,
         "lofi_feedback_history":        [],   # populated by Tinder swipes at runtime
 
+        # Billing metrics (from RA ArtistBillingItem + PF lineup join)
+        "billing_stats":                bs,
+
         # Milestones
         "milestones":                   milestones,
     }
@@ -688,8 +828,10 @@ def run_aggregation(verbose: bool = True) -> int:
     lastfm_snaps      = load_lastfm_snapshots()
     pf_events         = load_pf_events()
     pf_lineups        = load_pf_lineups()
+    pf_lineup_map     = load_pf_lineup_map()
     festival_lups     = load_festival_lineups()
     ra_events_map     = load_ra_events()
+    ra_billing_map    = load_ra_billing()
     lofi_booked       = load_lofi_booked()
     beatport_map      = load_beatport()
     beatport_charts   = load_beatport_charts()
@@ -705,6 +847,7 @@ def run_aggregation(verbose: bool = True) -> int:
         print(f"  Discogs: {len(discogs_map)} records")
         print(f"  YouTube: {len(youtube_map)} records")
         print(f"  Mixcloud enriched: {len(mc_enriched_map)} records")
+        print(f"  RA billing events: {sum(len(v) for v in ra_billing_map.values())} across {len(ra_billing_map)} artists")
 
     # Load Spotify if available
     spotify_map: dict[str, dict] = {}
@@ -764,6 +907,12 @@ def run_aggregation(verbose: bool = True) -> int:
             lfm_snaps = sorted(seen_dates.values(), key=lambda x: x.get("scraped_at", ""))
 
             key = name.lower()
+            billing = compute_billing_stats(
+                artist_name    = name,
+                pf_events      = pf_evs,
+                pf_lineup_map  = pf_lineup_map,
+                ra_billing     = ra_billing_map.get(key) or [],
+            )
             record = build_enriched_artist(
                 name              = name,
                 lastfm_snapshots  = lfm_snaps,
@@ -782,6 +931,7 @@ def run_aggregation(verbose: bool = True) -> int:
                 discogs           = discogs_map.get(key),
                 youtube           = youtube_map.get(key),
                 mc_enriched       = mc_enriched_map.get(key),
+                billing_stats     = billing,
             )
             # Store legacy slugs (pre-unicode-normalization) so the app can look up
             # artists by any artist_id that existed before the slug fix
