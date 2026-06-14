@@ -26,6 +26,9 @@ data/discovery_seed_history.jsonl
 # Intermediate scraper outputs (aggregated into artist_enriched.jsonl)
 scraper_data/soundcloud_artists.jsonl
 scraper_data/spotify_artists.jsonl
+scraper_data/discogs_artists.jsonl
+scraper_data/youtube_artists.jsonl
+scraper_data/mixcloud_artists.jsonl
 
 # Generated Excel exports
 scraper_data/*.xlsx

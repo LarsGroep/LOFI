@@ -957,21 +957,31 @@ def _show_stats(artist_id: str, profile_text: str, cosine_dist: float = 1.0,
     # ── Data coverage ────────────────────────────────────────────────────────
     _cov_sources: list[str] = []
     _cov_bs = enriched.get("booking_stats") or {}
+    if (enriched.get("growth_history") or {}).get("current_listeners"):
+        _cov_sources.append("Last.fm")
     if enriched.get("beatport_releases") or (enriched.get("beatport_labels") or []):
         _cov_sources.append("Beatport")
-    if _cov_bs.get("festival_count"):
-        _cov_sources.append(f"Festival lineups ({_cov_bs['festival_count']})")
-    elif enriched.get("festival_history"):
-        _cov_sources.append(f"Festival lineups ({len(enriched['festival_history'])})")
+    if _cov_bs.get("festival_count") or enriched.get("festival_history"):
+        _nf = _cov_bs.get("festival_count") or len(enriched.get("festival_history") or [])
+        _cov_sources.append(f"Festival lineups ({_nf})")
     if _cov_bs.get("total"):
         _nl = _cov_bs.get("nl_events") or 0
         _cov_sources.append(f"Club lineups ({_cov_bs['total']}, {_nl} NL)")
-    if enriched.get("spotify_followers") or enriched.get("spotify_id"):
-        _cov_sources.append("Spotify")
+    if enriched.get("ra_genre_events") or enriched.get("ra_genres"):
+        _cov_sources.append("Resident Advisor")
+    if enriched.get("spotify_id"):
+        _sp_fol = enriched.get("spotify_followers")
+        _cov_sources.append(f"Spotify ({_sp_fol:,} followers)" if _sp_fol else "Spotify")
+    if enriched.get("discogs_id"):
+        _dg_rel = enriched.get("discogs_releases")
+        _cov_sources.append(f"Discogs ({_dg_rel} releases)" if _dg_rel else "Discogs")
+    if enriched.get("yt_channel_id"):
+        _yt_sub = enriched.get("yt_subscribers")
+        _cov_sources.append(f"YouTube ({_yt_sub:,} subs)" if _yt_sub else "YouTube")
+    if enriched.get("mc_followers") or enriched.get("mixcloud_appearances"):
+        _cov_sources.append("Mixcloud")
     if enriched.get("sc_followers") or enriched.get("sc_tracks"):
         _cov_sources.append("SoundCloud")
-    if (enriched.get("growth_history") or {}).get("current_listeners"):
-        _cov_sources.append("Last.fm")
     if _cov_sources:
         st.caption("Scraped: " + "  ·  ".join(_cov_sources))
 
@@ -1178,16 +1188,8 @@ def _show_stats(artist_id: str, profile_text: str, cosine_dist: float = 1.0,
             if sc_url:
                 st.markdown(f"[Open on SoundCloud ↗]({sc_url})")
 
-    # ── Mixcloud ─────────────────────────────────────────────────────────────
     mc_count = enriched.get("mixcloud_appearances") or 0
     mc_shows = list(dict.fromkeys(enriched.get("mixcloud_shows") or []))
-    if mc_count:
-        with st.container(border=True):
-            st.markdown("**Mixcloud**")
-            _kv_grid([
-                ("Appearances", str(mc_count)),
-                ("Shows",       ", ".join(mc_shows[:6]) if mc_shows else None),
-            ])
 
     # ── RA ───────────────────────────────────────────────────────────────────
     ra_ev     = enriched.get("ra_genre_events") or 0
@@ -1200,6 +1202,64 @@ def _show_stats(artist_id: str, profile_text: str, cosine_dist: float = 1.0,
                 ("Genre events", str(ra_ev) if ra_ev else None),
                 ("Genres",       ", ".join(ra_genres[:6]) if ra_genres else None),
                 ("Cities",       ", ".join(ra_cities[:6]) if ra_cities else None),
+            ])
+
+    # ── Discogs ──────────────────────────────────────────────────────────────
+    dg_releases   = enriched.get("discogs_releases")
+    dg_labels     = enriched.get("discogs_labels") or []
+    dg_styles     = enriched.get("discogs_styles") or []
+    dg_first_year = enriched.get("discogs_first_year")
+    dg_url        = enriched.get("discogs_url") or (
+        f"https://www.discogs.com/artist/{enriched['discogs_id']}"
+        if enriched.get("discogs_id") else None
+    )
+    if dg_releases or dg_labels:
+        with st.container(border=True):
+            st.markdown("**Discogs**")
+            _kv_grid([
+                ("Releases",    str(dg_releases) if dg_releases else None),
+                ("Since",       str(dg_first_year) if dg_first_year else None),
+                ("Styles",      "  ·  ".join(dg_styles[:5]) if dg_styles else None),
+                ("Labels",      ", ".join(dg_labels[:5]) if dg_labels else None),
+            ])
+            if dg_url:
+                st.markdown(f"[Open on Discogs ↗]({dg_url})")
+
+    # ── YouTube ──────────────────────────────────────────────────────────────
+    yt_subs  = enriched.get("yt_subscribers")
+    yt_views = enriched.get("yt_views")
+    yt_br    = enriched.get("yt_boiler_room")
+    yt_ra    = enriched.get("yt_ra_exchange")
+    if yt_subs or yt_br or yt_ra:
+        with st.container(border=True):
+            st.markdown("**YouTube**")
+            _kv_grid([
+                ("Subscribers",   f"{yt_subs:,}" if yt_subs else None),
+                ("Total views",   f"{yt_views:,}" if yt_views else None),
+                ("Boiler Room",   "✓ Detected" if yt_br else None),
+                ("RA Exchange",   "✓ Detected" if yt_ra else None),
+            ])
+
+    # ── Mixcloud (enricher) ───────────────────────────────────────────────────
+    mc_api_followers = enriched.get("mc_followers")
+    mc_api_listens   = enriched.get("mc_listen_count")
+    mc_api_tracks    = enriched.get("mc_track_count")
+    if mc_api_followers or mc_api_tracks:
+        with st.container(border=True):
+            st.markdown("**Mixcloud**")
+            _kv_grid([
+                ("Followers",     f"{mc_api_followers:,}" if mc_api_followers else None),
+                ("Total listens", f"{mc_api_listens:,}"   if mc_api_listens else None),
+                ("Mixes",         str(mc_api_tracks) if mc_api_tracks else None),
+                ("Episode count", str(mc_count) if mc_count else None),
+                ("Shows",         ", ".join(mc_shows[:4]) if mc_shows else None),
+            ])
+    elif mc_count or mc_shows:
+        with st.container(border=True):
+            st.markdown("**Mixcloud**")
+            _kv_grid([
+                ("Appearances", str(mc_count)),
+                ("Shows",       ", ".join(mc_shows[:6]) if mc_shows else None),
             ])
 
     # ── Milestones ───────────────────────────────────────────────────────────
