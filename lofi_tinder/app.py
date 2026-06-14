@@ -713,6 +713,15 @@ _NOTABLE_PENDING = {
     "first_beatport_top10", "first_boiler_room", "first_ra_podcast", "first_bbc_r1",
 }
 
+# Prestigious labels the booking team watches — matched against beatport_labels
+_NOTABLE_LABELS = {
+    "Solid Grooves Records", "PIV Records", "Up The Stuss", "Hot Creations",
+    "Cuttin Headz", "Revival New York", "No Art", "Eastenderz",
+    "Heavy House Society", "Cecille Records", "CircoLoco Records", "Afterlife",
+    "Diynamic Music", "Innervisions", "Kompakt", "Drumcode", "Tronic",
+    "Soma Records", "Repitch Recordings", "Stroboscopic Artefacts",
+}
+
 # Milestones that genuinely matter to a talent buyer (high signal, not noise)
 _HIGH_SIGNAL_MILESTONES = {
     "first_circoloco", "first_music_on", "first_ants",
@@ -1023,6 +1032,32 @@ def _show_stats(artist_id: str, profile_text: str, cosine_dist: float = 1.0,
             "fast-growing). Determined by cosine similarity to two separate taste centroids "
             "built from confirmed LOFI bookings, split by career size."
         )
+
+    # ── Data coverage ────────────────────────────────────────────────────────
+    _cov_sources: list[str] = []
+    _cov_bs = enriched.get("booking_stats") or {}
+    if enriched.get("beatport_releases") or (enriched.get("beatport_labels") or []):
+        _cov_sources.append("Beatport")
+    if _cov_bs.get("festival_count"):
+        _cov_sources.append(f"Festival lineups ({_cov_bs['festival_count']})")
+    elif enriched.get("festival_history"):
+        _cov_sources.append(f"Festival lineups ({len(enriched['festival_history'])})")
+    if _cov_bs.get("total"):
+        _nl = _cov_bs.get("nl_events") or 0
+        _cov_sources.append(f"Club lineups ({_cov_bs['total']}, {_nl} NL)")
+    if enriched.get("spotify_followers") or enriched.get("spotify_id"):
+        _cov_sources.append("Spotify")
+    if enriched.get("sc_followers") or enriched.get("sc_tracks"):
+        _cov_sources.append("SoundCloud")
+    if (enriched.get("growth_history") or {}).get("current_listeners"):
+        _cov_sources.append("Last.fm")
+    if _cov_sources:
+        st.caption("Scraped: " + "  ·  ".join(_cov_sources))
+
+    _bp_labels_lower = {lb.lower() for lb in (enriched.get("beatport_labels") or [])}
+    _matched_labels = [lb for lb in _NOTABLE_LABELS if lb.lower() in _bp_labels_lower]
+    if _matched_labels:
+        st.caption("Notable labels: " + "  ·  ".join(_matched_labels))
 
     # ── Genre tags + similar ─────────────────────────────────────────────────
     tags = list(dict.fromkeys(
