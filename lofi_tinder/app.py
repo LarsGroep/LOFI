@@ -310,8 +310,7 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
 
     for i, name in enumerate(new_names):
         slug = _slug(name)
-        # include_timeseries=False for quick discovery — overnight batch adds full TS
-        cm = enrich_from_chartmetric(name, include_timeseries=False) if is_configured() else {}
+        cm = enrich_from_chartmetric(name) if is_configured() else {}  # always full TS
         enriched_data = {"artist_id": slug, "name": name, **(cm or {})}
         artist = ArtistInput(artist_id=slug, name=name, enriched=enriched_data)
         profile = generate_profile(artist)

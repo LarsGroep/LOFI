@@ -291,8 +291,8 @@ def enrich_from_chartmetric(name: str, include_timeseries: bool = True) -> dict 
     latest stats for Spotify/Instagram/TikTok/YouTube, and optionally
     180-day time-series for all four platforms + pre-computed ML features.
 
-    Set include_timeseries=False for quick discovery enrichment (saves ~6 API calls).
-    Always True for overnight batch jobs — time series is required for ML training.
+    include_timeseries=True is the standard — always fetch 180-day time-series and
+    ml_features. Only pass False in test/debug scenarios where speed matters more than data.
     """
     candidates = search_artist(name, limit=3)
     if not candidates:
