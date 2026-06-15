@@ -93,7 +93,7 @@ def _load_swipes() -> list[SwipeRecord]:
 
 @st.cache_data(ttl=300)
 def _load_cache() -> dict[str, dict]:
-    """Load Chartmetric-enriched artist data from Supabase artist_cache."""
+    """Load full artist_cache rows from Supabase (all Chartmetric fields)."""
     db = get_db()
     result: dict[str, dict] = {}
     if db.ok:
@@ -106,18 +106,12 @@ def _load_cache() -> dict[str, dict]:
 
 @st.cache_data(ttl=600)
 def _feel_matrix_size() -> int:
-    """Count of booked artists with embeddings used to build the Feel Matrix."""
     db = get_db()
     if not db.ok:
         return 0
     try:
-        booked = (
-            db._t("artist_cache")
-            .select("slug", count="exact")
-            .eq("lofi_booked", True)
-            .execute()
-        )
-        return booked.count or 0
+        res = db._t("artist_cache").select("slug", count="exact").eq("lofi_booked", True).execute()
+        return res.count or 0
     except Exception:
         return 0
 
@@ -127,7 +121,6 @@ def _feel_matrix_size() -> int:
 def _handle_swipe(profile: ArtistProfile, decision: str) -> None:
     db = get_db()
     ts = datetime.now(timezone.utc).isoformat()
-
     db.save_swipe(
         artist_id=profile.artist_id,
         name=profile.name,
@@ -136,13 +129,11 @@ def _handle_swipe(profile: ArtistProfile, decision: str) -> None:
         cosine_dist=profile.cosine_dist_to_centroid,
         profile_text=profile.profile_text,
     )
-
     if decision == "yes":
         db.flag_for_enrichment(profile.artist_id)
         st.session_state["session_yes"] = st.session_state.get("session_yes", 0) + 1
         if st.session_state["session_yes"] % _CENTROID_UPDATE_EVERY == 0:
             _refresh_centroid()
-
     st.session_state["queue_idx"] = st.session_state.get("queue_idx", 0) + 1
     st.cache_data.clear()
     st.rerun()
@@ -152,58 +143,130 @@ def _refresh_centroid() -> None:
     profiles_all = _load_profiles.__wrapped__()
     swipes_all = _load_swipes.__wrapped__()
     yes_ids = {s.artist_id for s in swipes_all if s.decision == "yes"}
-    yes_embeddings = [p.embedding for p in profiles_all if p.artist_id in yes_ids and p.embedding]
-    if yes_embeddings:
-        centroid = compute_centroid(yes_embeddings)
-        save_centroid(centroid)
+    vecs = [p.embedding for p in profiles_all if p.artist_id in yes_ids and p.embedding]
+    if vecs:
+        save_centroid(compute_centroid(vecs))
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _fmt(n, suffix: str = "") -> str:
+    if not isinstance(n, (int, float)):
+        return "—"
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M{suffix}"
+    if n >= 1_000:
+        return f"{n / 1_000:.0f}K{suffix}"
+    return f"{int(n)}{suffix}"
+
+
+def _delta_label(ml: dict, key: str) -> str | None:
+    v = ml.get(key)
+    if v is None:
+        return None
+    sign = "+" if v >= 0 else ""
+    return f"{sign}{v:.1f}% 30d"
 
 
 # ── Card display ──────────────────────────────────────────────────────────────
 
-def _fmt(n) -> str:
-    if not isinstance(n, (int, float)):
-        return "—"
-    if n >= 1_000_000:
-        return f"{n / 1_000_000:.1f}M"
-    if n >= 1_000:
-        return f"{n / 1_000:.0f}K"
-    return str(int(n))
-
-
 def _show_card(profile: ArtistProfile, cache: dict) -> None:
-    st.markdown(f"## {profile.name}")
+    # ── Header: image + name + career badge ───────────────────────────────────
+    img = cache.get("image_url")
+    career = cache.get("career_status", "")
+
+    if img:
+        col_img, col_title = st.columns([1, 4])
+        with col_img:
+            st.image(img, width=90)
+        with col_title:
+            st.markdown(f"### {profile.name}")
+            if career:
+                st.caption(f"Career stage: **{career}**")
+            cm_rank = cache.get("cm_artist_rank")
+            cm_score = cache.get("cm_artist_score")
+            if cm_rank:
+                st.caption(f"Chartmetric rank #{cm_rank:,}" + (f"  ·  score {cm_score:.0f}" if cm_score else ""))
+    else:
+        st.markdown(f"### {profile.name}")
+        if career:
+            st.caption(f"Career stage: **{career}**")
+
+    # ── Profile text ──────────────────────────────────────────────────────────
     st.info(profile.profile_text)
 
-    # Pull Chartmetric fields — note the column naming in artist_cache:
-    #   lastfm_listeners  → Spotify monthly listeners (stored this way by build script)
-    #   lastfm_tags       → Spotify genres
+    # ── Platform stats grid ───────────────────────────────────────────────────
+    ml: dict = cache.get("ml_features") or {}
+
+    # Monthly listeners + followers + Spotify popularity
     sp_monthly   = cache.get("lastfm_listeners") or cache.get("spotify_monthly_listeners")
     sp_followers = cache.get("spotify_followers")
-    genres       = cache.get("lastfm_tags") or []
-    agency       = cache.get("agency") or cache.get("booking_agent")
-    cm_score     = cache.get("cm_artist_score")
-    cm_rank      = cache.get("cm_artist_rank")
+    sp_pop       = cache.get("spotify_popularity")
+    ig           = cache.get("ig_followers")
+    tiktok       = cache.get("tiktok_followers")
+    yt           = cache.get("yt_subscribers")
 
-    # Metrics row
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Monthly listeners", _fmt(sp_monthly))
-    col2.metric("Spotify followers", _fmt(sp_followers))
-    if cm_score is not None:
-        col3.metric("CM score", f"{cm_score:.0f}" if isinstance(cm_score, float) else cm_score)
-    elif cm_rank is not None:
-        col3.metric("CM rank", f"#{cm_rank:,}" if isinstance(cm_rank, int) else cm_rank)
-    else:
-        col3.metric("CM score", "—")
+    # Row 1: Spotify
+    c1, c2, c3 = st.columns(3)
+    c1.metric("SP Monthly", _fmt(sp_monthly), delta=_delta_label(ml, "sp_listeners_30d_pct"))
+    c2.metric("SP Followers", _fmt(sp_followers))
+    c3.metric("SP Popularity", str(sp_pop) if sp_pop else "—")
 
-    # Genre tags
+    # Row 2: Social
+    c4, c5, c6 = st.columns(3)
+    c4.metric("Instagram", _fmt(ig), delta=_delta_label(ml, "ig_followers_30d_pct"))
+    c5.metric("TikTok", _fmt(tiktok), delta=_delta_label(ml, "tiktok_followers_30d_pct"))
+    c6.metric("YouTube", _fmt(yt), delta=_delta_label(ml, "yt_subs_30d_pct"))
+
+    # ── Spotify monthly listeners time-series chart ───────────────────────────
+    ts_data = cache.get("cm_timeseries") or {}
+    sp_ts = ts_data.get("spotify") or []
+    if sp_ts:
+        import pandas as pd
+        df = pd.DataFrame(sp_ts)
+        df["date"] = pd.to_datetime(df["date"])
+        df = df.set_index("date").rename(columns={"value": "Monthly listeners"})
+        st.line_chart(df, height=160, use_container_width=True)
+
+    # ── ML feature highlights (acceleration, cross-platform) ──────────────────
+    accel = ml.get("sp_listeners_accel")
+    momentum = ml.get("cross_platform_momentum_30d")
+    growing = ml.get("platforms_growing_30d")
+    ratio = ml.get("sp_listeners_to_followers")
+
+    feature_parts = []
+    if accel is not None:
+        sign = "↑" if accel > 0 else "↓"
+        feature_parts.append(f"Growth accel: {sign}{abs(accel):.1f}pp")
+    if growing:
+        feature_parts.append(f"{growing}/4 platforms growing")
+    if momentum is not None:
+        feature_parts.append(f"Momentum: {momentum:+.1f}%")
+    if ratio is not None:
+        feature_parts.append(f"L/F ratio: {ratio:.1f}×")
+    if feature_parts:
+        st.caption("  ·  ".join(feature_parts))
+
+    # ── Metadata row ──────────────────────────────────────────────────────────
+    genres  = cache.get("lastfm_tags") or []
+    agency  = cache.get("agency") or cache.get("booking_agent")
+    label   = cache.get("record_label")
+    desc    = cache.get("description")
+
     if genres:
         st.caption("Genres: " + "  ·  ".join(f"#{g}" for g in genres[:6]))
-
-    # Agency
+    meta_parts = []
     if agency:
-        st.caption(f"Agency: {agency}")
+        meta_parts.append(f"Agency: {agency}")
+    if label:
+        meta_parts.append(f"Label: {label}")
+    if meta_parts:
+        st.caption("  ·  ".join(meta_parts))
+    if desc:
+        with st.expander("About", expanded=False):
+            st.write(desc)
 
-    # LOFI Feel Matrix match
+    # ── LOFI Feel Matrix match ────────────────────────────────────────────────
     dist = profile.cosine_dist_to_centroid
     match_pct = max(0, int((1 - dist) * 100))
     st.progress(match_pct / 100, text=f"LOFI match: {match_pct}%")
@@ -216,6 +279,8 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
     from lofi_tinder.profile_builder import generate_profile
     from lofi_tinder.embedder import embed_profiles
     from lofi_tinder.schemas import ArtistInput
+    from scrapers.chartmetric_client import enrich_from_chartmetric, is_configured
+    from scrapers.build_booked_profiles import _build_cache_row
     import re, unicodedata
 
     def _slug(n: str) -> str:
@@ -223,7 +288,7 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
         return re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_")
 
     st.title("Finding new artists...")
-    prog = st.progress(0.0, "Searching Last.fm...")
+    prog = st.progress(0.0, "Searching Last.fm for similar artists...")
 
     def _cb(done, total, name):
         prog.progress(min(done / max(total, 1), 1.0), f"Checking: {name}")
@@ -238,34 +303,20 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
             st.rerun()
         return
 
-    st.write(f"Building profiles for {len(new_names)} new artists...")
-    from scrapers.chartmetric_client import enrich_from_chartmetric, is_configured
-
+    st.write(f"Building profiles for {len(new_names)} artists...")
     db = get_db()
     new_profiles = []
     bar = st.progress(0.0)
+
     for i, name in enumerate(new_names):
         slug = _slug(name)
-        enriched_data = {"artist_id": slug, "name": name}
-        cm = {}
-        if is_configured():
-            cm = enrich_from_chartmetric(name) or {}
-            if cm:
-                enriched_data.update({k: v for k, v in cm.items() if v})
+        cm = enrich_from_chartmetric(name) if is_configured() else {}  # always full TS
+        enriched_data = {"artist_id": slug, "name": name, **(cm or {})}
         artist = ArtistInput(artist_id=slug, name=name, enriched=enriched_data)
         profile = generate_profile(artist)
         new_profiles.append(profile)
-        cache_row: dict = {"slug": slug, "name": name}
-        if cm.get("chartmetric_id"):
-            cache_row["chartmetric_id"] = str(cm["chartmetric_id"])
-        if cm.get("booking_agent"):
-            cache_row["agency"] = cm["booking_agent"]
-        if cm.get("spotify_followers"):
-            cache_row["spotify_followers"] = cm["spotify_followers"]
-        if cm.get("spotify_monthly_listeners"):
-            cache_row["lastfm_listeners"] = cm["spotify_monthly_listeners"]
-        if cm.get("spotify_genres"):
-            cache_row["lastfm_tags"] = cm["spotify_genres"]
+
+        cache_row = _build_cache_row(slug, name, 0, cm or {})
         db.upsert_artist(slug, cache_row)
         bar.progress((i + 1) / len(new_names))
 
@@ -300,15 +351,19 @@ def main() -> None:
         if db.ok:
             counts = db.count_swipes()
             st.success("Supabase connected")
-            col_y, col_m, col_n = st.columns(3)
-            col_y.metric("YES", counts.get("yes", 0))
-            col_m.metric("Monitor", counts.get("monitor", 0))
-            col_n.metric("No", sum(
-                counts.get(k, 0) for k in ("no", "commercial", "wrong_genre", "saturated_nl", "not_ready")
+            cy, cm_col, cn = st.columns(3)
+            cy.metric("YES", counts.get("yes", 0))
+            cm_col.metric("Monitor", counts.get("monitor", 0))
+            cn.metric("No", sum(
+                counts.get(k, 0)
+                for k in ("no", "commercial", "wrong_genre", "saturated_nl", "not_ready")
             ))
             st.divider()
             matrix_size = _feel_matrix_size()
-            st.caption(f"Feel Matrix: {matrix_size} LOFI artists")
+            st.caption(f"Feel Matrix: **{matrix_size}** LOFI artists")
+            session_yes = st.session_state.get("session_yes", 0)
+            if session_yes:
+                st.caption(f"This session: {session_yes} YES")
         else:
             st.warning(f"Supabase offline\n{get_error()}")
 
@@ -330,7 +385,6 @@ def main() -> None:
     swipes = _load_swipes()
     swiped = get_swiped_ids(swipes)
     cache_map = _load_cache()
-
     lofi_booked = {slug for slug, row in cache_map.items() if row.get("lofi_booked")}
 
     queue = rank_candidates(profiles, swiped, lofi_booked)
@@ -338,8 +392,7 @@ def main() -> None:
 
     if idx >= len(queue):
         st.title("Batch complete")
-        session_yes = st.session_state.get("session_yes", 0)
-        st.write(f"Swiped through {idx} artists this session · YES: {session_yes}")
+        st.write(f"Swiped {idx} artists this session · YES: {st.session_state.get('session_yes', 0)}")
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Find new artists", type="primary", use_container_width=True):
