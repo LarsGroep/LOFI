@@ -190,8 +190,13 @@ def _log_run(
 
 def enrich_yes_artists() -> None:
     """
-    Hourly job: scrape all YES'd artists that have needs_enrichment=true,
-    then clear the flag. Runs in GitHub Actions on an hourly cron.
+    Hourly job: fully enrich all YES'd artists that have needs_enrichment=true.
+
+    Runs two enrichment passes per artist:
+      1. Legacy scrapers (Last.fm, SoundCloud, Discogs, YouTube, Mixcloud)
+      2. Chartmetric (full profile + 180-day time-series + ml_features)
+
+    Chartmetric is the primary ML data source; legacy scrapers fill gaps.
     """
     if not sb:
         print("Supabase not configured — set SUPABASE_URL and SUPABASE_KEY")
@@ -209,7 +214,17 @@ def enrich_yes_artists() -> None:
         print("No artists need enrichment — nothing to do")
         return
 
-    print(f"Enriching {len(artists)} YES'd artists...")
+    print(f"Enriching {len(artists)} YES'd artists (legacy + Chartmetric)...")
+
+    try:
+        from scrapers.chartmetric_client import enrich_from_chartmetric, is_configured, compute_growth_features
+        cm_available = is_configured()
+    except ImportError:
+        cm_available = False
+
+    if not cm_available:
+        print("  WARNING: CHARTMETRIC_REFRESH_TOKEN not set — skipping Chartmetric pass")
+
     errors = 0
     done = 0
 
@@ -217,16 +232,29 @@ def enrich_yes_artists() -> None:
         name = row.get("name") or row["slug"]
         slug = row["slug"]
         try:
+            # Pass 1: legacy scrapers (Last.fm, SoundCloud, etc.)
             record, raw = _scrape_artist(name)
             _write_raw_scrapes(name, raw)
             _write_artist_cache(record)
-            # Clear the flag
+
+            # Pass 2: Chartmetric (primary ML source — full timeseries + features)
+            if cm_available:
+                cm = enrich_from_chartmetric(name, include_timeseries=True) or {}
+                if cm:
+                    from scrapers.build_booked_profiles import _build_cache_row
+                    cm_row = _build_cache_row(slug, name, 0, cm)
+                    # Don't overwrite lofi_booked/lofi_appearance_count set by batch job
+                    cm_row.pop("lofi_booked", None)
+                    cm_row.pop("lofi_appearance_count", None)
+                    sb.schema("tinder").table("artist_cache").update(cm_row).eq("slug", slug).execute()
+
             sb.schema("tinder").table("artist_cache").update({
                 "needs_enrichment": False,
-                "enriched_at": datetime.now(timezone.utc).isoformat(),
+                "enriched_at":      datetime.now(timezone.utc).isoformat(),
             }).eq("slug", slug).execute()
+
             done += 1
-            print(f"  [{done}] {name}")
+            print(f"  [{done}] {name}" + (" (+ Chartmetric)" if cm_available else ""))
         except Exception as e:
             errors += 1
             print(f"  Error on {name}: {e}")
