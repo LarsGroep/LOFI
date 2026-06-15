@@ -160,19 +160,29 @@ def main() -> None:
     parser.add_argument("--force", action="store_true",
                         help="Re-fetch timeseries even if already present")
     parser.add_argument("--days", type=int, default=180)
+    parser.add_argument("--limit", type=int, default=0,
+                        help="Max artists to process (0 = all)")
+    parser.add_argument("--all-artists", action="store_true",
+                        help="Include all artists with a CM ID, not just lofi_booked")
     args = parser.parse_args()
 
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
-    rows = (
+    query = (
         sb.schema("tinder").table("artist_cache")
         .select("slug, name, chartmetric_id, spotify_followers, cm_timeseries")
-        .eq("lofi_booked", True)
-        .execute().data or []
+        .not_.is_("chartmetric_id", "null")
     )
+    if not args.all_artists:
+        query = query.eq("lofi_booked", True)
+
+    rows = query.execute().data or []
 
     if not args.force:
         rows = [r for r in rows if not r.get("cm_timeseries")]
+
+    if args.limit > 0:
+        rows = rows[:args.limit]
 
     total = len(rows)
     with_id = sum(1 for r in rows if r.get("chartmetric_id"))

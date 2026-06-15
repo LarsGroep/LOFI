@@ -1,0 +1,66 @@
+name: Seed Chartmetric Timeseries
+
+# Fetch 180-day Chartmetric timeseries for all artists that have a CM ID.
+# Computes ml_features (30d/90d growth, acceleration, listener-to-follower ratio).
+# This is the primary ML training signal — run this before building the scoring engine.
+#
+# Timing: 4 API calls × 2.1s = ~8.4s per artist
+#   Artists with CM ID (~400): ~55 min
+#   All 755 artists (if all have CM IDs): ~1.8 hrs
+#
+# Resumable: skips artists that already have cm_timeseries unless --force.
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'   # weekly Sunday 2 AM UTC — refresh stale timeseries
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Days of history to fetch (default 180)'
+        required: false
+        default: '180'
+      force:
+        description: 'Re-fetch even if timeseries already exists'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      limit:
+        description: 'Max artists to process (0 = all)'
+        required: false
+        default: '0'
+
+jobs:
+  timeseries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Fetch Chartmetric timeseries
+        env:
+          SUPABASE_URL:               ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:               ${{ secrets.SUPABASE_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: |
+          ARGS="--days ${{ github.event.inputs.days || '180' }}"
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          if [ "${{ github.event.inputs.limit || '0' }}" != "0" ]; then
+            ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
+          fi
+          python seed_timeseries.py $ARGS
