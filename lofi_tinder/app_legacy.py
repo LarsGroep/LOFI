@@ -1,5 +1,5 @@
 """
-LOFI Tinder — artist discovery UI (Chartmetric edition).
+LOFI Tinder — artist discovery UI.
 Run: streamlit run lofi_tinder/app.py
 """
 from __future__ import annotations
@@ -14,6 +14,7 @@ load_dotenv()
 
 import streamlit as st
 
+# Inject Streamlit Cloud secrets into env
 try:
     for k, v in st.secrets.items():
         if isinstance(v, str) and k not in os.environ:
@@ -27,7 +28,7 @@ from lofi_tinder.ranker import get_swiped_ids, rank_candidates
 from lofi_tinder.embedder import compute_centroid, save_centroid, load_centroid
 
 _PROFILES_FILE = Path(__file__).parent.parent / "profiles" / "artist_profiles.jsonl"
-_CENTROID_UPDATE_EVERY = 5
+_CENTROID_UPDATE_EVERY = 5  # YES swipes before centroid refresh
 
 st.set_page_config(page_title="LOFI Tinder", layout="centered")
 
@@ -38,6 +39,7 @@ st.set_page_config(page_title="LOFI Tinder", layout="centered")
 def _load_profiles() -> list[ArtistProfile]:
     profiles: dict[str, ArtistProfile] = {}
 
+    # Local file first (fast, available after run.py --demo)
     if _PROFILES_FILE.exists():
         for line in _PROFILES_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -52,6 +54,7 @@ def _load_profiles() -> list[ArtistProfile]:
                 pass
 
     if not profiles:
+        # Fallback: Supabase (Streamlit Cloud)
         db = get_db()
         for row in db.load_profiles():
             try:
@@ -73,53 +76,45 @@ def _load_profiles() -> list[ArtistProfile]:
 @st.cache_data(ttl=60)
 def _load_swipes() -> list[SwipeRecord]:
     db = get_db()
-    if not db.ok:
-        return []
-    swipes = []
-    for r in db.load_swipes():
-        try:
-            swipes.append(SwipeRecord(
-                artist_id=r.get("slug") or r.get("artist_id", ""),
-                name=r.get("searched_name") or r.get("name", ""),
-                decision=r["decision"],
-                ts=r.get("ts", ""),
-                cosine_dist_at_swipe=r.get("cosine_dist", 1.0),
-                profile_text=r.get("profile_text", ""),
-            ))
-        except Exception:
-            pass
-    return swipes
+    if db.ok:
+        rows = db.load_swipes()
+        swipes = []
+        for r in rows:
+            try:
+                swipes.append(SwipeRecord(
+                    artist_id=r.get("slug") or r.get("artist_id", ""),
+                    name=r.get("searched_name") or r.get("name", ""),
+                    decision=r["decision"],
+                    ts=r.get("ts", ""),
+                    cosine_dist_at_swipe=r.get("cosine_dist", 1.0),
+                    profile_text=r.get("profile_text", ""),
+                ))
+            except Exception:
+                pass
+        return swipes
+    return []
 
 
 @st.cache_data(ttl=300)
-def _load_cache() -> dict[str, dict]:
-    """Load Chartmetric-enriched artist data from Supabase artist_cache."""
-    db = get_db()
+def _load_enriched() -> dict[str, dict]:
+    enriched_file = Path(__file__).parent.parent / "scraper_data" / "artist_enriched.jsonl"
     result: dict[str, dict] = {}
-    if db.ok:
-        for row in db.load_artists():
-            slug = row.get("slug", "")
-            if slug:
-                result[slug] = row
+    if enriched_file.exists():
+        for line in enriched_file.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                try:
+                    d = json.loads(line)
+                    result[d.get("artist_id", "")] = d
+                except Exception:
+                    pass
+    if not result:
+        db = get_db()
+        if db.ok:
+            for row in db.load_artists():
+                slug = row.get("slug", "")
+                if slug:
+                    result[slug] = {"artist_id": slug, **row}
     return result
-
-
-@st.cache_data(ttl=600)
-def _feel_matrix_size() -> int:
-    """Count of booked artists with embeddings used to build the Feel Matrix."""
-    db = get_db()
-    if not db.ok:
-        return 0
-    try:
-        booked = (
-            db._t("artist_cache")
-            .select("slug", count="exact")
-            .eq("lofi_booked", True)
-            .execute()
-        )
-        return booked.count or 0
-    except Exception:
-        return 0
 
 
 # ── Swipe handler ─────────────────────────────────────────────────────────────
@@ -128,6 +123,7 @@ def _handle_swipe(profile: ArtistProfile, decision: str) -> None:
     db = get_db()
     ts = datetime.now(timezone.utc).isoformat()
 
+    # Save to Supabase
     db.save_swipe(
         artist_id=profile.artist_id,
         name=profile.name,
@@ -140,7 +136,10 @@ def _handle_swipe(profile: ArtistProfile, decision: str) -> None:
     if decision == "yes":
         db.flag_for_enrichment(profile.artist_id)
         st.session_state["session_yes"] = st.session_state.get("session_yes", 0) + 1
-        if st.session_state["session_yes"] % _CENTROID_UPDATE_EVERY == 0:
+
+        # Update centroid every N YES swipes
+        yes_count = st.session_state["session_yes"]
+        if yes_count % _CENTROID_UPDATE_EVERY == 0:
             _refresh_centroid()
 
     st.session_state["queue_idx"] = st.session_state.get("queue_idx", 0) + 1
@@ -149,7 +148,8 @@ def _handle_swipe(profile: ArtistProfile, decision: str) -> None:
 
 
 def _refresh_centroid() -> None:
-    profiles_all = _load_profiles.__wrapped__()
+    """Recompute centroid from all YES-swiped profiles."""
+    profiles_all = _load_profiles.__wrapped__()  # bypass cache
     swipes_all = _load_swipes.__wrapped__()
     yes_ids = {s.artist_id for s in swipes_all if s.decision == "yes"}
     yes_embeddings = [p.embedding for p in profiles_all if p.artist_id in yes_ids and p.embedding]
@@ -160,50 +160,46 @@ def _refresh_centroid() -> None:
 
 # ── Card display ──────────────────────────────────────────────────────────────
 
-def _fmt(n) -> str:
-    if not isinstance(n, (int, float)):
-        return "—"
-    if n >= 1_000_000:
-        return f"{n / 1_000_000:.1f}M"
-    if n >= 1_000:
-        return f"{n / 1_000:.0f}K"
-    return str(int(n))
+def _show_card(profile: ArtistProfile, enriched: dict) -> None:
+    # Artist image
+    img_url = enriched.get("image_url") or _spotify_image(profile.name)
+    if img_url:
+        st.image(img_url, width=100)
 
-
-def _show_card(profile: ArtistProfile, cache: dict) -> None:
     st.markdown(f"## {profile.name}")
     st.info(profile.profile_text)
 
-    # Pull Chartmetric fields — note the column naming in artist_cache:
-    #   lastfm_listeners  → Spotify monthly listeners (stored this way by build script)
-    #   lastfm_tags       → Spotify genres
-    sp_monthly   = cache.get("lastfm_listeners") or cache.get("spotify_monthly_listeners")
-    sp_followers = cache.get("spotify_followers")
-    genres       = cache.get("lastfm_tags") or []
-    agency       = cache.get("agency") or cache.get("booking_agent")
-    cm_score     = cache.get("cm_artist_score")
-    cm_rank      = cache.get("cm_artist_rank")
+    # Stats
+    gh = enriched.get("growth_history") or {}
+    listeners = gh.get("current_listeners") or enriched.get("spotify_monthly_listeners") or enriched.get("lastfm_listeners")
+    followers = enriched.get("spotify_followers")
+    genres = list(dict.fromkeys(
+        (enriched.get("spotify_genres") or []) + (enriched.get("lastfm_tags") or [])
+    ))[:5]
+    similar = list(dict.fromkeys(
+        (enriched.get("lastfm_similar") or [])
+    ))[:5]
+    agency = enriched.get("agency") or enriched.get("booking_agent")
+    label = (enriched.get("beatport_labels") or [None])[0] or enriched.get("record_label")
 
-    # Metrics row
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Monthly listeners", _fmt(sp_monthly))
-    col2.metric("Spotify followers", _fmt(sp_followers))
-    if cm_score is not None:
-        col3.metric("CM score", f"{cm_score:.0f}" if isinstance(cm_score, float) else cm_score)
-    elif cm_rank is not None:
-        col3.metric("CM rank", f"#{cm_rank:,}" if isinstance(cm_rank, int) else cm_rank)
-    else:
-        col3.metric("CM score", "—")
+    cols = st.columns(3)
+    if listeners:
+        cols[0].metric("Monthly listeners", f"{listeners:,}")
+    if followers:
+        cols[1].metric("Spotify followers", f"{followers:,}")
+    if enriched.get("pf_fans"):
+        cols[2].metric("Partyflock fans", f"{enriched['pf_fans']:,}")
 
-    # Genre tags
     if genres:
-        st.caption("Genres: " + "  ·  ".join(f"#{g}" for g in genres[:6]))
-
-    # Agency
+        st.caption("Genres: " + " · ".join(f"#{g}" for g in genres))
+    if similar:
+        st.caption("Similar to: " + ", ".join(similar))
     if agency:
         st.caption(f"Agency: {agency}")
+    if label:
+        tier = enriched.get("beatport_label_tier")
+        st.caption(f"Label: {label}" + (f" ({tier})" if tier else ""))
 
-    # LOFI Feel Matrix match
     dist = profile.cosine_dist_to_centroid
     match_pct = max(0, int((1 - dist) * 100))
     st.progress(match_pct / 100, text=f"LOFI match: {match_pct}%")
@@ -238,6 +234,7 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
             st.rerun()
         return
 
+    # Enrich with Chartmetric + generate profiles
     st.write(f"Building profiles for {len(new_names)} new artists...")
     from scrapers.chartmetric_client import enrich_from_chartmetric, is_configured
 
@@ -247,7 +244,6 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
     for i, name in enumerate(new_names):
         slug = _slug(name)
         enriched_data = {"artist_id": slug, "name": name}
-        cm = {}
         if is_configured():
             cm = enrich_from_chartmetric(name) or {}
             if cm:
@@ -255,18 +251,8 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
         artist = ArtistInput(artist_id=slug, name=name, enriched=enriched_data)
         profile = generate_profile(artist)
         new_profiles.append(profile)
-        cache_row: dict = {"slug": slug, "name": name}
-        if cm.get("chartmetric_id"):
-            cache_row["chartmetric_id"] = str(cm["chartmetric_id"])
-        if cm.get("booking_agent"):
-            cache_row["agency"] = cm["booking_agent"]
-        if cm.get("spotify_followers"):
-            cache_row["spotify_followers"] = cm["spotify_followers"]
-        if cm.get("spotify_monthly_listeners"):
-            cache_row["lastfm_listeners"] = cm["spotify_monthly_listeners"]
-        if cm.get("spotify_genres"):
-            cache_row["lastfm_tags"] = cm["spotify_genres"]
-        db.upsert_artist(slug, cache_row)
+        db.upsert_artist(slug, {"slug": slug, "name": name,
+                                **({"chartmetric_id": str(cm["chartmetric_id"])} if cm.get("chartmetric_id") else {})})
         bar.progress((i + 1) / len(new_names))
 
     embed_profiles(new_profiles)
@@ -278,6 +264,7 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
         db.save_profile(p.artist_id, p.name, p.profile_text,
                         p.embedding or None, p.cosine_dist_to_centroid)
 
+    # Append to local profiles file
     _PROFILES_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(_PROFILES_FILE, "a", encoding="utf-8") as f:
         for p in new_profiles:
@@ -295,23 +282,21 @@ def _phase_discover(yes_names: list[str], known_slugs: set[str]) -> None:
 def main() -> None:
     db = get_db()
 
+    # Sidebar
     with st.sidebar:
         st.title("LOFI Tinder")
         if db.ok:
             counts = db.count_swipes()
             st.success("Supabase connected")
-            col_y, col_m, col_n = st.columns(3)
-            col_y.metric("YES", counts.get("yes", 0))
-            col_m.metric("Monitor", counts.get("monitor", 0))
-            col_n.metric("No", sum(
-                counts.get(k, 0) for k in ("no", "commercial", "wrong_genre", "saturated_nl", "not_ready")
-            ))
-            st.divider()
-            matrix_size = _feel_matrix_size()
-            st.caption(f"Feel Matrix: {matrix_size} LOFI artists")
+            st.metric("YES", counts.get("yes", 0))
+            st.metric("Monitor", counts.get("monitor", 0))
+            st.metric("No", counts.get("no", 0) + counts.get("commercial", 0) +
+                      counts.get("wrong_genre", 0) + counts.get("saturated_nl", 0) +
+                      counts.get("not_ready", 0))
         else:
             st.warning(f"Supabase offline\n{get_error()}")
 
+    # Phase routing
     phase = st.session_state.get("phase", "swipe")
 
     if phase == "discover":
@@ -322,6 +307,7 @@ def main() -> None:
         _phase_discover(yes_names, known)
         return
 
+    # Main swipe loop
     profiles = _load_profiles()
     if not profiles:
         st.error("No profiles found. Run: `python run.py --demo`")
@@ -329,17 +315,23 @@ def main() -> None:
 
     swipes = _load_swipes()
     swiped = get_swiped_ids(swipes)
-    cache_map = _load_cache()
+    enriched_map = _load_enriched()
 
-    lofi_booked = {slug for slug, row in cache_map.items() if row.get("lofi_booked")}
+    # Find lofi_booked IDs so we don't show them as candidates
+    lofi_booked = {
+        row.get("slug", "") for row in (db.load_artists() if db.ok else [])
+        if row.get("lofi_booked")
+    }
 
     queue = rank_candidates(profiles, swiped, lofi_booked)
     idx = st.session_state.get("queue_idx", 0)
 
+    # Queue exhausted
     if idx >= len(queue):
         st.title("Batch complete")
         session_yes = st.session_state.get("session_yes", 0)
-        st.write(f"Swiped through {idx} artists this session · YES: {session_yes}")
+        st.write(f"You swiped through {idx} artists this session. YES: {session_yes}")
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Find new artists", type="primary", use_container_width=True):
@@ -353,12 +345,15 @@ def main() -> None:
                 st.rerun()
         return
 
+    # Show current card
     st.caption(f"Artist {idx + 1} of {len(queue)}")
     artist = queue[idx]
-    _show_card(artist, cache_map.get(artist.artist_id, {}))
+    enriched = enriched_map.get(artist.artist_id, {})
+    _show_card(artist, enriched)
 
     st.divider()
 
+    # Primary buttons
     c1, c2, c3 = st.columns([3, 3, 1])
     with c1:
         if st.button("YES — Fits LOFI", type="primary", use_container_width=True, key="yes"):
@@ -370,6 +365,7 @@ def main() -> None:
         if st.button("Skip", use_container_width=True, key="skip"):
             _handle_swipe(artist, "skip")
 
+    # Negative reasons
     r1, r2, r3 = st.columns(3)
     with r1:
         if st.button("No fit", use_container_width=True, key="no"):
@@ -380,6 +376,39 @@ def main() -> None:
     with r3:
         if st.button("Too commercial", use_container_width=True, key="commercial"):
             _handle_swipe(artist, "commercial")
+
+
+@st.cache_data(ttl=3600)
+def _spotify_image(name: str) -> str | None:
+    import base64, urllib.request, urllib.parse, json
+    cid = os.environ.get("SPOTIFY_CLIENT_ID", "")
+    sec = os.environ.get("SPOTIFY_CLIENT_SECRET", "")
+    if not cid or not sec:
+        return None
+    try:
+        creds = base64.b64encode(f"{cid}:{sec}".encode()).decode()
+        req = urllib.request.Request(
+            "https://accounts.spotify.com/api/token",
+            data=b"grant_type=client_credentials",
+            headers={"Authorization": f"Basic {creds}",
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            token = json.loads(r.read()).get("access_token")
+        if not token:
+            return None
+        q = urllib.parse.quote(name)
+        req2 = urllib.request.Request(
+            f"https://api.spotify.com/v1/search?q={q}&type=artist&limit=1",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with urllib.request.urlopen(req2, timeout=5) as r:
+            items = json.loads(r.read()).get("artists", {}).get("items", [])
+        if items:
+            imgs = items[0].get("images", [])
+            return imgs[1]["url"] if len(imgs) > 1 else (imgs[0]["url"] if imgs else None)
+    except Exception:
+        return None
 
 
 if __name__ == "__main__":
