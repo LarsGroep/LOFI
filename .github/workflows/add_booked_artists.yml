@@ -1,13 +1,10 @@
 name: Add Booked Artists
 
-# Manual trigger only — run this to import LOFI-booked artists from
-# lofi_booked_labels.csv into Supabase tinder.artist_cache with lofi_booked=true.
+# Manual trigger only — import LOFI-booked artists from
+# data/lofi_booked_labels.csv into Supabase tinder.artist_cache with lofi_booked=true.
 #
 # Each run processes a batch (default 50), skipping artists already imported.
-# Run multiple times until all 755 artists are imported.
-#
-# After all artists are imported, run `python run.py --seed` locally to rebuild
-# the centroid from the full set of booked artists.
+# Run multiple times until all artists are imported.
 
 on:
   workflow_dispatch:
@@ -44,7 +41,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
-        working-directory: lofi-tinder
 
       - name: Import LOFI-booked artists
         env:
@@ -55,11 +51,9 @@ jobs:
           DISCOGS_SECRET:             ${{ secrets.DISCOGS_SECRET }}
           YOUTUBE_API_KEY:            ${{ secrets.YOUTUBE_API_KEY }}
           CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
-          BATCH_SIZE:                 ${{ github.event.inputs.batch_size }}
         run: |
           DRY=${{ github.event.inputs.dry_run }}
           BS=${{ github.event.inputs.batch_size }}
           ARGS="--batch-size ${BS:-50}"
           if [ "$DRY" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           python scrapers/add_booked_artists.py $ARGS
-        working-directory: lofi-tinder

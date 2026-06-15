@@ -44,12 +44,11 @@ jobs:
             ~/.cache/pip
             ~/.cache/torch
             ~/.cache/huggingface
-          key: ${{ runner.os }}-lofi-${{ hashFiles('lofi-tinder/requirements.txt') }}
+          key: ${{ runner.os }}-lofi-${{ hashFiles('requirements.txt') }}
           restore-keys: ${{ runner.os }}-lofi-
 
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
-        working-directory: lofi-tinder
 
       - name: Build booked artist profiles + rebuild Feel Matrix
         env:
@@ -62,4 +61,3 @@ jobs:
             ARGS="$ARGS --no-timeseries"
           fi
           python scrapers/build_booked_profiles.py $ARGS
-        working-directory: lofi-tinder
