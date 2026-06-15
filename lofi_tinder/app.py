@@ -374,6 +374,9 @@ def main() -> None:
         profiles = _load_profiles()
         known = {p.artist_id for p in profiles}
         yes_names = [s.name for s in swipes if s.decision == "yes"][-20:]
+        # Fallback: seed from booked profile names when no swipes yet
+        if not yes_names:
+            yes_names = [p.name for p in profiles if p.name][:10]
         _phase_discover(yes_names, known)
         return
 
