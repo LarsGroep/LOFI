@@ -119,7 +119,7 @@ def _push_to_supabase(record: dict) -> None:
     # Remove None values so we don't overwrite existing data with nulls
     props = {k: v for k, v in props.items() if v is not None}
 
-    sb.schema("scraper_data").table("artists").upsert(props, on_conflict="artist_id").execute()
+    sb.table("artists").upsert(props, on_conflict="artist_id").execute()
 
     # Similarity edges
     sims = list(dict.fromkeys(
@@ -127,14 +127,14 @@ def _push_to_supabase(record: dict) -> None:
     ))[:20]
     if sims:
         rows = [{"artist_id": aid, "similar_name": n, "source": "enriched"} for n in sims]
-        sb.schema("scraper_data").table("artist_similar").upsert(rows, on_conflict="artist_id,similar_name").execute()
+        sb.table("artist_similar").upsert(rows, on_conflict="artist_id,similar_name").execute()
 
 
 def _log_run(source: str, processed: int, updated: int, status: str = "ok", error: str = "") -> None:
     if not sb:
         return
     try:
-        sb.schema("scraper_data").table("scraper_runs").insert({
+        sb.table("scraper_runs").insert({
             "source": source,
             "artists_processed": processed,
             "artists_updated": updated,
