@@ -40,11 +40,12 @@ except Exception as e:
     print(f"Supabase init failed: {e}")
     sb = None
 
-# lofi_booked_labels.csv lives in the ra-scraper sibling directory
-_BOOKED_CSV = _ROOT.parent / "ra-scraper-master" / "scraper" / "lofi_booked_labels.csv"
-# Fallback: scraper_data copy if the repo layout differs
-if not _BOOKED_CSV.exists():
-    _BOOKED_CSV = _ROOT / "scraper_data" / "lofi_booked_labels.csv"
+_CSV_CANDIDATES = [
+    _ROOT / "data" / "lofi_booked_labels.csv",
+    _ROOT / "scraper_data" / "lofi_booked_labels.csv",
+    _ROOT.parent / "ra-scraper-master" / "scraper" / "lofi_booked_labels.csv",
+]
+_BOOKED_CSV = next((p for p in _CSV_CANDIDATES if p.exists()), _CSV_CANDIDATES[0])
 
 
 def _slug(name: str) -> str:
