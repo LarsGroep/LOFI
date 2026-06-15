@@ -305,9 +305,11 @@ def _handle_swipe(
         st.session_state["session_swiped"] = st.session_state.get("session_swiped", 0) + 1
     if decision == "yes":
         st.session_state["session_yes"] = st.session_state.get("session_yes", 0) + 1
-        # Also store similar artists in Supabase
         sb = _supabase()
         if sb.available:
+            # Flag for deep enrichment (picked up by the hourly GitHub Actions job)
+            sb.flag_for_enrichment(artist.artist_id)
+            # Store similarity edges while we're here
             enriched = _effective_enriched(artist.artist_id, emap)
             sims = list(dict.fromkeys(
                 (enriched.get("lastfm_similar") or []) + (enriched.get("spotify_related") or [])

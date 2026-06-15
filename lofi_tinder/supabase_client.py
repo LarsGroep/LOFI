@@ -355,6 +355,44 @@ class SupabaseClient:
         except Exception:
             pass
 
+    def flag_for_enrichment(self, slug: str) -> None:
+        """Set needs_enrichment=true after a YES swipe so the Actions job picks it up."""
+        if not self._sb:
+            return
+        try:
+            _tinder(self._sb).table("artist_cache").upsert(
+                {"slug": slug, "needs_enrichment": True},
+                on_conflict="slug",
+            ).execute()
+        except Exception:
+            pass
+
+    def load_needs_enrichment(self) -> list[dict]:
+        """Return all artists where needs_enrichment=true (for the hourly Actions job)."""
+        if not self._sb:
+            return []
+        try:
+            result = (
+                _tinder(self._sb).table("artist_cache")
+                .select("slug, name")
+                .eq("needs_enrichment", True)
+                .execute()
+            )
+            return result.data or []
+        except Exception:
+            return []
+
+    def clear_enrichment_flag(self, slug: str, enriched_at: str) -> None:
+        """Clear the needs_enrichment flag after the scraper job completes."""
+        if not self._sb:
+            return
+        try:
+            _tinder(self._sb).table("artist_cache").update(
+                {"needs_enrichment": False, "enriched_at": enriched_at}
+            ).eq("slug", slug).execute()
+        except Exception:
+            pass
+
     def close(self) -> None:
         pass
 
