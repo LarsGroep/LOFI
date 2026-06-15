@@ -1,19 +1,14 @@
 name: Build LOFI Booked Profiles
 
-# Overnight job: profile all artists from lofi_booked_labels.csv with full
-# Chartmetric enrichment — profile text, embedding, 180-day time-series,
-# and pre-computed ML features (growth rates, acceleration, momentum).
-# After completion the LOFI Feel Matrix centroid is rebuilt from all
-# booked artists and saved to Supabase.
-#
-# Timing: ~10 Chartmetric API calls/artist × 1.5s each → ~15s/artist
-#   755 artists ≈ 3.1 hrs enrichment + 5 min embedding = ~3.5 hrs total
-#   Fits in the 6-hour job timeout.
-#
-# Resumable: already-profiled artists are skipped automatically.
-# Add --no-timeseries flag to cut time in half (no ML features).
+# Full Chartmetric enrichment for all lofi_booked artists:
+# profile text, image, genres, 180-day timeseries, ml_features.
+# Scheduled at 4:00 AM UTC — after Add Booked Artists (1 AM) and
+# Scrape Artists (2 AM) have completed.
+# Runtime: ~3.5 hrs for 755 artists. Resumable — already-enriched artists skipped.
 
 on:
+  schedule:
+    - cron: '0 4 * * *'   # 4:00 AM UTC — runs after scrape batch finishes
   workflow_dispatch:
     inputs:
       batch_size:
@@ -57,7 +52,7 @@ jobs:
           CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
           ARGS="--batch-size ${{ github.event.inputs.batch_size || '0' }}"
-          if [ "${{ github.event.inputs.no_timeseries }}" = "true" ]; then
+          if [ "${{ github.event.inputs.no_timeseries || 'false' }}" = "true" ]; then
             ARGS="$ARGS --no-timeseries"
           fi
           python scrapers/build_booked_profiles.py $ARGS
