@@ -1,0 +1,51 @@
+name: Build LOFI Booked Profiles
+
+# Run overnight to profile all artists from lofi_booked_labels.csv.
+# After completion the LOFI Feel Matrix centroid is rebuilt from all
+# booked artists and saved to Supabase — the app picks it up automatically.
+#
+# Progress is resumable: already-profiled artists are skipped automatically.
+# Run multiple times if needed (e.g. if rate-limited mid-way through).
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Max artists per run (0 = all ~755, takes ~25 min)'
+        required: false
+        default: '0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip + sentence-transformers model
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/torch
+            ~/.cache/huggingface
+          key: ${{ runner.os }}-lofi-${{ hashFiles('lofi-tinder/requirements.txt') }}
+          restore-keys: ${{ runner.os }}-lofi-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+        working-directory: lofi-tinder
+
+      - name: Build booked artist profiles + rebuild Feel Matrix
+        env:
+          SUPABASE_URL:               ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:               ${{ secrets.SUPABASE_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: |
+          python scrapers/build_booked_profiles.py --batch-size ${{ github.event.inputs.batch_size || '0' }}
+        working-directory: lofi-tinder

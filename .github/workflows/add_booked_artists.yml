@@ -1,0 +1,65 @@
+name: Add Booked Artists
+
+# Manual trigger only — run this to import LOFI-booked artists from
+# lofi_booked_labels.csv into Supabase tinder.artist_cache with lofi_booked=true.
+#
+# Each run processes a batch (default 50), skipping artists already imported.
+# Run multiple times until all 755 artists are imported.
+#
+# After all artists are imported, run `python run.py --seed` locally to rebuild
+# the centroid from the full set of booked artists.
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Artists to process per run (0 = all, default 50)'
+        required: false
+        default: '50'
+      dry_run:
+        description: 'Dry run — print what would be imported without writing'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+jobs:
+  add-booked:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+        working-directory: lofi-tinder
+
+      - name: Import LOFI-booked artists
+        env:
+          SUPABASE_URL:               ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:               ${{ secrets.SUPABASE_KEY }}
+          LASTFM_API_KEY:             ${{ secrets.LASTFM_API_KEY }}
+          DISCOGS_KEY:                ${{ secrets.DISCOGS_KEY }}
+          DISCOGS_SECRET:             ${{ secrets.DISCOGS_SECRET }}
+          YOUTUBE_API_KEY:            ${{ secrets.YOUTUBE_API_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+          BATCH_SIZE:                 ${{ github.event.inputs.batch_size }}
+        run: |
+          DRY=${{ github.event.inputs.dry_run }}
+          BS=${{ github.event.inputs.batch_size }}
+          ARGS="--batch-size ${BS:-50}"
+          if [ "$DRY" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          python scrapers/add_booked_artists.py $ARGS
+        working-directory: lofi-tinder

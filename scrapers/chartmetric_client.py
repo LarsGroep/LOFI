@@ -8,7 +8,7 @@ Token flow:
   POST /api/token {"refreshtoken": ...} → {token, expires_in}
   All subsequent requests use Authorization: Bearer {token}
 
-Rate limit: developer plan = 1 req/sec → _RATE_SLEEP = 1.0
+Rate limit: developer plan = 1 req/sec → _RATE_SLEEP = 1.5  # 1 req/sec limit with buffer
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import httpx
 
 _BASE = "https://api.chartmetric.com/api"
 _TOKEN_URL = "https://api.chartmetric.com/api/token"
-_RATE_SLEEP = 1.0
+_RATE_SLEEP = 1.5  # 1 req/sec limit with buffer
 
 _access_token: str = ""
 _token_expires: float = 0.0
@@ -135,18 +135,25 @@ def enrich_from_chartmetric(name: str) -> dict | None:
     # Spotify stats
     sp_stats = get_spotify_stats(cm_id) or {}
 
-    # Monthly listeners: prefer from stats endpoint (more precise), fallback to search result
-    sp_monthly = (
+    def _num(v) -> int | None:
+        """Chartmetric sometimes returns stats as [{value, timestp, ...}] lists."""
+        if isinstance(v, list):
+            v = v[0].get("value") if v else None
+        if isinstance(v, dict):
+            v = v.get("value")
+        return int(v) if isinstance(v, (int, float)) and v is not None else None
+
+    sp_monthly = _num(
         sp_stats.get("sp_monthly_listeners")
         or best.get("sp_monthly_listeners")
         or profile.get("sp_monthly_listeners")
     )
-    sp_followers = (
+    sp_followers = _num(
         sp_stats.get("followers")
         or best.get("sp_followers")
         or profile.get("sp_followers")
     )
-    sp_popularity = sp_stats.get("sp_popularity") or profile.get("sp_popularity")
+    sp_popularity = _num(sp_stats.get("sp_popularity") or profile.get("sp_popularity"))
 
     genres = profile.get("genres") or []
     if isinstance(genres, list):
