@@ -1,9 +1,10 @@
 """
-GitHub Actions scraper — runs nightly, pushes fresh data to Supabase.
+GitHub Actions scraper — runs nightly, pushes raw + cache to Supabase.
 
-Reads artist list from data/lofi_lineup_artists.txt (committed to repo),
-scrapes each artist via BATCH_SOURCES (Last.fm, SoundCloud, Discogs, YouTube,
-Mixcloud), and upserts the results to Supabase.
+For each artist:
+  1. Scrapes via BATCH_SOURCES (Last.fm, SoundCloud, Discogs, YouTube, Mixcloud)
+  2. Writes one row per source to scraper_raw.artist_scrapes (idempotent, one per day)
+  3. Merges all source data and upserts tinder.artist_cache (fast card rendering)
 
 env vars required:
   SUPABASE_URL  — project URL
@@ -46,8 +47,12 @@ def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_")
 
 
-def _scrape_artist(name: str) -> dict:
-    """Scrape one artist across BATCH_SOURCES in parallel."""
+def _scrape_artist(name: str) -> tuple[dict, dict[str, dict]]:
+    """Scrape one artist across BATCH_SOURCES in parallel.
+
+    Returns (merged_record, raw_per_source) — raw_per_source used for
+    writing to scraper_raw.artist_scrapes.
+    """
     base = {"artist_id": _slug(name), "name": name}
     raw: dict[str, dict] = {}
 
@@ -68,23 +73,42 @@ def _scrape_artist(name: str) -> dict:
             if data:
                 raw[key] = data
 
-    return merge_into_enriched(base, raw)
+    merged = merge_into_enriched(base, raw)
+    return merged, raw
 
 
-def _push_to_supabase(record: dict) -> None:
-    """Upsert one enriched record into Supabase artists table."""
+def _write_raw_scrapes(name: str, raw: dict[str, dict]) -> None:
+    """Write one row per source to scraper_raw.artist_scrapes (idempotent)."""
     if not sb:
         return
-    aid = record.get("artist_id")
-    if not aid:
+    for source_key, data in raw.items():
+        try:
+            sb.schema("scraper_raw").table("artist_scrapes").upsert(
+                {
+                    "searched_name": name,
+                    "source":        source_key,
+                    "data":          data,
+                },
+                on_conflict="searched_name,source,scrape_date",
+            ).execute()
+        except Exception:
+            pass
+
+
+def _write_artist_cache(record: dict) -> None:
+    """Upsert merged record into tinder.artist_cache."""
+    if not sb:
+        return
+    slug = record.get("artist_id")
+    if not slug:
         return
 
     gh = record.get("growth_history") or {}
     bs = record.get("booking_stats") or {}
 
     props = {
-        "artist_id":           aid,
-        "name":                record.get("name", aid),
+        "slug":                slug,
+        "name":                record.get("name", slug),
         "lofi_booked":         bool(record.get("lofi_booked")),
         "lofi_lineup":         bool(record.get("lofi_lineup")),
         "pf_fans":             record.get("pf_fans"),
@@ -113,33 +137,52 @@ def _push_to_supabase(record: dict) -> None:
         "agency_tier":         record.get("agency_tier"),
         "booking_stats":       bs if bs else None,
         "growth_history":      gh if gh else None,
-        "scraped_at":          datetime.now(timezone.utc).isoformat(),
-        "updated_at":          datetime.now(timezone.utc).isoformat(),
+        "last_scraped_at":     datetime.now(timezone.utc).isoformat(),
+        "cache_updated_at":    datetime.now(timezone.utc).isoformat(),
     }
-    # Remove None values so we don't overwrite existing data with nulls
     props = {k: v for k, v in props.items() if v is not None}
 
-    sb.table("artists").upsert(props, on_conflict="artist_id").execute()
+    try:
+        sb.schema("tinder").table("artist_cache").upsert(
+            props, on_conflict="slug"
+        ).execute()
+    except Exception as e:
+        raise
 
     # Similarity edges
     sims = list(dict.fromkeys(
         (record.get("lastfm_similar") or []) + (record.get("spotify_related") or [])
     ))[:20]
     if sims:
-        rows = [{"artist_id": aid, "similar_name": n, "source": "enriched"} for n in sims]
-        sb.table("artist_similar").upsert(rows, on_conflict="artist_id,similar_name").execute()
+        rows = [{"slug": slug, "similar_name": n, "source": "enriched"} for n in sims]
+        try:
+            sb.schema("tinder").table("similar_edges").upsert(
+                rows, on_conflict="slug,similar_name"
+            ).execute()
+        except Exception:
+            pass
 
 
-def _log_run(source: str, processed: int, updated: int, status: str = "ok", error: str = "") -> None:
+def _log_run(
+    source: str,
+    processed: int,
+    inserted: int,
+    updated: int,
+    errored: int,
+    status: str = "ok",
+    error: str = "",
+) -> None:
     if not sb:
         return
     try:
-        sb.table("scraper_runs").insert({
-            "source": source,
-            "artists_processed": processed,
-            "artists_updated": updated,
-            "status": status,
-            "error_msg": error or None,
+        sb.schema("scraper_raw").table("pipeline_runs").insert({
+            "source":             source,
+            "artists_processed":  processed,
+            "artists_inserted":   inserted,
+            "artists_updated":    updated,
+            "artists_errored":    errored,
+            "status":             status,
+            "error_msg":          error or None,
         }).execute()
     except Exception:
         pass
@@ -150,8 +193,7 @@ def main() -> None:
         print("Supabase not configured — set SUPABASE_URL and SUPABASE_KEY")
         sys.exit(1)
 
-    # Load artist list
-    lineup_file = _ROOT / "data" / "lofi_lineup_artists.txt"
+    lineup_file  = _ROOT / "data" / "lofi_lineup_artists.txt"
     enriched_file = _ROOT / "scraper_data" / "artist_enriched.jsonl"
 
     names: list[str] = []
@@ -176,6 +218,7 @@ def main() -> None:
         print(f"Limiting to {batch_size} artists (BATCH_SIZE env var)")
 
     total = len(names)
+    inserted = 0
     updated = 0
     errors = 0
 
@@ -184,8 +227,9 @@ def main() -> None:
 
     for i, name in enumerate(names, 1):
         try:
-            record = _scrape_artist(name)
-            _push_to_supabase(record)
+            record, raw = _scrape_artist(name)
+            _write_raw_scrapes(name, raw)
+            _write_artist_cache(record)
             updated += 1
         except Exception as e:
             errors += 1
@@ -199,7 +243,14 @@ def main() -> None:
 
     elapsed = time.time() - start
     print(f"\nDone: {updated} upserted, {errors} errors in {elapsed:.0f}s")
-    _log_run("batch", total, updated, status="ok" if errors == 0 else "partial")
+    _log_run(
+        source="batch",
+        processed=total,
+        inserted=inserted,
+        updated=updated,
+        errored=errors,
+        status="ok" if errors == 0 else "partial",
+    )
 
 
 if __name__ == "__main__":

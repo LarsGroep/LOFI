@@ -131,8 +131,8 @@ def _load_all_swipes() -> list[SwipeRecord]:
         for r in raw:
             try:
                 swipes.append(SwipeRecord(
-                    artist_id=r["artist_id"],
-                    name=r.get("name", ""),
+                    artist_id=r.get("slug") or r.get("artist_id", ""),
+                    name=r.get("searched_name") or r.get("name", ""),
                     decision=r["decision"],
                     ts=r.get("ts", ""),
                     cosine_dist_at_swipe=r.get("cosine_dist", 1.0),
@@ -202,11 +202,11 @@ def _save_scrape_timestamps(ts_map: dict[str, float]) -> None:
 
 
 def _push_artist_to_supabase(artist_id: str, enriched: dict) -> None:
-    """Upsert all scalar enriched fields + similarity edges to Supabase."""
+    """Upsert enriched fields to tinder.artist_cache + similarity edges."""
     sb = _supabase()
     if not sb.available:
         return
-    props: dict = {"artist_id": artist_id}
+    props: dict = {}
     for k, v in enriched.items():
         if isinstance(v, (str, int, float, bool)):
             props[k] = v
@@ -807,17 +807,18 @@ def _supabase_dashboard(swipes: list[SwipeRecord]) -> None:
             seen: set[str] = set()
             deduped: list[dict] = []
             for s in raw_swipes:
-                aid = s["artist_id"]
+                aid = s.get("slug") or s.get("artist_id", "")
                 if aid not in seen:
                     seen.add(aid)
                     deduped.append(s)
 
-            artist_map = {a["artist_id"]: a for a in raw_artists}
+            artist_map = {a["slug"]: a for a in raw_artists}
             rows = []
             for s in deduped:
-                row = dict(artist_map.get(s["artist_id"], {}))
+                slug = s.get("slug") or s.get("artist_id", "")
+                row = dict(artist_map.get(slug, {}))
                 row["decision"] = s["decision"]
-                row["name"]     = row.get("name") or s.get("name", s["artist_id"])
+                row["name"]     = row.get("name") or s.get("searched_name") or s.get("name", slug)
                 row["ts"]       = (s.get("ts") or "")[:16].replace("T", " ")
                 rows.append(row)
 
