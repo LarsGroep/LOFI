@@ -1,19 +1,29 @@
 name: Build LOFI Booked Profiles
 
-# Run overnight to profile all artists from lofi_booked_labels.csv.
+# Overnight job: profile all artists from lofi_booked_labels.csv with full
+# Chartmetric enrichment — profile text, embedding, 180-day time-series,
+# and pre-computed ML features (growth rates, acceleration, momentum).
 # After completion the LOFI Feel Matrix centroid is rebuilt from all
-# booked artists and saved to Supabase — the app picks it up automatically.
+# booked artists and saved to Supabase.
 #
-# Progress is resumable: already-profiled artists are skipped automatically.
-# Run multiple times if needed (e.g. if rate-limited mid-way through).
+# Timing: ~10 Chartmetric API calls/artist × 1.5s each → ~15s/artist
+#   755 artists ≈ 3.1 hrs enrichment + 5 min embedding = ~3.5 hrs total
+#   Fits in the 6-hour job timeout.
+#
+# Resumable: already-profiled artists are skipped automatically.
+# Add --no-timeseries flag to cut time in half (no ML features).
 
 on:
   workflow_dispatch:
     inputs:
       batch_size:
-        description: 'Max artists per run (0 = all ~755, takes ~25 min)'
+        description: 'Max artists per run (0 = all ~755, ~3.5 hrs)'
         required: false
         default: '0'
+      no_timeseries:
+        description: 'Skip 180-day time-series (faster, no ML features)'
+        required: false
+        default: 'false'
 
 jobs:
   build:
@@ -47,5 +57,9 @@ jobs:
           SUPABASE_KEY:               ${{ secrets.SUPABASE_KEY }}
           CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
-          python scrapers/build_booked_profiles.py --batch-size ${{ github.event.inputs.batch_size || '0' }}
+          ARGS="--batch-size ${{ github.event.inputs.batch_size || '0' }}"
+          if [ "${{ github.event.inputs.no_timeseries }}" = "true" ]; then
+            ARGS="$ARGS --no-timeseries"
+          fi
+          python scrapers/build_booked_profiles.py $ARGS
         working-directory: lofi-tinder
