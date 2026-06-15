@@ -7,7 +7,6 @@ create table if not exists public.artists (
   name                 text not null,
   lofi_booked          boolean default false,
   lofi_lineup          boolean default false,
-  momentum_score       float   default 0,
   pf_fans              integer,
   ra_events            integer,
   ra_genre_events      integer,

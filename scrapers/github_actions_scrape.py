@@ -87,7 +87,6 @@ def _push_to_supabase(record: dict) -> None:
         "name":                record.get("name", aid),
         "lofi_booked":         bool(record.get("lofi_booked")),
         "lofi_lineup":         bool(record.get("lofi_lineup")),
-        "momentum_score":      record.get("momentum_score") or 0,
         "pf_fans":             record.get("pf_fans"),
         "ra_events":           record.get("ra_events"),
         "ra_genre_events":     record.get("ra_genre_events"),
