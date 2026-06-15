@@ -25,7 +25,7 @@ import httpx
 
 _BASE = "https://api.chartmetric.com/api"
 _TOKEN_URL = "https://api.chartmetric.com/api/token"
-_RATE_SLEEP = 1.5
+_RATE_SLEEP = 2.0  # 429s observed at 1.5s; 2.0s stays well within 1 req/sec limit
 
 _access_token: str = ""
 _token_expires: float = 0.0
@@ -58,18 +58,27 @@ def _headers() -> dict[str, str]:
 
 def _get(path: str, params: dict | None = None) -> dict | None:
     time.sleep(_RATE_SLEEP)
-    try:
-        resp = httpx.get(
-            f"{_BASE}{path}",
-            headers=_headers(),
-            params=params or {},
-            timeout=20,
-        )
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as e:
-        print(f"[chartmetric] GET {path} failed: {e}")
-        return None
+    for attempt in range(3):
+        try:
+            resp = httpx.get(
+                f"{_BASE}{path}",
+                headers=_headers(),
+                params=params or {},
+                timeout=20,
+            )
+            if resp.status_code == 429:
+                wait = 30 * (attempt + 1)
+                print(f"[chartmetric] 429 on {path} — waiting {wait}s (attempt {attempt + 1}/3)")
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.HTTPStatusError:
+            return None
+        except Exception as e:
+            print(f"[chartmetric] GET {path} failed: {e}")
+            return None
+    return None
 
 
 def _num(v) -> int | None:
