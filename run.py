@@ -366,7 +366,9 @@ def cmd_seed(args) -> None:
     if needs_embedding:
         print(f"Embedding {len(needs_embedding)} profiles...")
         embed_profiles(needs_embedding)
-        _flush_profile_embeddings(profiles_map)
+
+    # Always flush — writes local file + pushes to Supabase
+    _flush_profile_embeddings(profiles_map)
 
     all_profiles = list(profiles_map.values())
     print(f"Building FAISS index from {len(all_profiles)} seed profiles...")
@@ -487,7 +489,9 @@ def cmd_candidates(args) -> None:
     if needs_embedding:
         print(f"Embedding {len(needs_embedding)} candidate profiles...")
         embed_profiles(needs_embedding)
-        _flush_profile_embeddings(profiles_map)
+
+    # Always flush — writes local file + pushes to Supabase
+    _flush_profile_embeddings(profiles_map)
 
     for artist in artists:
         _save_candidate(artist)
