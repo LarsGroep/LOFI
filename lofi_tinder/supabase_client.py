@@ -207,7 +207,7 @@ class SupabaseClient:
                         "pf_fans, beatport_label_tier, beatport_releases, "
                         "sc_followers, sc_tracks, yt_subscribers, yt_views, "
                         "mc_followers, mc_listen_count, ra_genre_events, "
-                        "discogs_releases, discogs_first_year, momentum_score, agency"
+                        "discogs_releases, discogs_first_year, agency"
                     )
                     .in_("artist_id", artist_ids)
                     .execute()

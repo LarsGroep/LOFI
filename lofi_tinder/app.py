@@ -719,8 +719,7 @@ def _supabase_dashboard(swipes: list[SwipeRecord]) -> None:
         "YT Subscribers", "YT Views",
         "MC Followers", "MC Listens",
         "RA Events", "Discogs Releases", "Discogs Since",
-        "Momentum", "Agency",
-        "Swiped At",
+        "Agency", "Swiped At",
     ]
     _COL_MAP = {
         "decision":           "Decision",
@@ -739,7 +738,6 @@ def _supabase_dashboard(swipes: list[SwipeRecord]) -> None:
         "ra_genre_events":    "RA Events",
         "discogs_releases":   "Discogs Releases",
         "discogs_first_year": "Discogs Since",
-        "momentum_score":     "Momentum",
         "agency":             "Agency",
         "ts":                 "Swiped At",
     }
@@ -856,7 +854,6 @@ def _supabase_dashboard(swipes: list[SwipeRecord]) -> None:
                     "RA Events":         st.column_config.NumberColumn("RA Evts",     format="%d"),
                     "Discogs Releases":  st.column_config.NumberColumn("Discogs",     format="%d"),
                     "Discogs Since":     st.column_config.NumberColumn("Since",       format="%d"),
-                    "Momentum":          st.column_config.NumberColumn("Momentum",    format="%.0f"),
                     "Agency":            st.column_config.TextColumn("Agency"),
                     "Swiped At":         st.column_config.TextColumn("Swiped",    width="small"),
                 }
