@@ -438,7 +438,7 @@ def discover_new_batch(
             progress_cb(done, total, name)
         done += 1
 
-        # Use stored enriched data if available, otherwise fetch from Last.fm + Spotify
+        # Use stored enriched data if available, otherwise fetch from Last.fm + Chartmetric
         enriched = enriched_map.get(slug)
         if not enriched:
             time.sleep(0.25)
@@ -447,12 +447,28 @@ def discover_new_batch(
                 continue
             enriched = _minimal_enriched(name, snap)
             canonical_name = snap.get("name") or name
-            # Pre-scrape Spotify so the swipe card has followers/image without a manual refresh
+            # Enrich via Chartmetric (replaces per-scraper calls for new discoveries)
             try:
-                from scrapers.unified_scraper import _scrape_spotify, merge_into_enriched
-                sp = _scrape_spotify(canonical_name)
-                if sp:
-                    enriched = merge_into_enriched(enriched, {"spotify": sp})
+                from scrapers.chartmetric_client import enrich_from_chartmetric, is_configured
+                if is_configured():
+                    cm = enrich_from_chartmetric(canonical_name)
+                    if cm:
+                        enriched["chartmetric_id"] = cm.get("chartmetric_id")
+                        if cm.get("spotify_followers"):
+                            enriched["spotify_followers"] = cm["spotify_followers"]
+                        if cm.get("spotify_monthly_listeners"):
+                            enriched.setdefault("growth_history", {})["current_listeners"] = \
+                                cm["spotify_monthly_listeners"]
+                        if cm.get("spotify_genres"):
+                            enriched["spotify_genres"] = cm["spotify_genres"]
+                        if cm.get("booking_agent"):
+                            enriched["agency"] = cm["booking_agent"]
+                        if cm.get("record_label"):
+                            enriched.setdefault("beatport_labels", [])
+                            if cm["record_label"] not in enriched["beatport_labels"]:
+                                enriched["beatport_labels"].insert(0, cm["record_label"])
+                        if cm.get("career_status"):
+                            enriched["career_status"] = cm["career_status"]
             except Exception:
                 pass
         else:
