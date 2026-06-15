@@ -1163,17 +1163,17 @@ Rate: ~1 API call × 2.1s per artist.
     # ── Recommended run order ─────────────────────────────────────────────────
     st.markdown("---")
     st.subheader("Recommended Run Order (first-time setup)")
-    st.markdown("""
+    missing_cm = total - stats["has_cm_id"]
+    eta_cm  = missing_cm * 4.2 / 3600
+    eta_ts  = stats["has_cm_id"] * 8.4 / 3600
+    eta_enr = (total - stats["has_description"]) * 2.1 / 3600
+    st.markdown(f"""
 1. **Expand Candidates** — populate similar_edges (fast, no API calls)
-2. **Find CM IDs** — run all batches until `{missing_cm}` → 0 (~{:.0f}h)
-3. **Fetch Timeseries** — run until all have timeseries (~{:.0f}h)
-4. **Enrich Profiles** — fill in descriptions/moods/genres (~{:.0f}h)
+2. **Find CM IDs** — run all batches until {missing_cm} → 0 (~{eta_cm:.0f}h)
+3. **Fetch Timeseries** — run until all have timeseries (~{eta_ts:.0f}h)
+4. **Enrich Profiles** — fill in descriptions/moods/genres (~{eta_enr:.0f}h)
 5. Return to **Discovery** to review the scored candidate queue
-    """.format(
-        (total - stats["has_cm_id"]) * 4.2 / 3600,
-        stats["has_cm_id"] * 8.4 / 3600,
-        (total - stats["has_description"]) * 2.1 / 3600,
-    ))
+    """)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
