@@ -1,91 +1,126 @@
 """
-Supabase client — tinder app state and artist cache.
+Supabase client — minimal CRUD for the tinder app.
 
-Schema layout:
-  tinder.swipes        — YES / NO / skip history
-  tinder.artist_cache  — denormalised artist data for card rendering
-  tinder.similar_edges — SIMILAR_TO graph
-
-Falls back gracefully if Supabase is not configured.
-Credentials from os.environ / .env:  SUPABASE_URL, SUPABASE_KEY
+Tables used (all in 'tinder' schema):
+  artist_cache    — enriched artist data
+  artist_profiles — profile text + embedding
+  swipes          — swipe history
 """
-
 from __future__ import annotations
-
 import os
-from collections import Counter
 
-try:
-    from supabase import create_client as _create_client, Client as _Client
-    _SDK_AVAILABLE = True
-except ImportError:
-    _SDK_AVAILABLE = False
-
-_instance: SupabaseClient | None = None
-_connect_error: str = ""
+_instance = None
+_error = ""
 
 
-def _make_sb() -> _Client | None:
-    global _connect_error
-    if not _SDK_AVAILABLE:
-        _connect_error = "supabase package not installed"
-        return None
-    url = os.environ.get("SUPABASE_URL", "").strip()
-    key = os.environ.get("SUPABASE_KEY", "").strip()
-    if not url:
-        _connect_error = "SUPABASE_URL not set"
-        return None
-    if not key:
-        _connect_error = "SUPABASE_KEY not set"
-        return None
+def _make_client():
+    global _error
     try:
-        client = _create_client(url, key)
-        _connect_error = ""
-        return client
+        from supabase import create_client
+        url = os.environ.get("SUPABASE_URL", "").strip()
+        key = os.environ.get("SUPABASE_KEY", "").strip()
+        if not url or not key:
+            _error = "SUPABASE_URL or SUPABASE_KEY not set"
+            return None
+        _error = ""
+        return create_client(url, key)
     except Exception as e:
-        _connect_error = str(e)
+        _error = str(e)
         return None
 
 
-def get_connect_error() -> str:
-    return _connect_error
+def get_error() -> str:
+    return _error
 
 
-def _tinder(sb: _Client):
-    return sb.schema("tinder")
-
-
-class SupabaseClient:
-    """Thin wrapper around supabase-py. All methods no-op if unavailable."""
-
-    def __init__(self) -> None:
-        self._sb = _make_sb()
+class DB:
+    def __init__(self):
+        self._sb = _make_client()
 
     @property
-    def available(self) -> bool:
+    def ok(self) -> bool:
         return self._sb is not None
 
-    # ── Swipes ───────────────────────────────────────────────
+    def _t(self, table: str):
+        return self._sb.schema("tinder").table(table)
 
-    def save_swipe(
-        self,
-        artist_id: str,
-        name: str,
-        decision: str,
-        ts: str,
-        score: float = 0.0,
-        profile_text: str = "",
-    ) -> None:
+    # ── Artists ───────────────────────────────────────────────────────────────
+
+    def load_artists(self) -> list[dict]:
+        if not self._sb:
+            return []
+        rows, offset = [], 0
+        while True:
+            batch = self._t("artist_cache").select("*").range(offset, offset + 999).execute().data or []
+            rows.extend(batch)
+            if len(batch) < 1000:
+                break
+            offset += 1000
+        return rows
+
+    def upsert_artist(self, slug: str, props: dict) -> None:
         if not self._sb:
             return
         try:
-            _tinder(self._sb).table("swipes").insert({
-                "slug":          artist_id,
+            self._t("artist_cache").upsert({"slug": slug, **props}, on_conflict="slug").execute()
+        except Exception:
+            pass
+
+    def flag_for_enrichment(self, slug: str) -> None:
+        if not self._sb:
+            return
+        try:
+            self._t("artist_cache").update({"needs_enrichment": True}).eq("slug", slug).execute()
+        except Exception:
+            pass
+
+    # ── Profiles ──────────────────────────────────────────────────────────────
+
+    def save_profile(self, slug: str, name: str, profile_text: str,
+                     embedding: list[float] | None, cosine_dist: float = 1.0) -> None:
+        if not self._sb:
+            return
+        try:
+            self._t("artist_profiles").upsert({
+                "slug": slug, "name": name,
+                "profile_text": profile_text,
+                "embedding": embedding,
+                "cosine_dist": cosine_dist,
+            }, on_conflict="slug").execute()
+        except Exception:
+            pass
+
+    def load_profiles(self) -> list[dict]:
+        if not self._sb:
+            return []
+        rows, offset = [], 0
+        while True:
+            batch = (
+                self._t("artist_profiles")
+                .select("slug,name,profile_text,embedding,cosine_dist")
+                .range(offset, offset + 499)
+                .execute().data or []
+            )
+            rows.extend(batch)
+            if len(batch) < 500:
+                break
+            offset += 500
+        return rows
+
+    # ── Swipes ────────────────────────────────────────────────────────────────
+
+    def save_swipe(self, artist_id: str, name: str, decision: str,
+                   ts: str, cosine_dist: float, profile_text: str) -> None:
+        if not self._sb:
+            return
+        try:
+            self._t("swipes").insert({
+                "slug": artist_id,
                 "searched_name": name,
-                "decision":      decision,
-                "ts":            ts,
-                "cosine_dist":   score,
-                "profile_text":  profile_text or "",
+                "decision": decision,
+                "ts": ts,
+                "cosine_dist": cosine_dist,
+                "profile_text": profile_text,
             }).execute()
         except Exception:
             pass
@@ -94,196 +129,42 @@ class SupabaseClient:
         if not self._sb:
             return []
         try:
-            result = (
-                _tinder(self._sb).table("swipes")
-                .select("*")
-                .order("ts", desc=False)
-                .execute()
-            )
-            return result.data or []
-        except Exception:
-            return []
-
-    def get_yes_artist_ids(self) -> list[str]:
-        if not self._sb:
-            return []
-        try:
-            result = (
-                _tinder(self._sb).table("swipes")
-                .select("slug")
-                .eq("decision", "yes")
-                .order("ts", desc=True)
-                .execute()
-            )
-            return [r["slug"] for r in (result.data or [])]
+            return self._t("swipes").select("*").order("ts").execute().data or []
         except Exception:
             return []
 
     def count_swipes(self) -> dict[str, int]:
         if not self._sb:
             return {}
+        from collections import Counter
         try:
-            result = _tinder(self._sb).table("swipes").select("decision").execute()
-            return dict(Counter(r["decision"] for r in (result.data or [])))
+            data = self._t("swipes").select("decision").execute().data or []
+            return dict(Counter(r["decision"] for r in data))
         except Exception:
             return {}
 
-    # ── Artist cache ─────────────────────────────────────────
+    # ── App state (centroid, etc.) ────────────────────────────────────────────
 
-    def upsert_artist(self, artist_id: str, props: dict) -> None:
+    def save_centroid(self, key: str, vector: list[float]) -> None:
         if not self._sb:
             return
-        scalar = {
-            k: v for k, v in props.items()
-            if v is not None and isinstance(v, (str, int, float, bool))
-        }
-        if not scalar:
-            return
-        scalar["slug"] = artist_id
-        scalar.setdefault("name", artist_id)
         try:
-            _tinder(self._sb).table("artist_cache").upsert(
-                scalar, on_conflict="slug"
-            ).execute()
+            self._t("app_state").upsert({"key": key, "value": vector}, on_conflict="key").execute()
         except Exception:
             pass
 
-    def upsert_artist_full(self, slug: str, props: dict) -> None:
-        """Upsert all fields including arrays and jsonb."""
+    def load_centroid(self, key: str) -> list[float] | None:
         if not self._sb:
-            return
-        props = {k: v for k, v in props.items() if v is not None}
-        props["slug"] = slug
-        props.setdefault("name", slug)
+            return None
         try:
-            _tinder(self._sb).table("artist_cache").upsert(
-                props, on_conflict="slug"
-            ).execute()
+            rows = self._t("app_state").select("value").eq("key", key).execute().data or []
+            return rows[0]["value"] if rows else None
         except Exception:
-            pass
-
-    def save_similar_edges(
-        self, artist_id: str, similar_names: list[str], source: str = "lastfm"
-    ) -> None:
-        if not self._sb or not similar_names:
-            return
-        rows = [
-            {"slug": artist_id, "similar_name": n, "source": source}
-            for n in similar_names[:20]
-        ]
-        try:
-            _tinder(self._sb).table("similar_edges").upsert(
-                rows, on_conflict="slug,similar_name"
-            ).execute()
-        except Exception:
-            pass
-
-    def load_artists(self) -> list[dict]:
-        """Load all artists from tinder.artist_cache (app startup)."""
-        if not self._sb:
-            return []
-        try:
-            rows = []
-            page_size = 1000
-            offset = 0
-            while True:
-                result = (
-                    _tinder(self._sb).table("artist_cache")
-                    .select("*")
-                    .range(offset, offset + page_size - 1)
-                    .execute()
-                )
-                batch = result.data or []
-                rows.extend(batch)
-                if len(batch) < page_size:
-                    break
-                offset += page_size
-            return rows
-        except Exception:
-            return []
-
-    def fetch_dashboard_data(self) -> dict:
-        if not self._sb:
-            return {}
-        try:
-            swipes_result = (
-                _tinder(self._sb).table("swipes")
-                .select("slug, searched_name, decision, ts")
-                .order("ts", desc=True)
-                .execute()
-            )
-            swipes = swipes_result.data or []
-
-            slugs = list({s["slug"] for s in swipes})
-            artists: list[dict] = []
-            if slugs:
-                result = (
-                    _tinder(self._sb).table("artist_cache")
-                    .select(
-                        "slug, name, spotify_followers, spotify_popularity, "
-                        "pf_fans, beatport_label_tier, beatport_releases, "
-                        "sc_followers, sc_tracks, yt_subscribers, yt_views, "
-                        "mc_followers, mc_listen_count, ra_genre_events, "
-                        "discogs_releases, discogs_first_year, agency"
-                    )
-                    .in_("slug", slugs)
-                    .execute()
-                )
-                artists = result.data or []
-
-            return {"swipes": swipes, "artists": artists}
-        except Exception:
-            return {}
-
-    # ── Scraper raw (GitHub Actions writes here) ─────────────
-
-    def upsert_scrape(self, searched_name: str, source: str, data: dict) -> None:
-        """Insert one raw scrape record. Idempotent: one row per name/source/day."""
-        if not self._sb:
-            return
-        try:
-            self._sb.schema("scraper_raw").table("artist_scrapes").upsert(
-                {
-                    "searched_name": searched_name,
-                    "source":        source,
-                    "data":          data,
-                },
-                on_conflict="searched_name,source,scrape_date",
-            ).execute()
-        except Exception:
-            pass
-
-    def log_pipeline_run(
-        self,
-        source: str,
-        processed: int,
-        inserted: int,
-        updated: int,
-        errored: int,
-        status: str = "ok",
-        error: str = "",
-    ) -> None:
-        if not self._sb:
-            return
-        try:
-            self._sb.schema("scraper_raw").table("pipeline_runs").insert({
-                "source":             source,
-                "artists_processed":  processed,
-                "artists_inserted":   inserted,
-                "artists_updated":    updated,
-                "artists_errored":    errored,
-                "status":             status,
-                "error_msg":          error or None,
-            }).execute()
-        except Exception:
-            pass
-
-    def close(self) -> None:
-        pass
+            return None
 
 
-def get_client() -> SupabaseClient:
+def get_db() -> DB:
     global _instance
     if _instance is None:
-        _instance = SupabaseClient()
+        _instance = DB()
     return _instance

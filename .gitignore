@@ -24,6 +24,15 @@ data/mab_weights.npz
 data/discovery_seed_history.jsonl
 data/scrape_timestamps.json
 
+# Generated data — source of truth is Supabase, rebuilt locally via run.py
+data/candidates.jsonl
+data/faiss.index
+data/faiss_id_map.json
+data/lofi_centroid.npy
+data/lofi_feature_centroid*.npy
+profiles/artist_profiles.jsonl
+scraper_data/artist_enriched.jsonl
+
 # Intermediate scraper outputs (aggregated into artist_enriched.jsonl)
 scraper_data/soundcloud_artists.jsonl
 scraper_data/spotify_artists.jsonl

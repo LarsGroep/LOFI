@@ -2,11 +2,16 @@ name: Scrape Artists
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # 3 AM UTC daily
-  workflow_dispatch:        # manual trigger from GitHub UI
+    - cron: '0 3 * * *'   # 3 AM UTC — nightly full batch
+    - cron: '0 * * * *'   # every hour — enrich YES'd artists
+  workflow_dispatch:
     inputs:
+      mode:
+        description: 'Run mode: "batch" (nightly) or "enrich" (YES artists)'
+        required: false
+        default: 'batch'
       batch_size:
-        description: 'Number of artists to scrape (0 = all)'
+        description: 'Batch mode only: max artists to scrape (0 = all)'
         required: false
         default: '0'
 
@@ -32,15 +37,27 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
 
-      - name: Run scraper
+      - name: Run nightly batch scrape
+        if: github.event.schedule == '0 3 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode != 'enrich')
         env:
-          SUPABASE_URL:               ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:               ${{ secrets.SUPABASE_KEY }}
-          LASTFM_API_KEY:             ${{ secrets.LASTFM_API_KEY }}
-          DISCOGS_KEY:                ${{ secrets.DISCOGS_KEY }}
-          DISCOGS_SECRET:             ${{ secrets.DISCOGS_SECRET }}
-          YOUTUBE_API_KEY:            ${{ secrets.YOUTUBE_API_KEY }}
-          CHARTMETRIC_CLIENT_ID:      ${{ secrets.CHARTMETRIC_CLIENT_ID }}
-          CHARTMETRIC_CLIENT_SECRET:  ${{ secrets.CHARTMETRIC_CLIENT_SECRET }}
-          BATCH_SIZE:                 ${{ github.event.inputs.batch_size || '0' }}
+          SUPABASE_URL:                ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:                ${{ secrets.SUPABASE_KEY }}
+          LASTFM_API_KEY:              ${{ secrets.LASTFM_API_KEY }}
+          DISCOGS_KEY:                 ${{ secrets.DISCOGS_KEY }}
+          DISCOGS_SECRET:              ${{ secrets.DISCOGS_SECRET }}
+          YOUTUBE_API_KEY:             ${{ secrets.YOUTUBE_API_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN:   ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+          BATCH_SIZE:                  ${{ github.event.inputs.batch_size || '0' }}
         run: python scrapers/github_actions_scrape.py
+
+      - name: Run hourly YES-artist enrichment
+        if: github.event.schedule == '0 * * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'enrich')
+        env:
+          SUPABASE_URL:                ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:                ${{ secrets.SUPABASE_KEY }}
+          LASTFM_API_KEY:              ${{ secrets.LASTFM_API_KEY }}
+          DISCOGS_KEY:                 ${{ secrets.DISCOGS_KEY }}
+          DISCOGS_SECRET:              ${{ secrets.DISCOGS_SECRET }}
+          YOUTUBE_API_KEY:             ${{ secrets.YOUTUBE_API_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN:   ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: python scrapers/github_actions_scrape.py --enrich

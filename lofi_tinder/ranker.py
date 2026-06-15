@@ -1,84 +1,9 @@
 """
-Ranks candidate artists by cosine distance to the LOFI taste centroid,
-blended with MAB LinUCB score once enough swipes have accumulated.
+Rank candidate profiles by cosine distance to the LOFI centroid.
 """
-
 from __future__ import annotations
-
-import json
-from pathlib import Path
-
-import numpy as np
-
-from .embedder import (
-    cosine_dist_to_centroid, extract_feature_vector,
-    load_centroid, load_feature_centroid, load_dual_feature_centroids,
-)
+from .embedder import cosine_dist, load_centroid
 from .schemas import ArtistProfile, SwipeRecord
-
-_DATA_DIR = Path(__file__).parent.parent / "data"
-_CANDIDATES_FILE = _DATA_DIR / "candidates.jsonl"
-_SWIPES_FILE = _DATA_DIR / "swipes.jsonl"
-
-# Primary ranking: structured feature similarity (15-dim, interpretable)
-# MAB: also trained on feature vectors — blended in once ≥20 swipes exist
-_FEATURE_WEIGHT = 0.6
-_MAB_WEIGHT = 0.25
-_COVERAGE_WEIGHT = 0.15   # bonus for artists with data from multiple sources
-
-
-def _data_coverage_score(enriched: dict) -> float:
-    """0–1 score: how many data sources are populated for this artist."""
-    if not enriched:
-        return 0.0
-    bs = enriched.get("booking_stats") or {}
-    gh = enriched.get("growth_history") or {}
-    sources = [
-        bool(enriched.get("beatport_releases") or enriched.get("beatport_labels")),
-        bool(bs.get("total", 0) > 0),           # Partyflock club lineups
-        bool(bs.get("festival_count", 0) > 0 or enriched.get("festival_history")),
-        bool(gh.get("current_listeners")),        # Last.fm
-        bool(enriched.get("ra_events") or enriched.get("ra_genre_events", 0) > 0),
-        bool(enriched.get("spotify_followers") or enriched.get("spotify_id")),
-        bool(enriched.get("sc_followers") or enriched.get("sc_tracks")),
-    ]
-    return sum(sources) / len(sources)
-
-
-def _cosine_sim(vec: np.ndarray, centroid: np.ndarray) -> float:
-    vn = np.linalg.norm(vec)
-    cn = np.linalg.norm(centroid)
-    if vn == 0 or cn == 0:
-        return 0.0
-    return float(np.dot(vec, centroid) / (vn * cn))
-
-
-def load_candidates() -> list[dict]:
-    if not _CANDIDATES_FILE.exists():
-        return []
-    rows = []
-    for line in _CANDIDATES_FILE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            try:
-                rows.append(json.loads(line))
-            except Exception:
-                pass
-    return rows
-
-
-def load_swipes() -> list[SwipeRecord]:
-    if not _SWIPES_FILE.exists():
-        return []
-    swipes = []
-    for line in _SWIPES_FILE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            try:
-                swipes.append(SwipeRecord(**json.loads(line)))
-            except Exception:
-                pass
-    return swipes
 
 
 def get_swiped_ids(swipes: list[SwipeRecord]) -> set[str]:
@@ -86,60 +11,19 @@ def get_swiped_ids(swipes: list[SwipeRecord]) -> set[str]:
 
 
 def rank_candidates(
-    profiles: dict[str, ArtistProfile],
+    profiles: list[ArtistProfile],
     swiped_ids: set[str],
-    enriched_map: dict[str, dict],
-    mab_scores: dict[str, float] | None = None,
-    limit: int = 20,
+    lofi_booked_ids: set[str],
 ) -> list[ArtistProfile]:
-    core_centroid, emerging_centroid = load_dual_feature_centroids()
-    single_centroid = load_feature_centroid()   # combined mean, fallback
-    text_centroid   = load_centroid()            # 384-dim fallback for discovered artists
-
-    ranked = []
-    for artist_id, profile in profiles.items():
-        if artist_id in swiped_ids:
-            continue
-        if not profile.embedding:
-            continue
-
-        enriched = enriched_map.get(artist_id) or {}
-
-        # LOFI-booked artists are training data, not candidates to review
-        if enriched.get("lofi_booked"):
-            continue
-
-        if enriched:
-            fvec = extract_feature_vector(enriched)
-
-            if core_centroid is not None and emerging_centroid is not None:
-                # Dual-centroid: score against both clusters, nearest cluster wins.
-                # This lets established and emerging artists both surface without
-                # one averaging out the other.
-                core_sim     = _cosine_sim(fvec, core_centroid)
-                emerging_sim = _cosine_sim(fvec, emerging_centroid)
-                feat_sim     = max(core_sim, emerging_sim)
-                # Store which cluster this artist is closest to for display
-                profile.nearest_cluster = "core" if core_sim >= emerging_sim else "emerging"
-            elif single_centroid is not None:
-                feat_sim = _cosine_sim(fvec, single_centroid)
-            else:
-                feat_sim = 0.5
-
-        elif text_centroid is not None:
-            # Discovered artists with no enriched data: fall back to text embedding
-            dist     = cosine_dist_to_centroid(profile.embedding, text_centroid)
-            feat_sim = 1.0 - dist
-        else:
-            feat_sim = 0.5
-
-        profile.cosine_dist_to_centroid = 1.0 - feat_sim
-
-        mab      = mab_scores.get(artist_id, 0.0) if mab_scores else 0.0
-        coverage = _data_coverage_score(enriched)
-        final_score = _FEATURE_WEIGHT * feat_sim + _MAB_WEIGHT * mab + _COVERAGE_WEIGHT * coverage
-
-        ranked.append((final_score, profile))
-
-    ranked.sort(key=lambda x: x[0], reverse=True)
-    return [p for _, p in ranked[:limit]]
+    centroid = load_centroid()
+    candidates = [
+        p for p in profiles
+        if p.artist_id not in swiped_ids
+        and p.artist_id not in lofi_booked_ids
+        and p.embedding
+    ]
+    if centroid is None:
+        return candidates
+    for p in candidates:
+        p.cosine_dist_to_centroid = cosine_dist(p.embedding, centroid)
+    return sorted(candidates, key=lambda p: p.cosine_dist_to_centroid)
