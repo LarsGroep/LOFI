@@ -188,12 +188,77 @@ def _log_run(
         pass
 
 
-def main() -> None:
+def enrich_yes_artists() -> None:
+    """
+    Hourly job: scrape all YES'd artists that have needs_enrichment=true,
+    then clear the flag. Runs in GitHub Actions on an hourly cron.
+    """
     if not sb:
         print("Supabase not configured — set SUPABASE_URL and SUPABASE_KEY")
         sys.exit(1)
 
-    lineup_file  = _ROOT / "data" / "lofi_lineup_artists.txt"
+    result = (
+        sb.schema("tinder").table("artist_cache")
+        .select("slug, name")
+        .eq("needs_enrichment", True)
+        .execute()
+    )
+    artists = result.data or []
+
+    if not artists:
+        print("No artists need enrichment — nothing to do")
+        return
+
+    print(f"Enriching {len(artists)} YES'd artists...")
+    errors = 0
+    done = 0
+
+    for row in artists:
+        name = row.get("name") or row["slug"]
+        slug = row["slug"]
+        try:
+            record, raw = _scrape_artist(name)
+            _write_raw_scrapes(name, raw)
+            _write_artist_cache(record)
+            # Clear the flag
+            sb.schema("tinder").table("artist_cache").update({
+                "needs_enrichment": False,
+                "enriched_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("slug", slug).execute()
+            done += 1
+            print(f"  [{done}] {name}")
+        except Exception as e:
+            errors += 1
+            print(f"  Error on {name}: {e}")
+        time.sleep(1)
+
+    print(f"\nEnrichment done: {done} enriched, {errors} errors")
+    _log_run(
+        source="enrich_yes",
+        processed=len(artists),
+        inserted=0,
+        updated=done,
+        errored=errors,
+        status="ok" if errors == 0 else "partial",
+    )
+
+
+def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--enrich", action="store_true",
+                        help="Run the YES-artist enrichment job instead of the nightly batch")
+    args = parser.parse_args()
+
+    if args.enrich:
+        enrich_yes_artists()
+        return
+
+    if not sb:
+        print("Supabase not configured — set SUPABASE_URL and SUPABASE_KEY")
+        sys.exit(1)
+
+    lineup_file   = _ROOT / "data" / "lofi_lineup_artists.txt"
     enriched_file = _ROOT / "scraper_data" / "artist_enriched.jsonl"
 
     names: list[str] = []

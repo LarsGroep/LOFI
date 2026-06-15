@@ -1,15 +1,14 @@
 """
-Chartmetric API client — artist discovery and time-series metrics.
+Chartmetric API client — artist enrichment and stats.
 
-env vars:
-  CHARTMETRIC_CLIENT_ID      — from chartmetric.com dashboard
-  CHARTMETRIC_CLIENT_SECRET  — from chartmetric.com dashboard
+Env var required:
+  CHARTMETRIC_REFRESH_TOKEN  — from chartmetric.com dashboard
 
-Token management:
-  - Access tokens expire in 1 hour; this client refreshes automatically.
-  - Rate limit: respect 20 req/min on free/pro tier (3s sleep between calls).
+Token flow:
+  POST /api/token {"refreshtoken": ...} → {token, expires_in}
+  All subsequent requests use Authorization: Bearer {token}
 
-Writes snapshots to chartmetric_raw.artist_snapshots via supabase_client.
+Rate limit: developer plan = 1 req/sec → _RATE_SLEEP = 1.5  # 1 req/sec limit with buffer
 """
 
 from __future__ import annotations
@@ -17,29 +16,26 @@ from __future__ import annotations
 import os
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 
 import httpx
 
 _BASE = "https://api.chartmetric.com/api"
 _TOKEN_URL = "https://api.chartmetric.com/api/token"
-_RATE_SLEEP = 3.0  # seconds between requests (20 req/min)
+_RATE_SLEEP = 1.5  # 1 req/sec limit with buffer
 
 _access_token: str = ""
 _token_expires: float = 0.0
 
 
 def _refresh_token() -> bool:
-    """Refresh the Chartmetric access token. Returns True on success."""
     global _access_token, _token_expires
-    client_id     = os.environ.get("CHARTMETRIC_CLIENT_ID", "").strip()
-    client_secret = os.environ.get("CHARTMETRIC_CLIENT_SECRET", "").strip()
-    if not client_id or not client_secret:
+    refresh_token = os.environ.get("CHARTMETRIC_REFRESH_TOKEN", "").strip()
+    if not refresh_token:
         return False
     try:
         resp = httpx.post(
             _TOKEN_URL,
-            json={"id": client_id, "secret": client_secret},
+            json={"refreshtoken": refresh_token},
             timeout=15,
         )
         resp.raise_for_status()
@@ -59,7 +55,6 @@ def _headers() -> dict[str, str]:
 
 
 def _get(path: str, params: dict | None = None) -> dict | None:
-    """GET from Chartmetric API with rate limiting."""
     time.sleep(_RATE_SLEEP)
     try:
         resp = httpx.get(
@@ -77,36 +72,109 @@ def _get(path: str, params: dict | None = None) -> dict | None:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def search_artist(name: str) -> list[dict]:
-    """Search for an artist by name. Returns list of candidate objects."""
-    data = _get("/artist/search", {"q": name, "limit": 5})
+def search_artist(name: str, limit: int = 5) -> list[dict]:
+    """Search by name. Returns [{id, name, sp_monthly_listeners, cm_artist_score, ...}]."""
+    data = _get("/search", {"q": name, "type": "artists", "limit": limit})
     if not data:
         return []
-    return data.get("obj", {}).get("artists", []) or []
+    obj = data.get("obj") or {}
+    return obj.get("artists") or []
 
 
-def get_similar_artists(chartmetric_id: str | int, limit: int = 50) -> list[dict]:
-    """Return similar artists for a given Chartmetric artist ID."""
-    data = _get(f"/artist/{chartmetric_id}/similar", {"limit": limit})
-    if not data:
-        return []
-    return data.get("obj", []) or []
-
-
-def get_spotify_stats(chartmetric_id: str | int) -> dict | None:
-    """Return latest Spotify metrics for an artist."""
-    data = _get(f"/artist/{chartmetric_id}/stat/spotify")
+def get_artist(chartmetric_id: int | str) -> dict | None:
+    """Full artist object — includes genres, career_status, booking_agent, record_label."""
+    data = _get(f"/artist/{chartmetric_id}")
     if not data:
         return None
     return data.get("obj")
 
 
-def get_fanbase_spread(chartmetric_id: str | int) -> dict | None:
-    """Return platform follower counts snapshot."""
-    data = _get(f"/artist/{chartmetric_id}/fanbase-spread")
+def get_spotify_stats(chartmetric_id: int | str) -> dict | None:
+    """Latest Spotify stats: monthly listeners, followers, popularity."""
+    data = _get(f"/artist/{chartmetric_id}/stat/spotify", {"latest": "true"})
     if not data:
         return None
-    return data.get("obj")
+    obj = data.get("obj") or {}
+    # Response is usually a list of time-series points; take the most recent
+    if isinstance(obj, list):
+        return obj[0] if obj else None
+    return obj
+
+
+def get_stat(chartmetric_id: int | str, source: str) -> dict | None:
+    """Get latest stat for any source: spotify, soundcloud, youtube_channel, instagram, tiktok."""
+    data = _get(f"/artist/{chartmetric_id}/stat/{source}", {"latest": "true"})
+    if not data:
+        return None
+    obj = data.get("obj") or {}
+    if isinstance(obj, list):
+        return obj[0] if obj else None
+    return obj
+
+
+def enrich_from_chartmetric(name: str) -> dict | None:
+    """
+    Search for an artist by name, then fetch their full profile + Spotify stats.
+
+    Returns a flat dict compatible with the enriched artist format used
+    throughout the app, or None if the artist is not found.
+    """
+    candidates = search_artist(name, limit=3)
+    if not candidates:
+        return None
+
+    # Pick closest match by name (first result from Chartmetric search)
+    best = candidates[0]
+    cm_id = best.get("id")
+    if not cm_id:
+        return None
+
+    # Full profile
+    profile = get_artist(cm_id) or {}
+
+    # Spotify stats
+    sp_stats = get_spotify_stats(cm_id) or {}
+
+    def _num(v) -> int | None:
+        """Chartmetric sometimes returns stats as [{value, timestp, ...}] lists."""
+        if isinstance(v, list):
+            v = v[0].get("value") if v else None
+        if isinstance(v, dict):
+            v = v.get("value")
+        return int(v) if isinstance(v, (int, float)) and v is not None else None
+
+    sp_monthly = _num(
+        sp_stats.get("sp_monthly_listeners")
+        or best.get("sp_monthly_listeners")
+        or profile.get("sp_monthly_listeners")
+    )
+    sp_followers = _num(
+        sp_stats.get("followers")
+        or best.get("sp_followers")
+        or profile.get("sp_followers")
+    )
+    sp_popularity = _num(sp_stats.get("sp_popularity") or profile.get("sp_popularity"))
+
+    genres = profile.get("genres") or []
+    if isinstance(genres, list):
+        genre_names = [g.get("name") if isinstance(g, dict) else str(g) for g in genres]
+    else:
+        genre_names = []
+
+    return {
+        "chartmetric_id":        cm_id,
+        "cm_artist_rank":        profile.get("cm_artist_rank"),
+        "cm_artist_score":       profile.get("cm_artist_score") or best.get("cm_artist_score"),
+        "career_status":         profile.get("career_status"),
+        "record_label":          profile.get("record_label"),
+        "booking_agent":         profile.get("booking_agent"),
+        "description":           profile.get("description"),
+        "spotify_monthly_listeners": sp_monthly,
+        "spotify_followers":     sp_followers,
+        "spotify_popularity":    sp_popularity,
+        "spotify_genres":        genre_names[:10],
+        "primary_genre":         best.get("primary_genre_smart") or (genre_names[0] if genre_names else None),
+    }
 
 
 def save_snapshots(
@@ -140,7 +208,4 @@ def save_snapshots(
 
 
 def is_configured() -> bool:
-    return bool(
-        os.environ.get("CHARTMETRIC_CLIENT_ID") and
-        os.environ.get("CHARTMETRIC_CLIENT_SECRET")
-    )
+    return bool(os.environ.get("CHARTMETRIC_REFRESH_TOKEN"))
