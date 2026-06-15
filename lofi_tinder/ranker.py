@@ -16,12 +16,19 @@ def rank_candidates(
     lofi_booked_ids: set[str],
 ) -> list[ArtistProfile]:
     centroid = load_centroid()
+    # Prefer non-booked candidates; fall back to booked if pool is empty
     candidates = [
         p for p in profiles
         if p.artist_id not in swiped_ids
         and p.artist_id not in lofi_booked_ids
         and p.embedding
     ]
+    if not candidates:
+        candidates = [
+            p for p in profiles
+            if p.artist_id not in swiped_ids
+            and p.embedding
+        ]
     if centroid is None:
         return candidates
     for p in candidates:
