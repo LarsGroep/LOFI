@@ -34,11 +34,13 @@ jobs:
 
       - name: Run scraper
         env:
-          SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
-          LASTFM_API_KEY:  ${{ secrets.LASTFM_API_KEY }}
-          DISCOGS_KEY:     ${{ secrets.DISCOGS_KEY }}
-          DISCOGS_SECRET:  ${{ secrets.DISCOGS_SECRET }}
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-          BATCH_SIZE:      ${{ github.event.inputs.batch_size || '0' }}
+          SUPABASE_URL:               ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:               ${{ secrets.SUPABASE_KEY }}
+          LASTFM_API_KEY:             ${{ secrets.LASTFM_API_KEY }}
+          DISCOGS_KEY:                ${{ secrets.DISCOGS_KEY }}
+          DISCOGS_SECRET:             ${{ secrets.DISCOGS_SECRET }}
+          YOUTUBE_API_KEY:            ${{ secrets.YOUTUBE_API_KEY }}
+          CHARTMETRIC_CLIENT_ID:      ${{ secrets.CHARTMETRIC_CLIENT_ID }}
+          CHARTMETRIC_CLIENT_SECRET:  ${{ secrets.CHARTMETRIC_CLIENT_SECRET }}
+          BATCH_SIZE:                 ${{ github.event.inputs.batch_size || '0' }}
         run: python scrapers/github_actions_scrape.py

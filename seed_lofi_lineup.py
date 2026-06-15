@@ -112,7 +112,7 @@ def _push_to_supabase(sb, aid: str, record: dict) -> None:
     gh = record.get("growth_history") or {}
     bs = record.get("booking_stats") or {}
     props = {
-        "artist_id":           aid,
+        "slug":                aid,
         "name":                record.get("name", aid),
         "lofi_booked":         bool(record.get("lofi_booked")),
         "lofi_lineup":         bool(record.get("lofi_lineup")),
@@ -130,10 +130,10 @@ def _push_to_supabase(sb, aid: str, record: dict) -> None:
         "image_url":           record.get("image_url"),
         "booking_stats":       bs if bs else None,
         "growth_history":      gh if gh else None,
-        "updated_at":          datetime.now(timezone.utc).isoformat(),
+        "cache_updated_at":    datetime.now(timezone.utc).isoformat(),
     }
     props = {k: v for k, v in props.items() if v is not None}
-    sb.upsert_artist(aid, props)
+    sb.upsert_artist_full(aid, props)
     sims = list(dict.fromkeys(
         (record.get("lastfm_similar") or []) + (record.get("spotify_related") or [])
     ))[:10]
@@ -144,7 +144,7 @@ def _push_to_supabase(sb, aid: str, record: dict) -> None:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed LOFI lineup artists into enriched + Neo4j")
+    parser = argparse.ArgumentParser(description="Seed LOFI lineup artists into enriched + Supabase")
     parser.add_argument("--scrape-all", action="store_true",
                         help="Re-scrape all 642 lineup artists (slow)")
     args = parser.parse_args()
