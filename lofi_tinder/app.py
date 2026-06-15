@@ -40,7 +40,7 @@ from lofi_tinder.embedder import (
     load_centroid, save_centroid, save_feature_centroid,
 )
 from lofi_tinder.mab import LinUCB, reward_for_decision
-from lofi_tinder.neo4j_client import get_client as _neo4j
+from lofi_tinder.supabase_client import get_client as _supabase
 from lofi_tinder.ranker import get_swiped_ids, load_swipes, rank_candidates
 from lofi_tinder.schemas import ArtistProfile, SwipeRecord
 from scrapers.unified_scraper import merge_into_enriched, scrape_batch, SOURCES as _ALL_SOURCES
@@ -123,10 +123,10 @@ def _load_candidates_map() -> dict[str, dict]:
 
 
 def _load_all_swipes() -> list[SwipeRecord]:
-    """Load swipes from Neo4j (primary) falling back to local file."""
-    neo4j = _neo4j()
-    if neo4j.available:
-        raw = neo4j.load_swipes()
+    """Load swipes from Supabase (primary) falling back to local file."""
+    sb = _supabase()
+    if sb.available:
+        raw = sb.load_swipes()
         swipes = []
         for r in raw:
             try:
@@ -134,9 +134,9 @@ def _load_all_swipes() -> list[SwipeRecord]:
                     artist_id=r["artist_id"],
                     name=r.get("name", ""),
                     decision=r["decision"],
-                    ts=r["ts"],
-                    cosine_dist_at_swipe=r.get("score", 1.0),
-                    linucb_score_at_swipe=0.0,
+                    ts=r.get("ts", ""),
+                    cosine_dist_at_swipe=r.get("cosine_dist", 1.0),
+                    linucb_score_at_swipe=r.get("linucb_score", 0.0),
                     profile_text=r.get("profile_text", ""),
                 ))
             except Exception:
@@ -150,10 +150,10 @@ def _save_swipe(swipe: SwipeRecord) -> None:
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     with open(_SWIPES_FILE, "a", encoding="utf-8") as f:
         f.write(swipe.model_dump_json() + "\n")
-    # Also write to Neo4j if available
-    neo4j = _neo4j()
-    if neo4j.available:
-        neo4j.save_swipe(
+    # Also write to Supabase if available
+    sb = _supabase()
+    if sb.available:
+        sb.save_swipe(
             artist_id=swipe.artist_id,
             name=swipe.name,
             decision=swipe.decision,
@@ -201,21 +201,21 @@ def _save_scrape_timestamps(ts_map: dict[str, float]) -> None:
     _SCRAPE_TS_FILE.write_text(json.dumps(ts_map), encoding="utf-8")
 
 
-def _push_artist_to_neo4j(artist_id: str, enriched: dict) -> None:
-    """Push all scalar enriched fields + similarity edges to Neo4j."""
-    neo4j = _neo4j()
-    if not neo4j.available:
+def _push_artist_to_supabase(artist_id: str, enriched: dict) -> None:
+    """Upsert all scalar enriched fields + similarity edges to Supabase."""
+    sb = _supabase()
+    if not sb.available:
         return
     props: dict = {"artist_id": artist_id}
     for k, v in enriched.items():
         if isinstance(v, (str, int, float, bool)):
             props[k] = v
-    neo4j.upsert_artist(artist_id, props)
+    sb.upsert_artist(artist_id, props)
     sims = list(dict.fromkeys(
         (enriched.get("lastfm_similar") or []) + (enriched.get("spotify_related") or [])
     ))
     if sims:
-        neo4j.save_similar_edges(artist_id, sims, source="unified_scraper")
+        sb.save_similar_edges(artist_id, sims, source="unified_scraper")
 
 
 def _effective_enriched(artist_id: str, emap: dict) -> dict:
@@ -270,15 +270,15 @@ def _handle_swipe(
         st.session_state["session_swiped"] = st.session_state.get("session_swiped", 0) + 1
     if decision == "yes":
         st.session_state["session_yes"] = st.session_state.get("session_yes", 0) + 1
-        # Also store similar artists in Neo4j graph
-        neo4j = _neo4j()
-        if neo4j.available:
+        # Also store similar artists in Supabase
+        sb = _supabase()
+        if sb.available:
             enriched = _effective_enriched(artist.artist_id, emap)
             sims = list(dict.fromkeys(
                 (enriched.get("lastfm_similar") or []) + (enriched.get("spotify_related") or [])
             ))
             if sims:
-                neo4j.save_similar_edges(artist.artist_id, sims)
+                sb.save_similar_edges(artist.artist_id, sims)
     elif decision == "monitor":
         st.session_state["session_monitor"] = st.session_state.get("session_monitor", 0) + 1
     elif decision in _NEGATIVE_DECISIONS:
@@ -409,8 +409,8 @@ def _phase_scrape(
             except Exception as exc:
                 _log(f"  [{_ts()}] ERROR {futures[future]}: {exc}")
 
-    # ── Merge + Neo4j push ───────────────────────────────────────────────────
-    _log(f"[{_ts()}] Merging and pushing to Neo4j…")
+    # ── Merge + Supabase push ────────────────────────────────────────────────
+    _log(f"[{_ts()}] Merging and pushing to Supabase…")
     fresh_map = dict(st.session_state.get("batch_enriched_fresh") or {})
 
     for name, raw in results.items():
@@ -423,7 +423,7 @@ def _phase_scrape(
         merged["name"]      = name
         fresh_map[aid]      = merged
         ts_map[aid]         = now
-        _push_artist_to_neo4j(aid, merged)
+        _push_artist_to_supabase(aid, merged)
 
     st.session_state["batch_enriched_fresh"] = fresh_map
     _save_scrape_timestamps(ts_map)
@@ -597,11 +597,11 @@ def _show_batch_end(
                 f"{k.replace('_',' ')} ({v})" for k, v in reason_counts.items()
             ))
 
-    neo4j = _neo4j()
-    if neo4j.available:
-        counts = neo4j.count_swipes()
+    sb = _supabase()
+    if sb.available:
+        counts = sb.count_swipes()
         total_yes = counts.get("yes", 0)
-        st.caption(f"Neo4j: {sum(counts.values())} total swipes saved  ·  {total_yes} YES overall")
+        st.caption(f"Supabase: {sum(counts.values())} total swipes saved  ·  {total_yes} YES overall")
 
     st.divider()
     st.markdown(
@@ -701,18 +701,18 @@ def _phase_discover(
 # Main entry
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _neo4j_dashboard(swipes: list[SwipeRecord]) -> None:
-    neo4j = _neo4j()
-    if not neo4j.available:
+def _supabase_dashboard(swipes: list[SwipeRecord]) -> None:
+    sb = _supabase()
+    if not sb.available:
         return
 
     import pandas as pd
+    from collections import Counter
 
     _NEG = {"no", "commercial", "wrong_genre", "saturated_nl", "not_ready"}
 
-    # Column order + display names for the main table
     _COL_ORDER = [
-        "Decision", "Name", "Stage",
+        "Decision", "Name",
         "Spotify Followers", "Spotify Popularity",
         "PF Fans", "BP Tier", "BP Releases",
         "SC Followers", "SC Tracks",
@@ -725,7 +725,6 @@ def _neo4j_dashboard(swipes: list[SwipeRecord]) -> None:
     _COL_MAP = {
         "decision":           "Decision",
         "name":               "Name",
-        "stage":              "Stage",
         "spotify_followers":  "Spotify Followers",
         "spotify_popularity": "Spotify Popularity",
         "pf_fans":            "PF Fans",
@@ -742,143 +741,137 @@ def _neo4j_dashboard(swipes: list[SwipeRecord]) -> None:
         "discogs_first_year": "Discogs Since",
         "momentum_score":     "Momentum",
         "agency":             "Agency",
-        "swiped_at":          "Swiped At",
+        "ts":                 "Swiped At",
     }
 
     st.divider()
-    with st.expander("Artist Data — Neo4j", expanded=True):
+    with st.expander("Artist Data — Supabase", expanded=True):
         try:
-            with neo4j._driver.session() as s:
-                # ── Summary metrics ──────────────────────────────────────────
-                counts = {
-                    r["decision"]: r["n"]
-                    for r in s.run(
-                        "MATCH ()-[:RECEIVED_SWIPE]->(sw:Swipe) "
-                        "RETURN sw.decision AS decision, count(*) AS n"
-                    )
-                }
-                c1, c2, c3, c4, c5 = st.columns(5)
-                c1.metric("YES",     counts.get("yes", 0))
-                c2.metric("Monitor", counts.get("monitor", 0))
-                c3.metric("No",      sum(v for k, v in counts.items() if k in _NEG))
-                c4.metric("Skip",    counts.get("skip", 0))
-                c5.metric("Total",   sum(counts.values()))
+            data = sb.fetch_dashboard_data()
+            raw_swipes  = data.get("swipes", [])
+            raw_artists = data.get("artists", [])
 
-                # ── Swipe timeline ───────────────────────────────────────────
-                tl_rows = [
-                    dict(r) for r in s.run(
-                        "MATCH ()-[:RECEIVED_SWIPE]->(sw:Swipe) WHERE sw.decision <> 'skip' "
-                        "RETURN substring(sw.ts,0,10) AS date, sw.decision AS decision, count(*) AS n "
-                        "ORDER BY date ASC"
+            if not raw_swipes:
+                st.caption("No swipes recorded yet.")
+                return
+
+            # ── Summary metrics ───────────────────────────────────────────
+            counts = dict(Counter(s["decision"] for s in raw_swipes))
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("YES",     counts.get("yes", 0))
+            c2.metric("Monitor", counts.get("monitor", 0))
+            c3.metric("No",      sum(v for k, v in counts.items() if k in _NEG))
+            c4.metric("Skip",    counts.get("skip", 0))
+            c5.metric("Total",   len(raw_swipes))
+
+            # ── Swipe timeline (last 14 days) ─────────────────────────────
+            tl_rows = [
+                {"date": s["ts"][:10], "decision": s["decision"]}
+                for s in raw_swipes if s.get("decision") != "skip" and s.get("ts")
+            ]
+            if tl_rows:
+                try:
+                    import altair as alt
+                    from collections import defaultdict
+                    agg: dict[tuple, int] = defaultdict(int)
+                    for r in tl_rows:
+                        agg[(r["date"], r["decision"])] += 1
+                    df_tl = pd.DataFrame(
+                        [{"date": d, "decision": dec, "n": n} for (d, dec), n in agg.items()]
                     )
-                ]
-                if tl_rows:
-                    try:
-                        import altair as alt
-                        df_tl = pd.DataFrame(tl_rows)
-                        df_tl["date"] = pd.to_datetime(df_tl["date"])
-                        df_tl = df_tl[df_tl["date"] >= pd.Timestamp.now() - pd.Timedelta(days=14)]
-                        if not df_tl.empty:
-                            chart = (
-                                alt.Chart(df_tl).mark_bar().encode(
-                                    x=alt.X("date:T", title=None, axis=alt.Axis(format="%d %b")),
-                                    y=alt.Y("n:Q", title="Swipes"),
-                                    color=alt.Color(
-                                        "decision:N",
-                                        scale=alt.Scale(
-                                            domain=["yes", "monitor", "no", "commercial",
-                                                    "wrong_genre", "saturated_nl", "not_ready"],
-                                            range=["#16a34a", "#d97706", "#dc2626", "#dc2626",
-                                                   "#dc2626", "#dc2626", "#dc2626"],
-                                        ),
+                    df_tl["date"] = pd.to_datetime(df_tl["date"])
+                    df_tl = df_tl[df_tl["date"] >= pd.Timestamp.now() - pd.Timedelta(days=14)]
+                    if not df_tl.empty:
+                        chart = (
+                            alt.Chart(df_tl).mark_bar().encode(
+                                x=alt.X("date:T", title=None, axis=alt.Axis(format="%d %b")),
+                                y=alt.Y("n:Q", title="Swipes"),
+                                color=alt.Color(
+                                    "decision:N",
+                                    scale=alt.Scale(
+                                        domain=["yes", "monitor", "no", "commercial",
+                                                "wrong_genre", "saturated_nl", "not_ready"],
+                                        range=["#16a34a", "#d97706", "#dc2626", "#dc2626",
+                                               "#dc2626", "#dc2626", "#dc2626"],
                                     ),
-                                    tooltip=["date:T", "decision:N", "n:Q"],
-                                ).properties(height=140)
-                            )
-                            st.altair_chart(chart, use_container_width=True)
-                    except Exception:
-                        pass
+                                ),
+                                tooltip=["date:T", "decision:N", "n:Q"],
+                            ).properties(height=140)
+                        )
+                        st.altair_chart(chart, use_container_width=True)
+                except Exception:
+                    pass
 
-                # ── Full artist table ─────────────────────────────────────────
-                st.markdown("**All swiped artists**")
-                raw_rows = list(s.run(
-                    """
-                    MATCH (a:Artist)-[:RECEIVED_SWIPE]->(sw:Swipe)
-                    WITH a, sw ORDER BY sw.ts DESC
-                    WITH a, head(collect(sw)) AS latest
-                    RETURN properties(a)   AS props,
-                           latest.decision AS decision,
-                           latest.ts       AS swiped_at
-                    ORDER BY latest.ts DESC
-                    """
-                ))
+            # ── Full artist table ──────────────────────────────────────────
+            st.markdown("**All swiped artists**")
 
-                if raw_rows:
-                    rows = []
-                    for r in raw_rows:
-                        props = dict(r["props"] or {})
-                        props["decision"]  = r["decision"]
-                        props["swiped_at"] = (r["swiped_at"] or "")[:16].replace("T", " ")
-                        rows.append(props)
+            # Keep only the latest swipe per artist
+            seen: set[str] = set()
+            deduped: list[dict] = []
+            for s in raw_swipes:
+                aid = s["artist_id"]
+                if aid not in seen:
+                    seen.add(aid)
+                    deduped.append(s)
 
-                    df = pd.DataFrame(rows)
+            artist_map = {a["artist_id"]: a for a in raw_artists}
+            rows = []
+            for s in deduped:
+                row = dict(artist_map.get(s["artist_id"], {}))
+                row["decision"] = s["decision"]
+                row["name"]     = row.get("name") or s.get("name", s["artist_id"])
+                row["ts"]       = (s.get("ts") or "")[:16].replace("T", " ")
+                rows.append(row)
 
-                    # Rename to display names, keep only known columns in order
-                    df = df.rename(columns=_COL_MAP)
-                    cols_present = [c for c in _COL_ORDER if c in df.columns]
-                    df = df[cols_present]
+            if rows:
+                df = pd.DataFrame(rows)
+                df = df.rename(columns=_COL_MAP)
+                cols_present = [c for c in _COL_ORDER if c in df.columns]
+                df = df[cols_present]
 
-                    # Numeric columns → Int64 (nullable) so they sort correctly
-                    int_cols = [
-                        "Spotify Followers", "Spotify Popularity", "PF Fans",
-                        "BP Releases", "SC Followers", "SC Tracks",
-                        "YT Subscribers", "YT Views", "MC Followers", "MC Listens",
-                        "RA Events", "Discogs Releases", "Discogs Since",
-                    ]
-                    for col in int_cols:
-                        if col in df.columns:
-                            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
+                int_cols = [
+                    "Spotify Followers", "Spotify Popularity", "PF Fans",
+                    "BP Releases", "SC Followers", "SC Tracks",
+                    "YT Subscribers", "YT Views", "MC Followers", "MC Listens",
+                    "RA Events", "Discogs Releases", "Discogs Since",
+                ]
+                for col in int_cols:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")
 
-                    col_cfg: dict = {
-                        "Decision":          st.column_config.TextColumn("Decision", width="small"),
-                        "Name":              st.column_config.TextColumn("Artist",   width="medium"),
-                        "Stage":             st.column_config.TextColumn("Stage",    width="small"),
-                        "Spotify Followers": st.column_config.NumberColumn("Spotify",  format="%d"),
-                        "Spotify Popularity":st.column_config.NumberColumn("Spotify Pop", format="%d"),
-                        "PF Fans":           st.column_config.NumberColumn("PF Fans",  format="%d"),
-                        "BP Tier":           st.column_config.TextColumn("BP Tier",  width="small"),
-                        "BP Releases":       st.column_config.NumberColumn("BP Rel",  format="%d"),
-                        "SC Followers":      st.column_config.NumberColumn("SC Flw",  format="%d"),
-                        "SC Tracks":         st.column_config.NumberColumn("SC Trk",  format="%d"),
-                        "YT Subscribers":    st.column_config.NumberColumn("YT Subs", format="%d"),
-                        "YT Views":          st.column_config.NumberColumn("YT Views",format="%d"),
-                        "MC Followers":      st.column_config.NumberColumn("MC Flw",  format="%d"),
-                        "MC Listens":        st.column_config.NumberColumn("MC List", format="%d"),
-                        "RA Events":         st.column_config.NumberColumn("RA Evts", format="%d"),
-                        "Discogs Releases":  st.column_config.NumberColumn("Discogs", format="%d"),
-                        "Discogs Since":     st.column_config.NumberColumn("Since",   format="%d"),
-                        "Momentum":          st.column_config.NumberColumn("Momentum",format="%.0f"),
-                        "Agency":            st.column_config.TextColumn("Agency"),
-                        "Swiped At":         st.column_config.TextColumn("Swiped",   width="small"),
-                    }
+                col_cfg: dict = {
+                    "Decision":          st.column_config.TextColumn("Decision", width="small"),
+                    "Name":              st.column_config.TextColumn("Artist",   width="medium"),
+                    "Spotify Followers": st.column_config.NumberColumn("Spotify",     format="%d"),
+                    "Spotify Popularity":st.column_config.NumberColumn("Spotify Pop", format="%d"),
+                    "PF Fans":           st.column_config.NumberColumn("PF Fans",     format="%d"),
+                    "BP Tier":           st.column_config.TextColumn("BP Tier",   width="small"),
+                    "BP Releases":       st.column_config.NumberColumn("BP Rel",      format="%d"),
+                    "SC Followers":      st.column_config.NumberColumn("SC Flw",      format="%d"),
+                    "SC Tracks":         st.column_config.NumberColumn("SC Trk",      format="%d"),
+                    "YT Subscribers":    st.column_config.NumberColumn("YT Subs",     format="%d"),
+                    "YT Views":          st.column_config.NumberColumn("YT Views",    format="%d"),
+                    "MC Followers":      st.column_config.NumberColumn("MC Flw",      format="%d"),
+                    "MC Listens":        st.column_config.NumberColumn("MC List",     format="%d"),
+                    "RA Events":         st.column_config.NumberColumn("RA Evts",     format="%d"),
+                    "Discogs Releases":  st.column_config.NumberColumn("Discogs",     format="%d"),
+                    "Discogs Since":     st.column_config.NumberColumn("Since",       format="%d"),
+                    "Momentum":          st.column_config.NumberColumn("Momentum",    format="%.0f"),
+                    "Agency":            st.column_config.TextColumn("Agency"),
+                    "Swiped At":         st.column_config.TextColumn("Swiped",    width="small"),
+                }
 
-                    st.dataframe(
-                        df,
-                        use_container_width=True,
-                        hide_index=True,
-                        column_config=col_cfg,
-                        height=500,
-                    )
-
-                    st.caption(f"{len(df)} artists · click any column header to sort")
-
-                # ── Graph size ───────────────────────────────────────────────
-                sim = s.run("MATCH ()-[r:SIMILAR_TO]->() RETURN count(r) AS n").single()
-                if sim and sim["n"]:
-                    st.caption(f"Graph: {sim['n']:,} SIMILAR_TO edges")
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config=col_cfg,
+                    height=500,
+                )
+                st.caption(f"{len(df)} artists · click any column header to sort")
 
         except Exception as exc:
-            st.warning(f"Neo4j dashboard error: {exc}")
+            st.warning(f"Supabase dashboard error: {exc}")
 
 
 def main() -> None:
@@ -909,11 +902,11 @@ def main() -> None:
     # Phase state machine
     phase = st.session_state.get("phase", "select")
 
-    neo4j = _neo4j()
-    if neo4j.available:
-        st.sidebar.success("Neo4j connected")
+    sb = _supabase()
+    if sb.available:
+        st.sidebar.success("Supabase connected")
     else:
-        st.sidebar.warning("Neo4j not connected — swipes saved locally only")
+        st.sidebar.warning("Supabase not connected — swipes saved locally only")
 
     if phase == "select":
         _phase_select(profiles, swipes, emap, mab, mab_scores)
@@ -927,8 +920,8 @@ def main() -> None:
         st.session_state["phase"] = "select"
         st.rerun()
 
-    # ── Neo4j dashboard (always shown below the active phase) ────────────────
-    _neo4j_dashboard(swipes)
+    # ── Supabase dashboard (always shown below the active phase) ─────────────
+    _supabase_dashboard(swipes)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

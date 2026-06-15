@@ -5,7 +5,7 @@ Steps:
   1. Read 642 confirmed LOFI lineup artists from data/lofi_lineup_artists.txt
   2. Mark all matched enriched records as lofi_booked=True + lofi_lineup=True
   3. Scrape the ~11 unmatched artists via BATCH_SOURCES (Last.fm, SoundCloud, etc.)
-  4. Push all 642 to Neo4j with LOFILineup label + all enriched properties
+  4. Push all 642 to Supabase with lofi_lineup=True + all enriched properties
   5. Print summary; next step is: python run.py --seed
 
 Run from repo root:
@@ -105,68 +105,41 @@ def _scrape_artist(name: str) -> dict:
     return merge_into_enriched(base, results)
 
 
-# ── Neo4j push ───────────────────────────────────────────────────────────────
+# ── Supabase push ────────────────────────────────────────────────────────────
 
-def _push_to_neo4j(neo4j, aid: str, record: dict, lineup: bool = True) -> None:
-    from lofi_tinder.neo4j_enrich import _career_stage, _slug as _es
-
-    bs    = record.get("booking_stats") or {}
-    gh    = record.get("growth_history") or {}
-    stage = _career_stage(record)
-
-    tags = list(dict.fromkeys(
-        (record.get("lastfm_tags") or []) +
-        (record.get("ra_genres") or []) +
-        (record.get("spotify_genres") or [])
-    ))[:6]
-
-    listeners = gh.get("current_listeners") or record.get("spotify_followers") or 0
-    growth    = gh.get("listener_growth_pct_total")
-
+def _push_to_supabase(sb, aid: str, record: dict) -> None:
+    from datetime import datetime, timezone
+    gh = record.get("growth_history") or {}
+    bs = record.get("booking_stats") or {}
     props = {
-        "name":              record.get("name", aid),
-        "lofi_booked":       bool(record.get("lofi_booked")),
-        "lofi_lineup":       lineup,
-        "lofi_appearances":  record.get("lofi_appearance_count") or 0,
-        "career_stage":      stage,
-        "total_bookings":    bs.get("total") or 0,
-        "bookings_12m":      bs.get("recent_12m") or 0,
-        "booking_velocity":  float(bs.get("booking_velocity") or 0),
-        "geo_spread":        bs.get("geo_spread") or 0,
-        "nl_ratio":          float(bs.get("nl_ratio") or 0),
-        "listeners":         listeners,
-        "listener_growth":   float(growth) if growth is not None else 0.0,
-        "momentum_score":    float(record.get("momentum_score") or 0),
-        "genre_tags":        ", ".join(tags),
-        "beatport_tier":     record.get("beatport_label_tier") or "",
-        "pf_fans":           record.get("pf_fans") or 0,
-        "spotify_followers": record.get("spotify_followers") or 0,
-        "sc_followers":      record.get("sc_followers") or 0,
-        "discogs_releases":  record.get("discogs_releases") or 0,
+        "artist_id":           aid,
+        "name":                record.get("name", aid),
+        "lofi_booked":         bool(record.get("lofi_booked")),
+        "lofi_lineup":         bool(record.get("lofi_lineup")),
+        "momentum_score":      record.get("momentum_score") or 0,
+        "pf_fans":             record.get("pf_fans"),
+        "ra_events":           record.get("ra_events"),
+        "ra_genre_events":     record.get("ra_genre_events"),
+        "beatport_releases":   record.get("beatport_releases"),
+        "beatport_label_tier": record.get("beatport_label_tier"),
+        "spotify_followers":   record.get("spotify_followers"),
+        "sc_followers":        record.get("sc_followers"),
+        "sc_tracks":           record.get("sc_tracks"),
+        "lastfm_listeners":    gh.get("current_listeners"),
+        "lastfm_tags":         record.get("lastfm_tags") or [],
+        "lastfm_similar":      record.get("lastfm_similar") or [],
+        "image_url":           record.get("image_url"),
+        "booking_stats":       bs if bs else None,
+        "growth_history":      gh if gh else None,
+        "updated_at":          datetime.now(timezone.utc).isoformat(),
     }
-
-    with neo4j._driver.session() as s:
-        s.run("MERGE (a:Artist {artist_id: $aid}) SET a += $props", aid=aid, props=props)
-        s.run("MATCH (a:Artist {artist_id: $aid}) SET a:LOFIBooked", aid=aid)
-        s.run(f"MATCH (a:Artist {{artist_id: $aid}}) SET a:LOFILineup", aid=aid)
-        s.run(f"MATCH (a:Artist {{artist_id: $aid}}) SET a:{stage}", aid=aid)
-
-    similar = list(dict.fromkeys(
-        (record.get("lastfm_similar") or []) +
-        (record.get("spotify_related") or [])
+    props = {k: v for k, v in props.items() if v is not None}
+    sb.upsert_artist(aid, props)
+    sims = list(dict.fromkeys(
+        (record.get("lastfm_similar") or []) + (record.get("spotify_related") or [])
     ))[:10]
-    with neo4j._driver.session() as s:
-        for sim_name in similar:
-            sim_slug = _es(sim_name)
-            s.run(
-                """
-                MERGE (a:Artist {artist_id: $aid})
-                MERGE (b:Artist {artist_id: $sim_slug})
-                  ON CREATE SET b.name = $sim_name
-                MERGE (a)-[:SIMILAR_TO {source: 'enriched'}]->(b)
-                """,
-                aid=aid, sim_slug=sim_slug, sim_name=sim_name,
-            )
+    if sims:
+        sb.save_similar_edges(aid, sims, source="enriched")
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -267,18 +240,18 @@ def main() -> None:
     _save_enriched(enriched)
     print("  Saved.")
 
-    # ── 7. Push lineup artists to Neo4j
-    print("\nConnecting to Neo4j...")
-    from lofi_tinder.neo4j_client import get_client
-    neo4j = get_client()
+    # ── 7. Push lineup artists to Supabase
+    print("\nConnecting to Supabase...")
+    from lofi_tinder.supabase_client import get_client
+    sb = get_client()
 
-    if not neo4j.available:
-        print("  Neo4j not available — skipping graph push.")
-        print("  Check .env for NEO4J_URI / NEO4J_PASSWORD.")
+    if not sb.available:
+        print("  Supabase not available — skipping push.")
+        print("  Check .env for SUPABASE_URL / SUPABASE_KEY.")
     else:
         lineup_ids = {_slug(n) for n in lineup_names}
         to_push = [(aid, enriched[aid]) for aid in lineup_ids if aid in enriched]
-        print(f"  Pushing {len(to_push)} artists to Neo4j...")
+        print(f"  Pushing {len(to_push)} artists to Supabase...")
 
         ok = 0
         err = 0
@@ -286,15 +259,14 @@ def main() -> None:
             if i % 100 == 0:
                 print(f"  {i}/{len(to_push)}")
             try:
-                _push_to_neo4j(neo4j, aid, record, lineup=True)
+                _push_to_supabase(sb, aid, record)
                 ok += 1
             except Exception as e:
                 err += 1
                 if err <= 5:
                     print(f"  Push error for {record.get('name', aid)}: {e}")
 
-        print(f"  Neo4j push complete: {ok} ok, {err} errors")
-        neo4j.close()
+        print(f"  Supabase push complete: {ok} ok, {err} errors")
 
     # ── 8. Summary
     print("\nDone.")
