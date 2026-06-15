@@ -2,12 +2,14 @@
 Supabase client — tinder app state and artist cache.
 
 Schema layout:
-  tinder.swipes        — YES / NO / skip history
-  tinder.artist_cache  — denormalised artist data for card rendering
-  tinder.similar_edges — SIMILAR_TO graph
+  tinder.swipes          — YES / NO / skip history
+  tinder.artist_cache    — denormalised artist data for card rendering
+  tinder.similar_edges   — SIMILAR_TO graph
+  tinder.artist_profiles — Claude-generated profiles + embeddings
+  tinder.app_state       — centroids and other persisted vectors
 
-Falls back gracefully if Supabase is not configured.
-Credentials from os.environ / .env:  SUPABASE_URL, SUPABASE_KEY
+All methods no-op gracefully when Supabase is unavailable.
+Credentials: SUPABASE_URL + SUPABASE_KEY in os.environ / .env
 """
 
 from __future__ import annotations
@@ -65,7 +67,7 @@ class SupabaseClient:
     def available(self) -> bool:
         return self._sb is not None
 
-    # ── Swipes ───────────────────────────────────────────────
+    # ── Swipes ───────────────────────────────────────────────────────────────
 
     def save_swipe(
         self,
@@ -128,7 +130,7 @@ class SupabaseClient:
         except Exception:
             return {}
 
-    # ── Artist cache ─────────────────────────────────────────
+    # ── Artist cache ──────────────────────────────────────────────────────────
 
     def upsert_artist(self, artist_id: str, props: dict) -> None:
         if not self._sb:
@@ -235,19 +237,94 @@ class SupabaseClient:
         except Exception:
             return {}
 
-    # ── Scraper raw (GitHub Actions writes here) ─────────────
+    # ── Artist profiles (Claude text + embedding) ─────────────────────────────
+
+    def save_profile(
+        self,
+        slug: str,
+        name: str,
+        profile_text: str,
+        embedding: list[float] | None = None,
+        cosine_dist: float = 0.0,
+    ) -> None:
+        if not self._sb:
+            return
+        try:
+            _tinder(self._sb).table("artist_profiles").upsert(
+                {
+                    "slug":         slug,
+                    "name":         name,
+                    "profile_text": profile_text,
+                    "embedding":    embedding,
+                    "cosine_dist":  cosine_dist,
+                },
+                on_conflict="slug",
+            ).execute()
+        except Exception:
+            pass
+
+    def load_profiles(self) -> list[dict]:
+        """Load all artist profiles from tinder.artist_profiles."""
+        if not self._sb:
+            return []
+        try:
+            rows = []
+            page_size = 500
+            offset = 0
+            while True:
+                result = (
+                    _tinder(self._sb).table("artist_profiles")
+                    .select("slug, name, profile_text, embedding, cosine_dist, generated_at")
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                )
+                batch = result.data or []
+                rows.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += page_size
+            return rows
+        except Exception:
+            return []
+
+    # ── App state (centroids) ─────────────────────────────────────────────────
+
+    def save_app_state(self, key: str, value: list | dict) -> None:
+        """Persist a JSON-serialisable value (e.g. a centroid float[]) to app_state."""
+        if not self._sb:
+            return
+        try:
+            _tinder(self._sb).table("app_state").upsert(
+                {"key": key, "value": value},
+                on_conflict="key",
+            ).execute()
+        except Exception:
+            pass
+
+    def load_app_state(self, key: str) -> list | dict | None:
+        """Return the stored value for key, or None if not found."""
+        if not self._sb:
+            return None
+        try:
+            result = (
+                _tinder(self._sb).table("app_state")
+                .select("value")
+                .eq("key", key)
+                .execute()
+            )
+            rows = result.data or []
+            return rows[0]["value"] if rows else None
+        except Exception:
+            return None
+
+    # ── Scraper raw ───────────────────────────────────────────────────────────
 
     def upsert_scrape(self, searched_name: str, source: str, data: dict) -> None:
-        """Insert one raw scrape record. Idempotent: one row per name/source/day."""
         if not self._sb:
             return
         try:
             self._sb.schema("scraper_raw").table("artist_scrapes").upsert(
-                {
-                    "searched_name": searched_name,
-                    "source":        source,
-                    "data":          data,
-                },
+                {"searched_name": searched_name, "source": source, "data": data},
                 on_conflict="searched_name,source,scrape_date",
             ).execute()
         except Exception:

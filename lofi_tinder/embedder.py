@@ -113,12 +113,24 @@ def compute_centroid(profile_vecs: list[list[float]]) -> np.ndarray:
 def save_centroid(centroid: np.ndarray) -> None:
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     np.save(str(_CENTROID_FILE), centroid)
+    try:
+        from .supabase_client import get_client
+        get_client().save_app_state("lofi_centroid", centroid.tolist())
+    except Exception:
+        pass
 
 
 def load_centroid() -> np.ndarray | None:
-    if not _CENTROID_FILE.exists():
-        return None
-    return np.load(str(_CENTROID_FILE))
+    if _CENTROID_FILE.exists():
+        return np.load(str(_CENTROID_FILE))
+    try:
+        from .supabase_client import get_client
+        data = get_client().load_app_state("lofi_centroid")
+        if data:
+            return np.array(data, dtype="float32")
+    except Exception:
+        pass
+    return None
 
 
 def cosine_dist_to_centroid(embedding: list[float], centroid: np.ndarray) -> float:
@@ -198,12 +210,24 @@ def compute_feature_centroid(feature_vecs: list[np.ndarray]) -> np.ndarray:
 def save_feature_centroid(centroid: np.ndarray) -> None:
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     np.save(str(_FEATURE_CENTROID_FILE), centroid)
+    try:
+        from .supabase_client import get_client
+        get_client().save_app_state("lofi_feature_centroid", centroid.tolist())
+    except Exception:
+        pass
 
 
 def load_feature_centroid() -> np.ndarray | None:
-    if not _FEATURE_CENTROID_FILE.exists():
-        return None
-    return np.load(str(_FEATURE_CENTROID_FILE))
+    if _FEATURE_CENTROID_FILE.exists():
+        return np.load(str(_FEATURE_CENTROID_FILE))
+    try:
+        from .supabase_client import get_client
+        data = get_client().load_app_state("lofi_feature_centroid")
+        if data:
+            return np.array(data, dtype="float32")
+    except Exception:
+        pass
+    return None
 
 
 def compute_dual_feature_centroids(
@@ -247,12 +271,31 @@ def save_dual_feature_centroids(core: np.ndarray, emerging: np.ndarray) -> None:
     _DATA_DIR.mkdir(parents=True, exist_ok=True)
     np.save(str(_FEATURE_CENTROID_CORE_FILE), core)
     np.save(str(_FEATURE_CENTROID_EMERGING_FILE), emerging)
+    try:
+        from .supabase_client import get_client
+        sb = get_client()
+        sb.save_app_state("lofi_feature_centroid_core",     core.tolist())
+        sb.save_app_state("lofi_feature_centroid_emerging", emerging.tolist())
+    except Exception:
+        pass
 
 
 def load_dual_feature_centroids() -> tuple[np.ndarray | None, np.ndarray | None]:
-    core     = np.load(str(_FEATURE_CENTROID_CORE_FILE))     if _FEATURE_CENTROID_CORE_FILE.exists()     else None
-    emerging = np.load(str(_FEATURE_CENTROID_EMERGING_FILE)) if _FEATURE_CENTROID_EMERGING_FILE.exists() else None
-    return core, emerging
+    if _FEATURE_CENTROID_CORE_FILE.exists() and _FEATURE_CENTROID_EMERGING_FILE.exists():
+        return (
+            np.load(str(_FEATURE_CENTROID_CORE_FILE)),
+            np.load(str(_FEATURE_CENTROID_EMERGING_FILE)),
+        )
+    try:
+        from .supabase_client import get_client
+        sb = get_client()
+        core_data     = sb.load_app_state("lofi_feature_centroid_core")
+        emerging_data = sb.load_app_state("lofi_feature_centroid_emerging")
+        core     = np.array(core_data,     dtype="float32") if core_data     else None
+        emerging = np.array(emerging_data, dtype="float32") if emerging_data else None
+        return core, emerging
+    except Exception:
+        return None, None
 
 
 def chartmetric_params_from_feature_centroid(

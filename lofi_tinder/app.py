@@ -68,19 +68,40 @@ st.set_page_config(page_title="Hulptool voor het vinden van de Lofi Feeling", la
 @st.cache_data(ttl=60)
 def _load_profiles() -> dict[str, ArtistProfile]:
     profiles: dict[str, ArtistProfile] = {}
-    if not _PROFILES_FILE.exists():
-        return profiles
-    for line in _PROFILES_FILE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            data = json.loads(line)
-            p = ArtistProfile(**data)
-            if p.embedding:
-                profiles[p.artist_id] = p
-        except Exception:
-            pass
+
+    # Try local file first (fast, available after run.py --seed)
+    if _PROFILES_FILE.exists():
+        for line in _PROFILES_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                p = ArtistProfile(**data)
+                if p.embedding:
+                    profiles[p.artist_id] = p
+            except Exception:
+                pass
+        if profiles:
+            return profiles
+
+    # Fall back to Supabase (Streamlit Cloud — no local files)
+    sb = _supabase()
+    if sb.available:
+        for row in sb.load_profiles():
+            try:
+                p = ArtistProfile(
+                    artist_id=row["slug"],
+                    name=row.get("name", row["slug"]),
+                    profile_text=row.get("profile_text", ""),
+                    embedding=row.get("embedding") or [],
+                    cosine_dist_to_centroid=row.get("cosine_dist", 1.0),
+                    generated_at=row.get("generated_at", ""),
+                )
+                if p.embedding:
+                    profiles[p.artist_id] = p
+            except Exception:
+                pass
     return profiles
 
 
@@ -88,20 +109,34 @@ def _load_profiles() -> dict[str, ArtistProfile]:
 def _load_enriched_map() -> dict[str, dict]:
     enriched_file = Path(__file__).parent.parent / "scraper_data" / "artist_enriched.jsonl"
     result: dict[str, dict] = {}
-    if not enriched_file.exists():
-        return result
-    for line in enriched_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            data = json.loads(line)
-            aid  = data.get("artist_id", "")
-            result[aid] = data
-            for old_id in data.get("old_artist_ids") or []:
-                result[old_id] = data
-        except Exception:
-            pass
+
+    # Try local file first
+    if enriched_file.exists():
+        for line in enriched_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                aid  = data.get("artist_id", "")
+                result[aid] = data
+                for old_id in data.get("old_artist_ids") or []:
+                    result[old_id] = data
+            except Exception:
+                pass
+        if result:
+            return result
+
+    # Fall back to Supabase tinder.artist_cache (Streamlit Cloud)
+    sb = _supabase()
+    if sb.available:
+        for row in sb.load_artists():
+            slug = row.get("slug", "")
+            if not slug:
+                continue
+            r = dict(row)
+            r["artist_id"] = slug
+            result[slug] = r
     return result
 
 

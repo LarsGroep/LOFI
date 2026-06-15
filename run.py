@@ -105,6 +105,30 @@ def _flush_profile_embeddings(profiles_map) -> None:
         for d in existing.values():
             f.write(json.dumps(d, ensure_ascii=False) + "\n")
 
+    # Push to Supabase so Streamlit Cloud can load profiles without local files
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        from lofi_tinder.supabase_client import get_client
+        sb = get_client()
+        if sb.available:
+            pushed = 0
+            for artist_id, profile in profiles_map.items():
+                sb.save_profile(
+                    slug=profile.artist_id,
+                    name=profile.name,
+                    profile_text=profile.profile_text,
+                    embedding=profile.embedding if profile.embedding else None,
+                    cosine_dist=profile.cosine_dist_to_centroid,
+                )
+                pushed += 1
+            print(f"  Pushed {pushed} profiles to Supabase tinder.artist_profiles")
+        else:
+            from lofi_tinder.supabase_client import get_connect_error
+            print(f"  Supabase unavailable ({get_connect_error()}) — profiles saved locally only")
+    except Exception as e:
+        print(f"  Supabase profile push failed: {e}")
+
 
 # ---------------------------------------------------------------------------
 # Excel export
