@@ -1,4 +1,4 @@
--- Migration 003: Chartmetric columns + enrichment flag
+-- Migration 003: Chartmetric ID + enrichment flag
 
 alter table tinder.artist_cache
   add column if not exists chartmetric_id    text,
