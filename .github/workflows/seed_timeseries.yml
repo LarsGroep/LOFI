@@ -1,18 +1,14 @@
 name: Seed Chartmetric Timeseries
 
-# Fetch 180-day Chartmetric timeseries for all artists that have a CM ID.
-# Computes ml_features (30d/90d growth, acceleration, listener-to-follower ratio).
-# This is the primary ML training signal — run this before building the scoring engine.
-#
-# Timing: 4 API calls × 2.1s = ~8.4s per artist
-#   Artists with CM ID (~400): ~55 min
-#   All 755 artists (if all have CM IDs): ~1.8 hrs
-#
-# Resumable: skips artists that already have cm_timeseries unless --force.
+# Fetches 180-day timeseries for ALL artists with a CM ID (not just lofi_booked).
+# Computes ml_features: sp_30d_pct, sp_90d_pct, sp_180d_pct, sp_accel,
+# sp_l2f, ig/tk/yt growth percentages.
+# Scheduled at 8:00 AM UTC — after Build Booked Profiles finishes (~7:30 AM).
+# Resumable: skips artists that already have cm_timeseries.
 
 on:
   schedule:
-    - cron: '0 2 * * 0'   # weekly Sunday 2 AM UTC — refresh stale timeseries
+    - cron: '0 8 * * *'   # 8:00 AM UTC — runs after Build Booked Profiles (~3.5 hrs)
   workflow_dispatch:
     inputs:
       days:
@@ -52,14 +48,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
 
-      - name: Fetch Chartmetric timeseries
+      - name: Fetch Chartmetric timeseries for all artists
         env:
           SUPABASE_URL:               ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:               ${{ secrets.SUPABASE_KEY }}
           CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
-          ARGS="--days ${{ github.event.inputs.days || '180' }}"
-          if [ "${{ github.event.inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          ARGS="--days ${{ github.event.inputs.days || '180' }} --all-artists"
+          if [ "${{ github.event.inputs.force || 'false' }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
           if [ "${{ github.event.inputs.limit || '0' }}" != "0" ]; then
             ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
           fi

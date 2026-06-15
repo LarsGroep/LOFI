@@ -2,7 +2,7 @@ name: Scrape Artists
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # 3 AM UTC — nightly full batch
+    - cron: '0 2 * * *'   # 2:00 AM UTC — nightly batch (after Add Booked Artists finishes)
     - cron: '0 * * * *'   # every hour — enrich YES'd artists
   workflow_dispatch:
     inputs:
@@ -38,7 +38,7 @@ jobs:
         run: pip install -r requirements.txt --quiet
 
       - name: Run nightly batch scrape
-        if: github.event.schedule == '0 3 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode != 'enrich')
+        if: github.event.schedule == '0 2 * * *' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode != 'enrich')
         env:
           SUPABASE_URL:                ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:                ${{ secrets.SUPABASE_KEY }}

@@ -1,12 +1,12 @@
 name: Add Booked Artists
 
-# Manual trigger only — import LOFI-booked artists from
-# data/lofi_booked_labels.csv into Supabase tinder.artist_cache with lofi_booked=true.
-#
-# Each run processes a batch (default 50), skipping artists already imported.
-# Run multiple times until all artists are imported.
+# Imports LOFI-booked artists from data/lofi_booked_labels.csv into
+# tinder.artist_cache with lofi_booked=true. Skips already-imported artists.
+# Scheduled nightly at 1:00 AM UTC so it runs before all other jobs.
 
 on:
+  schedule:
+    - cron: '0 1 * * *'   # 1:00 AM UTC — runs first, before scrape and timeseries
   workflow_dispatch:
     inputs:
       batch_size:
@@ -52,8 +52,8 @@ jobs:
           YOUTUBE_API_KEY:            ${{ secrets.YOUTUBE_API_KEY }}
           CHARTMETRIC_REFRESH_TOKEN:  ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
-          DRY=${{ github.event.inputs.dry_run }}
-          BS=${{ github.event.inputs.batch_size }}
-          ARGS="--batch-size ${BS:-50}"
+          DRY=${{ github.event.inputs.dry_run || 'false' }}
+          BS=${{ github.event.inputs.batch_size || '0' }}
+          ARGS="--batch-size ${BS}"
           if [ "$DRY" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           python scrapers/add_booked_artists.py $ARGS
