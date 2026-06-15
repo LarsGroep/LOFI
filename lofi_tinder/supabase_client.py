@@ -55,11 +55,18 @@ def get_connect_error() -> str:
     return _connect_error
 
 
+_SCHEMA = "scraper_data"
+
+
 class SupabaseClient:
     """Thin wrapper around the Supabase Python client. All methods no-op if unavailable."""
 
     def __init__(self) -> None:
         self._sb = _make_sb()
+
+    def _t(self, table: str):
+        """Return a query builder targeting scraper_data schema."""
+        return self._sb.schema(_SCHEMA).table(table)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -79,7 +86,7 @@ class SupabaseClient:
         if not self._sb:
             return
         try:
-            self._sb.table("swipes").insert({
+            self._t("swipes").insert({
                 "artist_id":    artist_id,
                 "name":         name,
                 "decision":     decision,
@@ -95,7 +102,7 @@ class SupabaseClient:
             return []
         try:
             result = (
-                self._sb.table("swipes")
+                self._t("swipes")
                 .select("*")
                 .order("ts", desc=False)
                 .execute()
@@ -109,7 +116,7 @@ class SupabaseClient:
             return []
         try:
             result = (
-                self._sb.table("swipes")
+                self._t("swipes")
                 .select("artist_id")
                 .eq("decision", "yes")
                 .order("ts", desc=True)
@@ -123,7 +130,7 @@ class SupabaseClient:
         if not self._sb:
             return {}
         try:
-            result = self._sb.table("swipes").select("decision").execute()
+            result = self._t("swipes").select("decision").execute()
             return dict(Counter(r["decision"] for r in (result.data or [])))
         except Exception:
             return {}
@@ -139,7 +146,7 @@ class SupabaseClient:
             return
         scalar["artist_id"] = artist_id
         try:
-            self._sb.table("artists").upsert(scalar, on_conflict="artist_id").execute()
+            self._t("artists").upsert(scalar, on_conflict="artist_id").execute()
         except Exception:
             pass
 
@@ -153,7 +160,7 @@ class SupabaseClient:
             for n in similar_names[:20]
         ]
         try:
-            self._sb.table("artist_similar").upsert(
+            self._t("artist_similar").upsert(
                 rows, on_conflict="artist_id,similar_name"
             ).execute()
         except Exception:
@@ -169,7 +176,7 @@ class SupabaseClient:
             offset = 0
             while True:
                 result = (
-                    self._sb.table("artists")
+                    self._t("artists")
                     .select("*")
                     .range(offset, offset + page_size - 1)
                     .execute()
@@ -189,7 +196,7 @@ class SupabaseClient:
             return {}
         try:
             swipes_result = (
-                self._sb.table("swipes")
+                self._t("swipes")
                 .select("artist_id, name, decision, ts")
                 .order("ts", desc=True)
                 .execute()
@@ -201,7 +208,7 @@ class SupabaseClient:
             if artist_ids:
                 # Supabase REST supports `in` filter
                 result = (
-                    self._sb.table("artists")
+                    self._t("artists")
                     .select(
                         "artist_id, name, spotify_followers, spotify_popularity, "
                         "pf_fans, beatport_label_tier, beatport_releases, "
