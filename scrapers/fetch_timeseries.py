@@ -62,7 +62,7 @@ def main() -> None:
 
     print(f"Fetching {args.days}-day timeseries for {len(targets)} artists "
           f"({'missing only' if args.only_missing else 'all with CM id'})")
-    print(f"Rate: 4 calls × 2s/call = ~8s/artist → {len(targets) * 8 // 60}min estimated\n")
+    print(f"Rate: 4 calls x 2s/call = ~8s/artist -> {len(targets) * 8 // 60}min estimated\n")
 
     done = errors = 0
     start = time.time()
