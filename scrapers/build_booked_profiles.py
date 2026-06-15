@@ -57,6 +57,22 @@ def _make_sb():
         return None
 
 
+def _build_profile_text(name: str, cm: dict) -> str:
+    parts = [name]
+    genres = cm.get("spotify_genres") or []
+    if isinstance(genres, list) and genres:
+        parts.append(f"Genre: {', '.join(genres[:4])}")
+    if moods := cm.get("moods"):
+        parts.append(f"Moods: {moods}")
+    if career := cm.get("career_status"):
+        parts.append(f"Career: {career}")
+    if label := cm.get("record_label"):
+        parts.append(f"Label: {label}")
+    if desc := cm.get("description"):
+        parts.append(desc[:200])
+    return ". ".join(filter(None, parts))
+
+
 def _build_cache_row(slug: str, name: str, appearances: int, cm: dict) -> dict:
     """Build the full artist_cache upsert row from Chartmetric enrichment data."""
     row: dict = {
@@ -143,9 +159,6 @@ def main() -> None:
         sys.exit(1)
 
     from scrapers.chartmetric_client import enrich_from_chartmetric, is_configured
-    from lofi_tinder.profile_builder import generate_profile
-    from lofi_tinder.schemas import ArtistInput
-    from lofi_tinder.embedder import compute_centroid, embed_profiles, save_centroid
 
     include_ts = not args.no_timeseries
     if not is_configured():
@@ -205,9 +218,8 @@ def main() -> None:
                 cache_row, on_conflict="slug"
             ).execute()
 
-            enriched_data = {"artist_id": slug, "name": name, **cm}
-            profile = generate_profile(ArtistInput(artist_id=slug, name=name, enriched=enriched_data))
-            new_profiles.append(profile)
+            profile_text = _build_profile_text(name, cm)
+            new_profiles.append({"slug": slug, "name": name, "profile_text": profile_text})
             done += 1
 
             if i % 10 == 0 or i == total:
@@ -222,25 +234,32 @@ def main() -> None:
 
     # ── Batch embed new profiles ──────────────────────────────────────────────
     if new_profiles:
+        import numpy as np
+        from sentence_transformers import SentenceTransformer
+
         print(f"\nEmbedding {len(new_profiles)} profiles...")
-        embed_profiles(new_profiles)
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+        texts = [p["profile_text"] for p in new_profiles]
+        embs  = model.encode(texts, normalize_embeddings=True,
+                              show_progress_bar=True, batch_size=64)
 
         print("Saving profiles to Supabase...")
-        for p in new_profiles:
+        for p, emb in zip(new_profiles, embs):
             try:
                 sb.schema("tinder").table("artist_profiles").upsert({
-                    "slug":         p.artist_id,
-                    "name":         p.name,
-                    "profile_text": p.profile_text,
-                    "embedding":    p.embedding or None,
+                    "slug":         p["slug"],
+                    "name":         p["name"],
+                    "profile_text": p["profile_text"],
+                    "embedding":    emb.tolist(),
                     "cosine_dist":  0.0,
                 }, on_conflict="slug").execute()
             except Exception as e:
                 errors += 1
-                print(f"  Profile save failed for {p.name}: {e}")
+                print(f"  Profile save failed for {p['name']}: {e}")
 
     # ── Rebuild LOFI Feel Matrix centroid ─────────────────────────────────────
     print("\nRebuilding LOFI Feel Matrix from all booked artists...")
+    import numpy as np
 
     booked_slugs: set[str] = set()
     offset = 0
@@ -259,7 +278,6 @@ def main() -> None:
 
     print(f"  {len(booked_slugs)} booked artists in Supabase")
 
-    import numpy as np
     all_embeddings: list[list[float]] = []
     offset = 0
     while True:
@@ -279,12 +297,25 @@ def main() -> None:
     print(f"  {len(all_embeddings)} profiles with embeddings found")
 
     if all_embeddings:
-        centroid = compute_centroid(all_embeddings)
-        save_centroid(centroid)
-        print(f"  Feel Matrix updated ({len(all_embeddings)} artists)")
+        mat      = np.array(all_embeddings, dtype="float32")
+        centroid = mat.mean(axis=0)
+        norm     = np.linalg.norm(centroid)
+        if norm > 0:
+            centroid /= norm
+
+        # Save centroid to app_state
+        try:
+            sb.schema("tinder").table("app_state").upsert({
+                "key":   "lofi_centroid",
+                "value": centroid.tolist(),
+            }, on_conflict="key").execute()
+            print(f"  Feel Matrix centroid saved ({len(all_embeddings)} artists)")
+        except Exception as e:
+            print(f"  Centroid save failed: {e}")
 
         print("  Updating cosine distances...")
         updated = 0
+        cn = np.linalg.norm(centroid)
         offset = 0
         while True:
             batch = (
@@ -297,8 +328,7 @@ def main() -> None:
                 if not row.get("embedding"):
                     continue
                 vec = np.array(row["embedding"], dtype="float32")
-                vn = np.linalg.norm(vec)
-                cn = np.linalg.norm(centroid)
+                vn  = np.linalg.norm(vec)
                 dist = float(1.0 - np.dot(vec, centroid) / (vn * cn)) if vn > 0 and cn > 0 else 1.0
                 try:
                     sb.schema("tinder").table("artist_profiles").update(
