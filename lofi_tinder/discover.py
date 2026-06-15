@@ -80,32 +80,60 @@ def _select_seeds(yes_names: list[str], seed_history: dict[str, int], max_seeds:
 
 def _load_existing_slugs() -> set[str]:
     slugs: set[str] = set()
-    if not _PROFILES_FILE.exists():
-        return slugs
-    for line in _PROFILES_FILE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            try:
-                slugs.add(json.loads(line)["artist_id"])
-            except Exception:
-                pass
+    # Try local file first
+    if _PROFILES_FILE.exists():
+        for line in _PROFILES_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    slugs.add(json.loads(line)["artist_id"])
+                except Exception:
+                    pass
+        if slugs:
+            return slugs
+    # Fall back to Supabase
+    try:
+        from lofi_tinder.supabase_client import get_client
+        sb = get_client()
+        if sb.available:
+            for row in sb.load_profiles():
+                slug = row.get("slug", "")
+                if slug:
+                    slugs.add(slug)
+    except Exception:
+        pass
     return slugs
 
 
 def _load_enriched_map() -> dict[str, dict]:
     result: dict[str, dict] = {}
-    if not _ENRICHED_FILE.exists():
-        return result
-    for line in _ENRICHED_FILE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            try:
-                data = json.loads(line)
-                result[data["artist_id"]] = data
-                for old_id in data.get("old_artist_ids") or []:
-                    result[old_id] = data
-            except Exception:
-                pass
+    # Try local file first
+    if _ENRICHED_FILE.exists():
+        for line in _ENRICHED_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    data = json.loads(line)
+                    result[data["artist_id"]] = data
+                    for old_id in data.get("old_artist_ids") or []:
+                        result[old_id] = data
+                except Exception:
+                    pass
+        if result:
+            return result
+    # Fall back to Supabase tinder.artist_cache
+    try:
+        from lofi_tinder.supabase_client import get_client
+        sb = get_client()
+        if sb.available:
+            for row in sb.load_artists():
+                slug = row.get("slug", "")
+                if slug:
+                    r = dict(row)
+                    r["artist_id"] = slug
+                    result[slug] = r
+    except Exception:
+        pass
     return result
 
 
@@ -239,6 +267,20 @@ def _append_profile(profile) -> None:
     _PROFILES_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(_PROFILES_FILE, "a", encoding="utf-8") as f:
         f.write(profile.model_dump_json() + "\n")
+    # Also persist to Supabase so Streamlit Cloud has it
+    try:
+        from lofi_tinder.supabase_client import get_client
+        sb = get_client()
+        if sb.available:
+            sb.save_profile(
+                slug=profile.artist_id,
+                name=profile.name,
+                profile_text=profile.profile_text,
+                embedding=profile.embedding if profile.embedding else None,
+                cosine_dist=profile.cosine_dist_to_centroid,
+            )
+    except Exception:
+        pass
 
 
 def _append_candidate(artist_id: str, name: str, enriched: dict) -> None:
@@ -252,6 +294,17 @@ def _append_candidate(artist_id: str, name: str, enriched: dict) -> None:
     }
     with open(_CANDIDATES_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    # Also upsert enriched data to tinder.artist_cache
+    try:
+        from lofi_tinder.supabase_client import get_client
+        sb = get_client()
+        if sb.available:
+            props = {k: v for k, v in enriched.items()
+                     if isinstance(v, (str, int, float, bool)) and v is not None}
+            props["name"] = name
+            sb.upsert_artist(artist_id, props)
+    except Exception:
+        pass
 
 
 def _rank_candidates_by_lofi_feel(
