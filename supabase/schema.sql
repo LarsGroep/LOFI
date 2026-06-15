@@ -1,10 +1,8 @@
 -- LOFI Artist Intelligence — Supabase schema
--- Run this in the Supabase SQL editor AFTER creating the scraper_data schema:
---   CREATE SCHEMA IF NOT EXISTS scraper_data;
--- And after exposing it: Settings → API → Exposed schemas → add scraper_data
+-- Run this in the Supabase SQL editor to create all tables.
 
 -- ── Artists ────────────────────────────────────────────────────────────────
-create table if not exists scraper_data.artists (
+create table if not exists public.artists (
   artist_id            text primary key,
   name                 text not null,
   lofi_booked          boolean default false,
@@ -40,15 +38,15 @@ create table if not exists scraper_data.artists (
 );
 
 -- ── Similarity edges ───────────────────────────────────────────────────────
-create table if not exists scraper_data.artist_similar (
-  artist_id    text not null references scraper_data.artists(artist_id) on delete cascade,
+create table if not exists public.artist_similar (
+  artist_id    text not null references public.artists(artist_id) on delete cascade,
   similar_name text not null,
   source       text default 'lastfm',
   primary key (artist_id, similar_name)
 );
 
 -- ── Swipes ─────────────────────────────────────────────────────────────────
-create table if not exists scraper_data.swipes (
+create table if not exists public.swipes (
   id           uuid        default gen_random_uuid() primary key,
   artist_id    text        not null,
   name         text,
@@ -64,7 +62,7 @@ create table if not exists scraper_data.swipes (
 );
 
 -- ── Scraper run log ────────────────────────────────────────────────────────
-create table if not exists scraper_data.scraper_runs (
+create table if not exists public.scraper_runs (
   id                 uuid        default gen_random_uuid() primary key,
   source             text        not null,
   artists_processed  integer     default 0,
@@ -75,24 +73,24 @@ create table if not exists scraper_data.scraper_runs (
 );
 
 -- ── Indexes ────────────────────────────────────────────────────────────────
-create index if not exists idx_swipes_artist_id  on scraper_data.swipes(artist_id);
-create index if not exists idx_swipes_ts         on scraper_data.swipes(ts desc);
-create index if not exists idx_swipes_decision   on scraper_data.swipes(decision);
-create index if not exists idx_artist_similar_id on scraper_data.artist_similar(artist_id);
-create index if not exists idx_artists_lofi      on scraper_data.artists(lofi_booked, lofi_lineup);
+create index if not exists idx_swipes_artist_id  on public.swipes(artist_id);
+create index if not exists idx_swipes_ts         on public.swipes(ts desc);
+create index if not exists idx_swipes_decision   on public.swipes(decision);
+create index if not exists idx_artist_similar_id on public.artist_similar(artist_id);
+create index if not exists idx_artists_lofi      on public.artists(lofi_booked, lofi_lineup);
 
 -- ── Row-level security ─────────────────────────────────────────────────────
-alter table scraper_data.artists       enable row level security;
-alter table scraper_data.artist_similar enable row level security;
-alter table scraper_data.swipes        enable row level security;
-alter table scraper_data.scraper_runs  enable row level security;
+alter table public.artists       enable row level security;
+alter table public.artist_similar enable row level security;
+alter table public.swipes        enable row level security;
+alter table public.scraper_runs  enable row level security;
 
-create policy "anon_read_artists"       on scraper_data.artists        for select using (true);
-create policy "anon_read_similar"       on scraper_data.artist_similar for select using (true);
-create policy "anon_read_swipes"        on scraper_data.swipes         for select using (true);
-create policy "anon_read_scraper_runs"  on scraper_data.scraper_runs   for select using (true);
+create policy "anon_read_artists"       on public.artists        for select using (true);
+create policy "anon_read_similar"       on public.artist_similar for select using (true);
+create policy "anon_read_swipes"        on public.swipes         for select using (true);
+create policy "anon_read_scraper_runs"  on public.scraper_runs   for select using (true);
 
-create policy "anon_write_swipes"       on scraper_data.swipes         for insert with check (true);
-create policy "anon_write_artists"      on scraper_data.artists        for all    using (true) with check (true);
-create policy "anon_write_similar"      on scraper_data.artist_similar for all    using (true) with check (true);
-create policy "anon_write_scraper_runs" on scraper_data.scraper_runs   for insert with check (true);
+create policy "anon_write_swipes"       on public.swipes         for insert with check (true);
+create policy "anon_write_artists"      on public.artists        for all    using (true) with check (true);
+create policy "anon_write_similar"      on public.artist_similar for all    using (true) with check (true);
+create policy "anon_write_scraper_runs" on public.scraper_runs   for insert with check (true);
