@@ -70,7 +70,7 @@ class DB:
         if not self._sb:
             return
         try:
-            self._t("artist_cache").upsert({"slug": slug, "needs_enrichment": True}, on_conflict="slug").execute()
+            self._t("artist_cache").update({"needs_enrichment": True}).eq("slug", slug).execute()
         except Exception:
             pass
 
