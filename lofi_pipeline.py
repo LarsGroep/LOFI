@@ -28,6 +28,52 @@ from supabase import create_client
 
 load_dotenv()
 
+# ── Milestone definitions ─────────────────────────────────────────────────────
+# Primary sources: Resident Advisor (venue/capacity/event type) + Partyflock.
+# Keys stored as JSONB in tinder.artist_cache.milestones: {"key": "YYYY-MM-DD"}
+MILESTONES: dict[str, str] = {
+    "boiler_room":      "First Boiler Room",
+    "ra_podcast":       "First RA Podcast",
+    "bbc_radio1":       "First BBC Radio 1",
+    "ibiza_booking":    "First Ibiza Booking",
+    "circoloco":        "First Circoloco",
+    "music_on":         "First Music On",
+    "ants":             "First ANTS",
+    "piv":              "First PIV",
+    "extended_set":     "First Extended Set",
+    "all_night_long":   "First All Night Long",
+    "all_day_long":     "First All Day Long",
+    "major_residency":  "First Major Residency",
+    "multi_city_tour":  "First Multi-City Headline Tour",
+    "tier_a_support":   "First Tier A Support Slot",
+    "tier_a_b2b":       "First Tier A B2B",
+    "beatport_top10":   "First Beatport Top 10",
+    "beatport_number1": "First Beatport #1",
+    "headline_500":     "First Headline 500+",
+    "headline_1000":    "First Headline 1K+",
+    "headline_2000":    "First Headline 2K+",
+    "headline_5000":    "First Headline 5K+",
+}
+
+# Which milestones can be auto-detected from RA / Partyflock scraper data
+MILESTONE_SOURCES: dict[str, str] = {
+    "boiler_room":      "RA event title/tags",
+    "ra_podcast":       "RA podcast listings",
+    "ibiza_booking":    "RA venue location (Ibiza)",
+    "circoloco":        "RA promoter: Circoloco",
+    "music_on":         "RA promoter: Music On",
+    "ants":             "RA promoter: ANTS",
+    "piv":              "RA promoter: PIV",
+    "extended_set":     "RA set duration > 3h",
+    "all_night_long":   "RA set duration > 6h",
+    "beatport_top10":   "Beatport chart scraper",
+    "beatport_number1": "Beatport chart scraper",
+    "headline_500":     "RA/Partyflock venue capacity",
+    "headline_1000":    "RA/Partyflock venue capacity",
+    "headline_2000":    "RA/Partyflock venue capacity",
+    "headline_5000":    "RA/Partyflock venue capacity",
+}
+
 st.set_page_config(
     page_title="LOFI Intelligence",
     layout="wide",
@@ -221,6 +267,28 @@ def load_swipe_slugs() -> tuple[set[str], set[str]]:
     yes = {s["slug"] for s in swipes if s["decision"] == "yes"}
     no  = {s["slug"] for s in swipes if s["decision"] == "no"}
     return yes, no
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_milestone_artists() -> list[dict]:
+    rows, offset = [], 0
+    while True:
+        batch = (
+            _t("artist_cache")
+            .select("slug,name,lofi_booked,milestones,image_url,career_status,lofi_appearance_count")
+            .range(offset, offset + 999)
+            .execute().data or []
+        )
+        rows.extend(batch)
+        if len(batch) < 1000:
+            break
+        offset += 1000
+    return rows
+
+
+def save_milestones(slug: str, milestones: dict) -> None:
+    _t("artist_cache").update({"milestones": milestones or {}}).eq("slug", slug).execute()
+    load_milestone_artists.clear()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1202,11 +1270,183 @@ def page_artists():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Page: Milestones
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _ms_count(a: dict) -> int:
+    return sum(1 for v in (a.get("milestones") or {}).values() if v)
+
+
+def page_milestones():
+    import pandas as pd
+
+    st.title("Artist Milestones")
+    st.caption(
+        "Track career milestones per artist. "
+        "Primary data sources: Resident Advisor (venue/capacity/promoter) and Partyflock. "
+        "Greyed labels can be auto-detected once scraper integration is complete."
+    )
+
+    all_artists  = load_milestone_artists()
+    yes_slugs, _ = load_swipe_slugs()
+
+    # Show confirmed + approved + any that already have milestone data
+    artists = [
+        a for a in all_artists
+        if a.get("lofi_booked") or a["slug"] in yes_slugs or bool(a.get("milestones"))
+    ]
+
+    tab_overview, tab_board, tab_edit = st.tabs(["Overview", "Board", "Edit"])
+
+    # ── Overview ───────────────────────────────────────────────────────────────
+    with tab_overview:
+        artists_with_any = [a for a in artists if _ms_count(a) > 0]
+        total_achieved   = sum(_ms_count(a) for a in artists)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Tracked Artists",          len(artists))
+        c2.metric("Artists with Milestones",  len(artists_with_any))
+        c3.metric("Total Milestones Logged",  total_achieved)
+
+        if not artists:
+            st.info("No confirmed or approved artists yet.")
+            return
+
+        st.markdown("---")
+        st.subheader("Milestone Achievement Rates")
+        st.caption("How many tracked artists have reached each milestone.")
+
+        col_l, col_r = st.columns(2)
+        for idx, (key, label) in enumerate(MILESTONES.items()):
+            count = sum(1 for a in artists if (a.get("milestones") or {}).get(key))
+            pct   = count / len(artists) if artists else 0
+            col   = col_l if idx % 2 == 0 else col_r
+            src   = MILESTONE_SOURCES.get(key)
+            with col:
+                r1, r2, r3 = st.columns([3, 4, 1])
+                r1.write(f"{label}" + (f" *({src})*" if src else ""))
+                r2.progress(pct)
+                r3.write(str(count))
+
+        st.markdown("---")
+        st.subheader("Leaderboard — most milestones")
+        ranked = sorted(artists, key=_ms_count, reverse=True)
+        ranked = [a for a in ranked if _ms_count(a) > 0][:20]
+        if ranked:
+            for i, a in enumerate(ranked, 1):
+                n      = _ms_count(a)
+                status = "LOFI" if a.get("lofi_booked") else "YES"
+                st.write(f"{i}. **{a['name']}** — {n} milestone{'s' if n != 1 else ''} [{status}]")
+        else:
+            st.info("No milestones logged yet. Use the Edit tab to add them.")
+
+    # ── Board ──────────────────────────────────────────────────────────────────
+    with tab_board:
+        col_s, col_f = st.columns([4, 2])
+        search         = col_s.text_input("Filter by name", placeholder="e.g. Solomun…", label_visibility="collapsed")
+        show_only_with = col_f.checkbox("Only artists with milestones", value=False)
+
+        display = artists
+        if search:
+            display = [a for a in display if search.lower() in a.get("name", "").lower()]
+        if show_only_with:
+            display = [a for a in display if _ms_count(a) > 0]
+
+        if not display:
+            st.info("No artists match the filter.")
+        else:
+            rows = []
+            for a in display:
+                ms  = a.get("milestones") or {}
+                row = {
+                    "Artist": a.get("name", a["slug"]),
+                    "Status": "LOFI" if a.get("lofi_booked") else "YES",
+                    "Total":  _ms_count(a),
+                }
+                for key, label in MILESTONES.items():
+                    row[label] = ms.get(key) or ""
+                rows.append(row)
+
+            df = pd.DataFrame(rows).sort_values("Total", ascending=False)
+            st.dataframe(
+                df,
+                use_container_width=True,
+                height=min(600, 60 + len(df) * 35),
+                column_config={
+                    "Artist": st.column_config.TextColumn(width="medium"),
+                    "Status": st.column_config.TextColumn(width="small"),
+                    "Total":  st.column_config.NumberColumn("Total", width="small"),
+                    **{label: st.column_config.TextColumn(label, width="small") for label in MILESTONES.values()},
+                },
+            )
+
+    # ── Edit ───────────────────────────────────────────────────────────────────
+    with tab_edit:
+        if not artists:
+            st.info("No confirmed or approved artists to edit yet.")
+            return
+
+        st.write(
+            "Enter the date each milestone was first achieved (YYYY-MM-DD). "
+            "Leave blank to clear. Data from RA/Partyflock will eventually auto-fill "
+            "greyed fields — manual entries are always preserved."
+        )
+
+        # Artist selector — show name + milestone count
+        def artist_label(a):
+            n = _ms_count(a)
+            tag = "LOFI" if a.get("lofi_booked") else "YES"
+            return f"{a.get('name', a['slug'])}  [{tag}]  {n}/{len(MILESTONES)} milestones"
+
+        sorted_artists = sorted(artists, key=lambda a: a.get("name", "").lower())
+        labels         = [artist_label(a) for a in sorted_artists]
+        selected_idx   = st.selectbox("Select artist", range(len(labels)), format_func=lambda i: labels[i])
+        artist         = sorted_artists[selected_idx]
+        current        = dict(artist.get("milestones") or {})
+
+        st.markdown("---")
+        if img := artist.get("image_url"):
+            ci, cn = st.columns([1, 5])
+            ci.image(img, width=80)
+            cn.markdown(f"### {artist.get('name', artist['slug'])}")
+        else:
+            st.markdown(f"### {artist.get('name', artist['slug'])}")
+
+        updated: dict[str, str] = {}
+        col_l, col_r = st.columns(2)
+        for idx, (key, label) in enumerate(MILESTONES.items()):
+            col  = col_l if idx % 2 == 0 else col_r
+            val  = current.get(key, "")
+            src  = MILESTONE_SOURCES.get(key, "manual entry")
+            hint = f"Source: {src}"
+            new_val = col.text_input(
+                label,
+                value=val or "",
+                placeholder="YYYY-MM-DD",
+                help=hint,
+                key=f"ms_{key}_{artist['slug']}",
+            )
+            if new_val.strip():
+                updated[key] = new_val.strip()
+
+        st.markdown("---")
+        ca, cb = st.columns([2, 5])
+        if ca.button("Save milestones", type="primary", use_container_width=True):
+            save_milestones(artist["slug"], updated)
+            st.success(f"Saved {len(updated)} milestone(s) for {artist.get('name', artist['slug'])}")
+            st.rerun()
+        if cb.button("Clear all milestones for this artist", use_container_width=True):
+            save_milestones(artist["slug"], {})
+            st.warning("All milestones cleared.")
+            st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Main navigation
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
-    pages = ["Dashboard", "Discovery", "Pipeline", "Artists"]
+    pages = ["Dashboard", "Discovery", "Pipeline", "Artists", "Milestones"]
     with st.sidebar:
         st.markdown("## LOFI Intelligence")
         page = st.radio("Navigate", pages, label_visibility="collapsed")
@@ -1220,14 +1460,16 @@ def main():
         except Exception:
             st.caption("Loading…")
 
-    if page == pages[0]:
+    if page == "Dashboard":
         page_dashboard()
-    elif page == pages[1]:
+    elif page == "Discovery":
         page_discovery()
-    elif page == pages[2]:
+    elif page == "Pipeline":
         page_pipeline()
-    else:
+    elif page == "Artists":
         page_artists()
+    else:
+        page_milestones()
 
 
 if __name__ == "__main__":
