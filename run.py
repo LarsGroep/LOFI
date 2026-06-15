@@ -1,19 +1,23 @@
 """
 LOFI Tinder -- main entrypoint.
 
-Full pipeline (run in order):
-    1. python run.py --enrich          # aggregate all scraper data -> scraper_data/artist_enriched.jsonl
+Full pipeline when using Supabase as data source (GitHub Actions scraper has run):
+    1. python run.py --pull            # sync Supabase tinder.artist_cache -> scraper_data/artist_enriched.jsonl
     2. python run.py --seed            # generate profiles for LOFI-booked artists + build centroids + MAB
     3. python run.py --candidates      # generate profiles for candidate artists
-    5. python run.py --build-index     # (re)build FAISS index
-    6. streamlit run lofi_tinder/app.py
+    4. python run.py --build-index     # (re)build FAISS index
+    5. streamlit run lofi_tinder/app.py
 
-Quick re-seed after new data:
-    python run.py --enrich && python run.py --seed
+Full pipeline when using local scraper data:
+    1. python run.py --enrich          # aggregate all scraper data -> scraper_data/artist_enriched.jsonl
+    2-5. same as above
+
+Quick refresh after nightly GitHub Actions run:
+    python run.py --pull && python run.py --seed && python run.py --candidates
 
 Other:
     python run.py --stats              # show current state
-    python run.py --retrain-mab        # replay all swipes through 15-dim MAB from scratch
+    python run.py --retrain-mab        # replay all swipes through 14-dim MAB from scratch
     python run.py --export-excel       # export scraper_data to Excel
 """
 
@@ -221,6 +225,83 @@ def export_excel() -> Path:
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
+
+
+def _cache_row_to_enriched(row: dict) -> dict:
+    """Convert a tinder.artist_cache row to the enriched dict format used by run.py."""
+    r = {k: v for k, v in row.items() if v is not None}
+    # slug is the artist_id in the enriched format
+    r["artist_id"] = r.pop("slug", r.get("artist_id", ""))
+    # Reconstruct growth_history from flat columns if not present
+    if not r.get("growth_history"):
+        gh: dict = {}
+        if r.get("lastfm_listeners"):
+            gh["current_listeners"] = r["lastfm_listeners"]
+        if r.get("lastfm_playcount"):
+            gh["current_playcount"] = r["lastfm_playcount"]
+        if gh:
+            r["growth_history"] = gh
+    # Remove cache-specific housekeeping fields
+    for f in ("cache_updated_at", "last_scraped_at", "artist_id"):
+        r.pop(f, None)
+    # Restore artist_id (we removed the wrong key above)
+    r["artist_id"] = row.get("slug", "")
+    return r
+
+
+def cmd_pull(args) -> None:
+    """Pull all artists from Supabase tinder.artist_cache into local artist_enriched.jsonl."""
+    from dotenv import load_dotenv
+    load_dotenv()
+    from lofi_tinder.supabase_client import get_client
+
+    sb = get_client()
+    if not sb.available:
+        from lofi_tinder.supabase_client import get_connect_error
+        print(f"Supabase not available: {get_connect_error()}")
+        return
+
+    print("Fetching artists from Supabase tinder.artist_cache...")
+    rows = sb.load_artists()
+    if not rows:
+        print("No artists found in Supabase. Has the GitHub Actions scraper run yet?")
+        return
+
+    print(f"  Fetched {len(rows)} artists")
+
+    records: dict[str, dict] = {}
+    # Keep existing local records (preserves fields not in Supabase cache)
+    if _ENRICHED_FILE.exists():
+        for line in _ENRICHED_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    d = json.loads(line)
+                    records[d["artist_id"]] = d
+                except Exception:
+                    pass
+        print(f"  Merging with {len(records)} existing local records")
+
+    updated = 0
+    for row in rows:
+        enriched = _cache_row_to_enriched(row)
+        aid = enriched.get("artist_id")
+        if not aid:
+            continue
+        # Merge: Supabase values overwrite local, but don't lose local-only fields
+        existing = records.get(aid, {})
+        existing.update({k: v for k, v in enriched.items() if v is not None})
+        records[aid] = existing
+        updated += 1
+
+    _SCRAPER_DATA.mkdir(parents=True, exist_ok=True)
+    with open(_ENRICHED_FILE, "w", encoding="utf-8") as f:
+        for d in records.values():
+            f.write(json.dumps(d, ensure_ascii=False) + "\n")
+
+    booked = sum(1 for r in records.values() if r.get("lofi_booked"))
+    print(f"  Written {len(records)} records ({booked} LOFI-booked) to {_ENRICHED_FILE}")
+    print("Next: python run.py --seed")
 
 
 def cmd_enrich(args) -> None:
@@ -491,7 +572,8 @@ def cmd_stats(args) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="LOFI Tinder entrypoint")
-    parser.add_argument("--enrich",       action="store_true", help="Aggregate all scraper data into artist_enriched.jsonl")
+    parser.add_argument("--pull",         action="store_true", help="Sync Supabase tinder.artist_cache -> local artist_enriched.jsonl")
+    parser.add_argument("--enrich",       action="store_true", help="Aggregate local scraper data into artist_enriched.jsonl")
     parser.add_argument("--export-excel", action="store_true", help="Export scraper_data to Excel")
     parser.add_argument("--seed",         action="store_true", help="Generate profiles for LOFI-booked artists + rebuild centroids")
     parser.add_argument("--candidates",   action="store_true", help="Generate profiles for candidates")
@@ -500,7 +582,9 @@ def main() -> None:
     parser.add_argument("--stats",        action="store_true", help="Show status summary")
     args = parser.parse_args()
 
-    if args.enrich:
+    if args.pull:
+        cmd_pull(args)
+    elif args.enrich:
         cmd_enrich(args)
     elif getattr(args, "export_excel"):
         cmd_export_excel(args)
