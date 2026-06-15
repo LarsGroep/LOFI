@@ -187,6 +187,24 @@ alter table tinder.swipes          enable row level security;
 alter table tinder.artist_cache    enable row level security;
 alter table tinder.similar_edges   enable row level security;
 
+-- Drop policies before (re)creating — PostgreSQL has no CREATE POLICY IF NOT EXISTS
+drop policy if exists "anon_read"  on core.artists;
+drop policy if exists "anon_read"  on core.artist_source_ids;
+drop policy if exists "anon_read"  on scraper_raw.artist_scrapes;
+drop policy if exists "anon_read"  on scraper_raw.pipeline_runs;
+drop policy if exists "anon_read"  on chartmetric_raw.artist_snapshots;
+drop policy if exists "anon_read"  on tinder.swipes;
+drop policy if exists "anon_read"  on tinder.artist_cache;
+drop policy if exists "anon_read"  on tinder.similar_edges;
+drop policy if exists "anon_write" on tinder.swipes;
+drop policy if exists "anon_write" on tinder.artist_cache;
+drop policy if exists "anon_write" on tinder.similar_edges;
+drop policy if exists "anon_write" on scraper_raw.artist_scrapes;
+drop policy if exists "anon_write" on scraper_raw.pipeline_runs;
+drop policy if exists "anon_write" on chartmetric_raw.artist_snapshots;
+drop policy if exists "anon_write" on core.artists;
+drop policy if exists "anon_write" on core.artist_source_ids;
+
 -- anon: read everything
 create policy "anon_read" on core.artists           for select using (true);
 create policy "anon_read" on core.artist_source_ids for select using (true);
