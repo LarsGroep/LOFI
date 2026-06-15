@@ -40,7 +40,7 @@ from lofi_tinder.embedder import (
     load_centroid, save_centroid, save_feature_centroid,
 )
 from lofi_tinder.mab import LinUCB, reward_for_decision
-from lofi_tinder.supabase_client import get_client as _supabase
+from lofi_tinder.supabase_client import get_client as _supabase, get_connect_error as _sb_error
 from lofi_tinder.ranker import get_swiped_ids, load_swipes, rank_candidates
 from lofi_tinder.schemas import ArtistProfile, SwipeRecord
 from scrapers.unified_scraper import merge_into_enriched, scrape_batch, SOURCES as _ALL_SOURCES
@@ -906,7 +906,10 @@ def main() -> None:
     if sb.available:
         st.sidebar.success("Supabase connected")
     else:
-        st.sidebar.warning("Supabase not connected — swipes saved locally only")
+        err = _sb_error()
+        st.sidebar.warning(f"Supabase not connected — swipes saved locally only")
+        if err:
+            st.sidebar.caption(f"Reason: {err}")
 
     if phase == "select":
         _phase_select(profiles, swipes, emap, mab, mab_scores)

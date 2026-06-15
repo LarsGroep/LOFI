@@ -26,19 +26,33 @@ except ImportError:
     _SDK_AVAILABLE = False
 
 _instance: SupabaseClient | None = None
+_connect_error: str = ""
 
 
 def _make_sb() -> _Client | None:
+    global _connect_error
     if not _SDK_AVAILABLE:
+        _connect_error = "supabase package not installed"
         return None
     url = os.environ.get("SUPABASE_URL", "").strip()
     key = os.environ.get("SUPABASE_KEY", "").strip()
-    if not url or not key:
+    if not url:
+        _connect_error = "SUPABASE_URL not set"
+        return None
+    if not key:
+        _connect_error = "SUPABASE_KEY not set"
         return None
     try:
-        return _create_client(url, key)
-    except Exception:
+        client = _create_client(url, key)
+        _connect_error = ""
+        return client
+    except Exception as e:
+        _connect_error = str(e)
         return None
+
+
+def get_connect_error() -> str:
+    return _connect_error
 
 
 class SupabaseClient:
