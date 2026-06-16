@@ -36,6 +36,8 @@ from scrapers.chartmetric_client import (
     get_artist,
     get_stat,
     enrich_from_chartmetric,
+    get_full_timeseries,
+    compute_growth_features,
     is_configured,
     _refresh_token,
     _num,
@@ -335,11 +337,84 @@ def _full_profile(cm_id: str, token: str) -> dict:
     }
 
 
+def _run_timeseries_backfill(sb, artist_name: str | None, limit: int, days: int) -> None:
+    """Fetch and store full time-series for all booked artists that have a CM ID.
+
+    Updates cm_timeseries and ml_features in artist_chartmetric.
+    Safe to re-run — upserts overwrite previous timeseries data.
+    """
+    _refresh_token()
+
+    rows = (
+        sb.schema("tinder").table("artists")
+        .select("id, name, chartmetric_id")
+        .eq("candidate_status", "booked")
+        .not_.is_("chartmetric_id", "null")
+        .execute().data or []
+    )
+
+    if artist_name:
+        rows = [r for r in rows if r["name"].lower() == artist_name.lower()]
+        print(f"Filtered to artist_name={artist_name}: {len(rows)} match(es)")
+
+    if limit > 0:
+        rows = rows[:limit]
+
+    total = len(rows)
+    print(f"Booked artists to backfill timeseries: {total}  (lookback={days}d)")
+    if not total:
+        return
+
+    done = errors = 0
+    start = time.time()
+
+    for i, row in enumerate(rows, 1):
+        name      = row["name"]
+        artist_id = row["id"]
+        cm_id     = str(row["chartmetric_id"])
+        print(f"  [{i}/{total}] {name}")
+        try:
+            # Get current sp_followers for listener-to-follower ratio feature
+            cm_row = (
+                sb.schema("tinder").table("artist_chartmetric")
+                .select("sp_followers")
+                .eq("artist_id", artist_id)
+                .execute().data or []
+            )
+            sp_followers = cm_row[0].get("sp_followers") if cm_row else None
+
+            ts = get_full_timeseries(cm_id, since_days=days)
+            ml = compute_growth_features(ts, sp_followers=sp_followers)
+
+            sb.schema("tinder").table("artist_chartmetric").update({
+                "cm_timeseries": ts or None,
+                "ml_features":   ml or None,
+                "updated_at":    datetime.now(timezone.utc).isoformat(),
+            }).eq("artist_id", artist_id).execute()
+
+            done += 1
+            elapsed = time.time() - start
+            eta_min = (total - i) * (elapsed / i) / 60
+            sources = list(ts.keys()) if ts else []
+            print(f"    sources={sources}  ETA: {eta_min:.0f}m")
+
+        except Exception as e:
+            errors += 1
+            print(f"    ERROR: {e}")
+
+    elapsed = time.time() - start
+    print(f"\nDone in {elapsed/60:.1f}min — {done} updated, {errors} errors")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["profile", "timeseries"], default="profile",
+                        help="profile: fetch latest snapshot (default). timeseries: fetch full time-series for booked artists.")
     parser.add_argument("--limit", type=int, default=0, help="Max artists to process (0=all)")
+    parser.add_argument("--days",  type=int, default=365,
+                        help="Timeseries lookback in days (timeseries mode only, default 365)")
     parser.add_argument("--force", action="store_true",
-                        help="Re-fetch even if artist_chartmetric row already exists")
+                        help="Re-fetch even if artist_chartmetric row already exists (profile mode only)")
     parser.add_argument(
     "--artist-name",
     type=str,
@@ -353,6 +428,11 @@ def main() -> None:
         sys.exit(1)
 
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+
+    if args.mode == "timeseries":
+        _run_timeseries_backfill(sb, args.artist_name, args.limit, args.days)
+        return
+
     _refresh_token()
     cm_token = _get_cm_access_token()
 

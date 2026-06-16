@@ -1,17 +1,29 @@
 name: Backfill Booked Artists
 
-# Fills missing Chartmetric profile data for LOFI-booked artists.
-# Run manually whenever booked artists are added or after initial setup.
+# Two modes (select via the 'mode' input):
+#   profile    — fetch latest snapshot per platform for booked artists missing CM data
+#   timeseries — fetch full time-series (19 endpoints) for all booked artists with a CM ID
+#
+# Run 'profile' whenever new artists are booked.
+# Run 'timeseries' periodically (e.g. monthly) to keep historical data fresh.
 
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'profile: snapshot for missing artists | timeseries: full history for all booked'
+        required: false
+        default: 'profile'
       limit:
-        description: 'Max artists to process (0 = all missing)'
+        description: 'Max artists to process (0 = all)'
         required: false
         default: '0'
+      days:
+        description: 'Timeseries lookback in days (timeseries mode only, default 365)'
+        required: false
+        default: '365'
       force:
-        description: 'Re-fetch even if data already exists (true/false)'
+        description: 'Re-fetch even if data already exists — profile mode only (true/false)'
         required: false
         default: 'false'
       artist_name:
@@ -22,7 +34,7 @@ on:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
 
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +83,7 @@ jobs:
           test -n "$CHARTMETRIC_REFRESH_TOKEN" || (echo "CHARTMETRIC_REFRESH_TOKEN missing" && exit 1)
           echo "Secrets are present"
 
-      - name: Backfill booked artist profiles
+      - name: Backfill booked artists
         env:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
@@ -82,6 +94,8 @@ jobs:
             FORCE_FLAG="--force"
           fi
           python -u scrapers/backfill_booked.py \
-            --limit "${{ github.event.inputs.limit || '0' }}" \
-            $FORCE_FLAG \
-            --artist-name "${{ github.event.inputs.artist_name }}"
+            --mode    "${{ github.event.inputs.mode || 'profile' }}" \
+            --limit   "${{ github.event.inputs.limit || '0' }}" \
+            --days    "${{ github.event.inputs.days || '365' }}" \
+            --artist-name "${{ github.event.inputs.artist_name }}" \
+            $FORCE_FLAG
