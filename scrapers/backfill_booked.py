@@ -315,6 +315,12 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="Max artists to process (0=all)")
     parser.add_argument("--force", action="store_true",
                         help="Re-fetch even if artist_chartmetric row already exists")
+    parser.add_argument(
+    "--artist-name",
+    type=str,
+    default=None,
+    help="Only process one artist by exact name"
+    )
     args = parser.parse_args()
 
     if not is_configured():
@@ -332,7 +338,26 @@ def main() -> None:
         .eq("candidate_status", "booked")
         .execute().data or []
     )
+    
     print(f"Total booked artists: {len(booked)}")
+
+    if args.artist_name:
+        booked = [r for r in booked if r["name"].lower() == args.artist_name.lower()]
+        print(f"Filtered to artist_name={args.artist_name}: {len(booked)} match(es)")
+
+    if not args.force:
+        existing_ids = {
+            r["artist_id"]
+            for r in (
+                sb.schema("tinder").table("artist_chartmetric")
+                .select("artist_id")
+                .execute().data or []
+            )
+        }
+        booked = [r for r in booked if r["id"] not in existing_ids]
+        print(f"Missing CM data: {len(booked)}")
+    else:
+        print("--force: re-fetching all booked artists")
 
     if not args.force:
         existing_ids = {
