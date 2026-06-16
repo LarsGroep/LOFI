@@ -210,16 +210,14 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
     """
     Derive ML-ready features from a cm_timeseries dict.
 
+    Accepts both formats:
+      - Nested (from get_full_timeseries): {"spotify": {"listeners": [{date, value}], ...}, ...}
+      - Flat (legacy):                     {"spotify": [{date, value}], ...}
+
     All percentages are relative changes vs. N days ago.
     Acceleration (sp_listeners_accel) is the second derivative:
     recent 30d growth minus prior 30d growth — the primary signal
     for breakout detection per the LOFI scoring spec.
-
-    Args:
-        ts: {"spotify": [{date, value}], "instagram": [...], ...}
-        sp_followers: current Spotify followers (for listener-to-follower ratio)
-
-    Returns flat dict suitable for storage in ml_features JSONB column.
     """
     today = date.today()
 
@@ -233,16 +231,27 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
             return round((current - past_val) / past_val * 100, 2)
         return None
 
+    def _series(source: str, *fields: str) -> list[dict]:
+        """Extract a flat [{date, value}] list from either nested or flat ts format."""
+        data = ts.get(source, {})
+        if isinstance(data, list):
+            return data  # legacy flat format
+        for field in fields:
+            val = data.get(field, [])
+            if val:
+                return val
+        return []
+
     features: dict = {}
     growing_platforms = 0
 
-    # ── Spotify ───────────────────────────────────────────────────────────────
-    sp = ts.get("spotify", [])
+    # ── Spotify (use listeners as primary momentum metric) ─────────────────────
+    sp = _series("spotify", "listeners", "followers")
     if sp:
         current = sp[-1]["value"]
-        p30 = _past(sp, 30)
-        p60 = _past(sp, 60)
-        p90 = _past(sp, 90)
+        p30  = _past(sp, 30)
+        p60  = _past(sp, 60)
+        p90  = _past(sp, 90)
         p180 = _past(sp, 180)
 
         g30 = _pct(current, p30["value"] if p30 else None)
@@ -250,30 +259,24 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
             features["sp_listeners_30d_pct"] = g30
             if g30 > 0:
                 growing_platforms += 1
-
         if p90:
             g90 = _pct(current, p90["value"])
             if g90 is not None:
                 features["sp_listeners_90d_pct"] = g90
-
         if p180:
             g180 = _pct(current, p180["value"])
             if g180 is not None:
                 features["sp_listeners_180d_pct"] = g180
-
-        # Acceleration: recent 30d growth rate vs. prior 30d growth rate
         if p30 and p60:
             g_recent = _pct(current, p30["value"])
-            g_prior = _pct(p30["value"], p60["value"])
+            g_prior  = _pct(p30["value"], p60["value"])
             if g_recent is not None and g_prior is not None:
                 features["sp_listeners_accel"] = round(g_recent - g_prior, 2)
-
-        # Listeners-to-followers ratio: broad reach vs. dedicated base
         if sp_followers and sp_followers > 0:
             features["sp_listeners_to_followers"] = round(current / sp_followers, 2)
 
     # ── Instagram ─────────────────────────────────────────────────────────────
-    ig = ts.get("instagram", [])
+    ig = _series("instagram", "followers")
     if ig:
         current = ig[-1]["value"]
         p30 = _past(ig, 30)
@@ -289,7 +292,7 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
                 features["ig_followers_90d_pct"] = g90
 
     # ── TikTok ────────────────────────────────────────────────────────────────
-    tk = ts.get("tiktok", [])
+    tk = _series("tiktok", "followers")
     if tk:
         current = tk[-1]["value"]
         p30 = _past(tk, 30)
@@ -304,8 +307,8 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
             if g90 is not None:
                 features["tiktok_followers_90d_pct"] = g90
 
-    # ── YouTube ───────────────────────────────────────────────────────────────
-    yt = ts.get("youtube_channel", [])
+    # ── YouTube channel ───────────────────────────────────────────────────────
+    yt = _series("youtube_channel", "subscribers")
     if yt:
         current = yt[-1]["value"]
         p30 = _past(yt, 30)
@@ -320,9 +323,8 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
             if g90 is not None:
                 features["yt_subs_90d_pct"] = g90
 
-    # ── YouTube artist (aggregate daily/monthly views) ────────────────────────
-    yta = ts.get("youtube_artist", {})
-    yta_daily = yta.get("daily_views", [])
+    # ── YouTube artist aggregate daily views ──────────────────────────────────
+    yta_daily = _series("youtube_artist", "daily_views")
     if yta_daily:
         current = yta_daily[-1]["value"]
         p30 = _past(yta_daily, 30)
@@ -338,7 +340,7 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
                 features["yt_daily_views_90d_pct"] = g90
 
     # ── SoundCloud ────────────────────────────────────────────────────────────
-    sc = ts.get("soundcloud", {}).get("followers", [])
+    sc = _series("soundcloud", "followers")
     if sc:
         current = sc[-1]["value"]
         p30 = _past(sc, 30)
@@ -348,11 +350,38 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
             if g30 > 0:
                 growing_platforms += 1
 
+    # ── Shazam (strong discovery signal for emerging electronic artists) ───────
+    shz = _series("shazam", "shazam_count")
+    if shz:
+        current = shz[-1]["value"]
+        p30 = _past(shz, 30)
+        p90 = _past(shz, 90)
+        g30 = _pct(current, p30["value"] if p30 else None)
+        if g30 is not None:
+            features["shazam_30d_pct"] = g30
+            if g30 > 0:
+                growing_platforms += 1
+        if p90:
+            g90 = _pct(current, p90["value"])
+            if g90 is not None:
+                features["shazam_90d_pct"] = g90
+
+    # ── Deezer (relevant European streaming signal) ───────────────────────────
+    dz = _series("deezer", "fans")
+    if dz:
+        current = dz[-1]["value"]
+        p30 = _past(dz, 30)
+        g30 = _pct(current, p30["value"] if p30 else None)
+        if g30 is not None:
+            features["deezer_fans_30d_pct"] = g30
+            if g30 > 0:
+                growing_platforms += 1
+
     # ── CPP score trend (Chartmetric Career Performance Platform) ─────────────
-    cpp_scores = ts.get("cpp", {}).get("score", [])
+    cpp_scores = _series("cpp", "score")
     if cpp_scores:
         current_cpp = cpp_scores[-1]["value"]
-        features["cpp_score_current"] = round(current_cpp, 4)
+        features["cpp_score_current"] = round(float(current_cpp), 4)
         p30_cpp = _past(cpp_scores, 30)
         p90_cpp = _past(cpp_scores, 90)
         if p30_cpp and p30_cpp["value"] > 0:
@@ -368,12 +397,13 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
     if growing_platforms:
         features["platforms_growing_30d"] = growing_platforms
 
-    # Weighted cross-platform momentum (Spotify dominant signal)
     weights = {
-        "sp_listeners_30d_pct":     0.45,
-        "ig_followers_30d_pct":     0.20,
-        "tiktok_followers_30d_pct": 0.20,
-        "yt_subs_30d_pct":          0.15,
+        "sp_listeners_30d_pct":     0.40,
+        "ig_followers_30d_pct":     0.15,
+        "tiktok_followers_30d_pct": 0.15,
+        "yt_subs_30d_pct":          0.10,
+        "shazam_30d_pct":           0.12,
+        "deezer_fans_30d_pct":      0.08,
     }
     momentum = sum(features.get(k, 0) * w for k, w in weights.items())
     if any(k in features for k in weights):
@@ -577,15 +607,20 @@ def _parse_cpp(data: dict | None, stat: str) -> list[dict]:
 
 
 def get_full_timeseries(cm_id: int | str, since_days: int = 365) -> dict:
-    """Comprehensive time-series pull — mirrors chartmetric_artist_timeseries_pull.py.
+    """Comprehensive time-series pull across all available Chartmetric platforms.
 
-    Endpoints hit (13 API calls):
+    Endpoints hit (19 API calls):
       Spotify:         followers, listeners, popularity
       Instagram:       followers
       TikTok:          followers, likes
       YouTube channel: subscribers, views
       YouTube artist:  daily_views, monthly_views
       SoundCloud:      followers
+      Shazam:          shazam_count
+      Deezer:          fans
+      Facebook:        likes
+      Pandora:         streams, station_adds
+      Wikipedia:       pageviews
       CPP:             score, rank
 
     Returns nested dict:
@@ -644,6 +679,35 @@ def get_full_timeseries(cm_id: int | str, since_days: int = 365) -> dict:
     pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/soundcloud", {**base, "field": "followers"}))
     if pts:
         result["soundcloud"] = {"followers": pts}
+
+    # Shazam
+    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/shazam", {**base, "field": "shazam_count"}))
+    if pts:
+        result["shazam"] = {"shazam_count": pts}
+
+    # Deezer
+    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/deezer", {**base, "field": "fans"}))
+    if pts:
+        result["deezer"] = {"fans": pts}
+
+    # Facebook
+    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/facebook", {**base, "field": "likes"}))
+    if pts:
+        result["facebook"] = {"likes": pts}
+
+    # Pandora: streams + station_adds
+    pan: dict[str, list] = {}
+    for field in ("streams", "station_adds"):
+        pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/pandora", {**base, "field": field}))
+        if pts:
+            pan[field] = pts
+    if pan:
+        result["pandora"] = pan
+
+    # Wikipedia
+    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/wikipedia", {**base, "field": "pageviews"}))
+    if pts:
+        result["wikipedia"] = {"pageviews": pts}
 
     # CPP: score + rank
     cpp: dict[str, list] = {}
