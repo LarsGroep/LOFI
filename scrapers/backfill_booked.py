@@ -101,38 +101,54 @@ def _latest_value(stat_data: dict, metric: str):
 
     return value
 
-def _get_cm_access_token() -> str:
-    refresh_token = os.environ.get("CHARTMETRIC_REFRESH_TOKEN")
-    if not refresh_token:
-        raise RuntimeError("CHARTMETRIC_REFRESH_TOKEN not set")
-
-    response = requests.post(
-        f"{HOST}/api/token",
-        json={"refreshtoken": refresh_token},
-        timeout=30,
-    )
-    response.raise_for_status()
-    return response.json()["token"]
 
 
 def _get_cm_json(
     path: str,
     token: str,
     params: Optional[dict[str, Any]] = None,
+    max_attempts: int = 5,
 ) -> dict:
-    response = requests.get(
-        f"{HOST}{path}",
-        headers={"Authorization": f"Bearer {token}"},
-        params=params or {},
-        timeout=90,
-    )
+    url = f"{HOST}{path}"
 
-    if response.status_code != 200:
+    for attempt in range(1, max_attempts + 1):
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            params=params or {},
+            timeout=90,
+        )
+
+        if response.status_code == 200:
+            time.sleep(1.2)
+            return response.json() or {}
+
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After")
+
+            if retry_after:
+                try:
+                    sleep_seconds = max(float(retry_after), 1.5)
+                except ValueError:
+                    sleep_seconds = 2.0
+            else:
+                sleep_seconds = 2.0 * attempt
+
+            print(
+                f"    CM 429: {response.url} "
+                f"sleeping {sleep_seconds:.1f}s "
+                f"(attempt {attempt}/{max_attempts})"
+            )
+            time.sleep(sleep_seconds)
+            continue
+
         print(f"    CM {response.status_code}: {response.url}")
         print(f"    {response.text[:300]}")
+        time.sleep(1.2)
         return {}
 
-    return response.json() or {}
+    print(f"    CM FAILED after {max_attempts} attempts: {url}")
+    return {}
 
 
 def _latest_value_from_stat_response(data: dict, metric: str):
@@ -213,6 +229,10 @@ def _fetch_latest_metric(
             "interpolated": "false",
         },
     )
+
+    # Chartmetric rate limit safety: max ~1 request/second.
+    time.sleep(1.2)
+
     return _latest_value_from_stat_response(data, metric)
 
 
@@ -232,6 +252,10 @@ def _fetch_latest_cpp(
             "until": until,
         },
     )
+
+    # Chartmetric rate limit safety: max ~1 request/second.
+    time.sleep(1.2)
+
     return _latest_cpp_value(data, stat)
 
 def _full_profile(cm_id: str, token: str) -> dict:
@@ -245,7 +269,8 @@ def _full_profile(cm_id: str, token: str) -> dict:
 
     We do NOT store full time-series here. We collapse each metric to its latest value.
     """
-    profile = get_artist(cm_id) or {}
+    profile_raw = _get_cm_json(f"/api/artist/{cm_id}", token)
+    profile = _unwrap_artist_response(profile_raw)
 
     since, until = _metric_window()
 
@@ -417,6 +442,13 @@ def main() -> None:
                         "tiktok_followers":     cm_full.get("tiktok_followers"),
                         "yt_subscribers":       cm_full.get("yt_subscribers"),
                     }
+
+            non_null_metrics = {
+                k: v for k, v in profile.items()
+                if v is not None and k not in {"image_url", "description", "genres"}
+            }
+
+            print(f"    Non-null fields fetched for {name}: {sorted(non_null_metrics.keys())}")
 
             cm_payload = {k: v for k, v in profile.items() if v is not None}
             cm_payload["artist_id"]  = artist_id
