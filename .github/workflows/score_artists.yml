@@ -1,0 +1,58 @@
+name: Score LOFI Feel
+
+# Runs nightly after scrape_flagged (which runs at 03:00 UTC).
+# Also available as manual dispatch for on-demand re-scoring.
+
+on:
+  schedule:
+    - cron: '30 3 * * *'   # 03:30 UTC — after scrape_flagged (03:00)
+  workflow_dispatch:
+    inputs:
+      status:
+        description: 'Which artists to score: pending | accepted | all'
+        required: false
+        default: 'pending'
+      limit:
+        description: 'Max artists (0 = all matching)'
+        required: false
+        default: '0'
+      no_llm:
+        description: 'Skip LLM scoring — taxonomy+embedding only (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Score artists
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          ANTHROPIC_API_KEY:         ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          STATUS="${{ github.event.inputs.status || 'pending' }}"
+          LIMIT="${{ github.event.inputs.limit || '0' }}"
+          NO_LLM_FLAG=""
+          if [ "${{ github.event.inputs.no_llm }}" = "true" ]; then
+            NO_LLM_FLAG="--no-llm"
+          fi
+          python scoring/lofi_scorer.py --status "$STATUS" --limit "$LIMIT" $NO_LLM_FLAG

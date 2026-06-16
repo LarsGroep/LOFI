@@ -1,4 +1,5 @@
 """LOFI Artist Discovery — profile display, accept/skip candidates."""
+import json
 import os
 import streamlit as st
 from dotenv import load_dotenv
@@ -41,6 +42,30 @@ def _set_status(artist_id: str, status: str, needs_scraping: bool = False):
     }).eq("id", artist_id).execute()
 
 
+def _lofi_feel_badge(row: dict) -> str | None:
+    """Return a coloured score badge string, or None if not yet scored."""
+    feel = row.get("lofi_feel")
+    if not feel:
+        return None
+    if isinstance(feel, str):
+        try:
+            feel = json.loads(feel)
+        except Exception:
+            return None
+    score = feel.get("score")
+    if score is None:
+        return None
+    if score >= 80:
+        colour = "green"
+    elif score >= 60:
+        colour = "orange"
+    elif score >= 40:
+        colour = "grey"
+    else:
+        colour = "red"
+    return f":{colour}[LOFI Fit {score}/100]"
+
+
 # ── Navigation ────────────────────────────────────────────────────────────────
 
 page = st.sidebar.radio("Navigation", ["Discover", "Artists"], label_visibility="collapsed")
@@ -61,9 +86,24 @@ if page == "Discover":
         .select("*, artist_chartmetric(*)")
         .eq("candidate_status", "pending")
         .not_.is_("chartmetric_id", "null")
-        .limit(1)
+        .order("updated_at", desc=False)  # oldest first — FIFO queue
+        .limit(20)
         .execute().data or []
     )
+    # Sort in Python: scored artists first (highest score), unscored after
+    def _feel_score(r: dict) -> int:
+        f = r.get("lofi_feel")
+        if not f:
+            return -1
+        if isinstance(f, str):
+            try:
+                f = json.loads(f)
+            except Exception:
+                return -1
+        return f.get("score", -1)
+
+    rows.sort(key=_feel_score, reverse=True)
+    rows = rows[:1]  # show top candidate
 
     if not rows:
         st.info("Queue empty — run `python scrapers/queue_similar_artists.py` to find more.")
@@ -82,6 +122,8 @@ if page == "Discover":
 
     with col_info:
         st.markdown(f"## {row['name']}")
+        if badge := _lofi_feel_badge(row):
+            st.markdown(badge)
         if genres := cm.get("genres"):
             st.caption(" · ".join(genres[:8]))
         for label, val in [
@@ -91,6 +133,22 @@ if page == "Discover":
         ]:
             if val:
                 st.write(f"**{label}:** {val}")
+
+    # LOFI feel breakdown (if scored)
+    feel = row.get("lofi_feel")
+    if feel:
+        if isinstance(feel, str):
+            try:
+                feel = json.loads(feel)
+            except Exception:
+                feel = None
+    if feel and feel.get("reason"):
+        with st.expander("LOFI Fit reasoning", expanded=False):
+            st.write(feel["reason"])
+            if feel.get("green_flags"):
+                st.markdown("**Fits:** " + "  ·  ".join(feel["green_flags"][:5]))
+            if feel.get("red_flags"):
+                st.markdown("**Concerns:** " + "  ·  ".join(feel["red_flags"][:3]))
 
     st.markdown("---")
 
