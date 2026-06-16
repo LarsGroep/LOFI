@@ -37,6 +37,25 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
 
+      - name: Check Supabase key role
+        env:
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import os, base64, json
+
+          key = os.environ.get("SUPABASE_KEY", "")
+          assert key, "SUPABASE_KEY missing"
+
+          parts = key.split(".")
+          assert len(parts) >= 2, "SUPABASE_KEY does not look like a JWT"
+
+          payload = parts[1] + "=" * (-len(parts[1]) % 4)
+          data = json.loads(base64.urlsafe_b64decode(payload))
+          print("Supabase JWT role:", data.get("role"))
+          print("Supabase JWT issuer:", data.get("iss"))
+          PY
+
       - name: Check secrets are present
         env:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
