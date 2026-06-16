@@ -747,7 +747,7 @@ def render_artist_card(a: dict, show_decision: bool = True, key_prefix: str = ""
     col_img, col_info = st.columns([1, 3])
     with col_img:
         if img := a.get("image_url"):
-            st.image(img, use_container_width=True)
+            st.image(img, width=120)
         else:
             st.write("*no image*")
 
@@ -1014,7 +1014,7 @@ def page_discovery():
             col_img, col_info = st.columns([1, 2])
             with col_img:
                 if img := profile.get("image_url"):
-                    st.image(img, use_container_width=True)
+                    st.image(img, width=160)
             with col_info:
                 st.markdown(f"## {name}")
                 if score is not None:
