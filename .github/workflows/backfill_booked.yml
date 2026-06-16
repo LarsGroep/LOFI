@@ -14,6 +14,10 @@ on:
         description: 'Re-fetch even if data already exists (true/false)'
         required: false
         default: 'false'
+      artist_name:
+        description: 'Specific artist name to process'
+        required: false
+        default: ''
 
 jobs:
   backfill:
@@ -37,6 +41,36 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
 
+      - name: Check Supabase key role
+        env:
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import os, base64, json
+
+          key = os.environ.get("SUPABASE_KEY", "")
+          assert key, "SUPABASE_KEY missing"
+
+          parts = key.split(".")
+          assert len(parts) >= 2, "SUPABASE_KEY does not look like a JWT"
+
+          payload = parts[1] + "=" * (-len(parts[1]) % 4)
+          data = json.loads(base64.urlsafe_b64decode(payload))
+          print("Supabase JWT role:", data.get("role"))
+          print("Supabase JWT issuer:", data.get("iss"))
+          PY
+
+      - name: Check secrets are present
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: |
+          test -n "$SUPABASE_URL" || (echo "SUPABASE_URL missing" && exit 1)
+          test -n "$SUPABASE_KEY" || (echo "SUPABASE_KEY missing" && exit 1)
+          test -n "$CHARTMETRIC_REFRESH_TOKEN" || (echo "CHARTMETRIC_REFRESH_TOKEN missing" && exit 1)
+          echo "Secrets are present"
+
       - name: Backfill booked artist profiles
         env:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
@@ -47,6 +81,7 @@ jobs:
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             FORCE_FLAG="--force"
           fi
-          python scrapers/backfill_booked.py \
-            --limit ${{ github.event.inputs.limit || '0' }} \
-            $FORCE_FLAG
+          python -u scrapers/backfill_booked.py \
+            --limit "${{ github.event.inputs.limit || '0' }}" \
+            $FORCE_FLAG \
+            --artist-name "${{ github.event.inputs.artist_name }}"

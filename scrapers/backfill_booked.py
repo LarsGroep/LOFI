@@ -13,11 +13,13 @@ Run:
 """
 from __future__ import annotations
 
+import requests
 import argparse
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone,timedelta
+from typing import Any, Optional
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent
@@ -25,6 +27,7 @@ sys.path.insert(0, str(_ROOT))
 
 from dotenv import load_dotenv
 load_dotenv(_ROOT / ".env")
+HOST = "https://api.chartmetric.com"
 
 from supabase import create_client
 import re as _re
@@ -58,32 +61,277 @@ def _clean_name_for_search(name: str) -> list[str]:
     return list(dict.fromkeys(candidates))  # deduplicate, preserve order
 
 
-def _full_profile(cm_id: str) -> dict:
-    """Fetch complete CM profile without timeseries — ~5 API calls."""
-    profile  = get_artist(cm_id) or {}
-    sp_stats = get_stat(cm_id, "spotify") or {}
-    ig_stats = get_stat(cm_id, "instagram") or {}
-    tk_stats = get_stat(cm_id, "tiktok") or {}
-    yt_stats = get_stat(cm_id, "youtube_channel") or {}
+def _unwrap_artist_response(data: dict) -> dict:
+    """
+    Handles both raw Chartmetric shape:
+        {"obj": {...}}
+    and already-unwrapped helper shape:
+        {...}
+    """
+    if isinstance(data, dict) and isinstance(data.get("obj"), dict):
+        return data["obj"]
+    return data or {}
+
+
+def _latest_value(stat_data: dict, metric: str):
+    """
+    Handles Chartmetric stat response shapes like:
+        {"obj": {"followers": [{"value": 123, "timestp": "..."}]}}
+    or:
+        {"followers": [{"value": 123, "timestp": "..."}]}
+    or:
+        {"followers": 123}
+    """
+    if not isinstance(stat_data, dict):
+        return None
+
+    obj = stat_data.get("obj")
+    if isinstance(obj, dict):
+        stat_data = obj
+
+    value = stat_data.get(metric)
+
+    if isinstance(value, list) and value:
+        last = value[-1]
+        if isinstance(last, dict):
+            return last.get("value")
+
+    if isinstance(value, dict):
+        return value.get("value")
+
+    return value
+
+
+
+def _get_cm_json(
+    path: str,
+    token: str,
+    params: Optional[dict[str, Any]] = None,
+    max_attempts: int = 5,
+) -> dict:
+    url = f"{HOST}{path}"
+
+    for attempt in range(1, max_attempts + 1):
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            params=params or {},
+            timeout=90,
+        )
+
+        if response.status_code == 200:
+            time.sleep(1.2)
+            return response.json() or {}
+
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After")
+
+            if retry_after:
+                try:
+                    sleep_seconds = max(float(retry_after), 1.5)
+                except ValueError:
+                    sleep_seconds = 2.0
+            else:
+                sleep_seconds = 2.0 * attempt
+
+            print(
+                f"    CM 429: {response.url} "
+                f"sleeping {sleep_seconds:.1f}s "
+                f"(attempt {attempt}/{max_attempts})"
+            )
+            time.sleep(sleep_seconds)
+            continue
+
+        print(f"    CM {response.status_code}: {response.url}")
+        print(f"    {response.text[:300]}")
+        time.sleep(1.2)
+        return {}
+
+    print(f"    CM FAILED after {max_attempts} attempts: {url}")
+    return {}
+
+
+def _latest_value_from_stat_response(data: dict, metric: str):
+    """
+    Chartmetric stat response shape is usually:
+    {
+        "obj": {
+            "followers": [
+                {"value": 123, "timestp": "..."}
+            ]
+        }
+    }
+
+    We collapse the series to the latest non-null value.
+    """
+    obj = data.get("obj") or {}
+    if not isinstance(obj, dict):
+        return None
+
+    points = obj.get(metric)
+    if not isinstance(points, list) or not points:
+        return None
+
+    for point in reversed(points):
+        if not isinstance(point, dict):
+            continue
+        value = point.get("value")
+        if value is not None:
+            return value
+
+    return None
+
+
+def _latest_cpp_value(data: dict, field: str):
+    """
+    CPP response shape is usually:
+    {
+        "obj": [
+            {"score": 0.81, "timestp": "..."}
+        ]
+    }
+    """
+    points = data.get("obj") or []
+    if not isinstance(points, list) or not points:
+        return None
+
+    for point in reversed(points):
+        if not isinstance(point, dict):
+            continue
+        value = point.get(field)
+        if value is not None:
+            return value
+
+    return None
+
+
+def _metric_window() -> tuple[str, str]:
+    until = datetime.now(timezone.utc).date()
+    since = until - timedelta(days=365)
+    return since.isoformat(), until.isoformat()
+
+
+def _fetch_latest_metric(
+    cm_id: str,
+    token: str,
+    source: str,
+    metric: str,
+    since: str,
+    until: str,
+):
+    data = _get_cm_json(
+        path=f"/api/artist/{cm_id}/stat/{source}",
+        token=token,
+        params={
+            "field": metric,
+            "since": since,
+            "until": until,
+            "interpolated": "false",
+        },
+    )
+
+    # Chartmetric rate limit safety: max ~1 request/second.
+    time.sleep(1.2)
+
+    return _latest_value_from_stat_response(data, metric)
+
+
+def _fetch_latest_cpp(
+    cm_id: str,
+    token: str,
+    stat: str,
+    since: str,
+    until: str,
+):
+    data = _get_cm_json(
+        path=f"/api/artist/{cm_id}/cpp",
+        token=token,
+        params={
+            "stat": stat,
+            "since": since,
+            "until": until,
+        },
+    )
+
+    # Chartmetric rate limit safety: max ~1 request/second.
+    time.sleep(1.2)
+
+    return _latest_cpp_value(data, stat)
+
+def _full_profile(cm_id: str, token: str) -> dict:
+    """
+    Fetch full current profile snapshot.
+
+    Uses:
+    - /api/artist/{id} for metadata
+    - /stat/{source}?field=... for latest platform metrics
+    - /cpp?stat=... for Chartmetric score/rank
+
+    We do NOT store full time-series here. We collapse each metric to its latest value.
+    """
+    profile_raw = _get_cm_json(f"/api/artist/{cm_id}", token)
+    profile = _unwrap_artist_response(profile_raw)
+
+    since, until = _metric_window()
 
     raw_genres = profile.get("genres") or []
     genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
 
+    # Spotify
+    sp_followers = _fetch_latest_metric(cm_id, token, "spotify", "followers", since, until)
+    sp_listeners = _fetch_latest_metric(cm_id, token, "spotify", "listeners", since, until)
+    sp_popularity = _fetch_latest_metric(cm_id, token, "spotify", "popularity", since, until)
+
+    # Instagram
+    ig_followers = _fetch_latest_metric(cm_id, token, "instagram", "followers", since, until)
+
+    # TikTok
+    tiktok_followers = _fetch_latest_metric(cm_id, token, "tiktok", "followers", since, until)
+    tiktok_likes = _fetch_latest_metric(cm_id, token, "tiktok", "likes", since, until)
+
+    # YouTube channel
+    yt_subscribers = _fetch_latest_metric(cm_id, token, "youtube_channel", "subscribers", since, until)
+    yt_views = _fetch_latest_metric(cm_id, token, "youtube_channel", "views", since, until)
+
+    # YouTube artist aggregate
+    youtube_artist_daily_views = _fetch_latest_metric(cm_id, token, "youtube_artist", "daily_views", since, until)
+    youtube_artist_monthly_views = _fetch_latest_metric(cm_id, token, "youtube_artist", "monthly_views", since, until)
+
+    # SoundCloud
+    soundcloud_followers = _fetch_latest_metric(cm_id, token, "soundcloud", "followers", since, until)
+
+    # CPP
+    cpp_score = _fetch_latest_cpp(cm_id, token, "score", since, until)
+    cpp_rank = _fetch_latest_cpp(cm_id, token, "rank", since, until)
+
     return {
-        "image_url":            profile.get("image_url"),
-        "description":          profile.get("description"),
-        "career_status":        profile.get("career_status"),
-        "record_label":         profile.get("record_label"),
-        "booking_agent":        profile.get("booking_agent"),
-        "genres":               genres or None,
-        "cm_artist_score":      profile.get("cm_artist_score"),
-        "cm_artist_rank":       profile.get("cm_artist_rank"),
-        "sp_monthly_listeners": _num(sp_stats.get("listeners") or sp_stats.get("sp_monthly_listeners")),
-        "sp_followers":         _num(sp_stats.get("followers")),
-        "sp_popularity":        _num(sp_stats.get("popularity")),
-        "ig_followers":         _num(ig_stats.get("followers")),
-        "tiktok_followers":     _num(tk_stats.get("followers")),
-        "yt_subscribers":       _num(yt_stats.get("subscribers")),
+        "image_url":                        profile.get("image_url"),
+        "description":                      profile.get("description"),
+        "career_status":                    profile.get("career_status"),
+        "record_label":                     profile.get("record_label"),
+        "booking_agent":                    profile.get("booking_agent"),
+        "genres":                           genres or None,
+
+        "cm_artist_score":                  _num(cpp_score or profile.get("cm_artist_score")),
+        "cm_artist_rank":                   _num(cpp_rank or profile.get("cm_artist_rank")),
+        "cpp_score":                        _num(cpp_score),
+        "cpp_rank":                         _num(cpp_rank),
+
+        "sp_monthly_listeners":             _num(sp_listeners),
+        "sp_followers":                     _num(sp_followers),
+        "sp_popularity":                    _num(sp_popularity),
+
+        "ig_followers":                     _num(ig_followers),
+
+        "tiktok_followers":                 _num(tiktok_followers),
+        "tiktok_likes":                     _num(tiktok_likes),
+
+        "yt_subscribers":                   _num(yt_subscribers),
+        "yt_views":                         _num(yt_views),
+        "youtube_artist_daily_views":       _num(youtube_artist_daily_views),
+        "youtube_artist_monthly_views":     _num(youtube_artist_monthly_views),
+
+        "soundcloud_followers":             _num(soundcloud_followers),
     }
 
 
@@ -92,6 +340,12 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="Max artists to process (0=all)")
     parser.add_argument("--force", action="store_true",
                         help="Re-fetch even if artist_chartmetric row already exists")
+    parser.add_argument(
+    "--artist-name",
+    type=str,
+    default=None,
+    help="Only process one artist by exact name"
+    )
     args = parser.parse_args()
 
     if not is_configured():
@@ -100,6 +354,7 @@ def main() -> None:
 
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     _refresh_token()
+    cm_token = _get_cm_access_token()
 
     # Fetch all booked artists (with and without CM IDs)
     booked = (
@@ -108,7 +363,12 @@ def main() -> None:
         .eq("candidate_status", "booked")
         .execute().data or []
     )
+    
     print(f"Total booked artists: {len(booked)}")
+
+    if args.artist_name:
+        booked = [r for r in booked if r["name"].lower() == args.artist_name.lower()]
+        print(f"Filtered to artist_name={args.artist_name}: {len(booked)} match(es)")
 
     if not args.force:
         existing_ids = {
@@ -143,7 +403,7 @@ def main() -> None:
 
         try:
             if cm_id:
-                profile = _full_profile(cm_id)
+                profile = _full_profile(str(cm_id), cm_token)
             else:
                 # Name search with cleaned variants — handles "(ITA)", "(live)", "A & B" duos
                 cm_full = {}
@@ -162,24 +422,33 @@ def main() -> None:
                     sb.schema("tinder").table("artists").update(
                         {"chartmetric_id": str(resolved_cm_id)}
                     ).eq("id", artist_id).execute()
-                # Map enrich_from_chartmetric keys to _full_profile-style dict
-                raw_genres = cm_full.get("spotify_genres") or []
-                profile = {
-                    "image_url":            cm_full.get("image_url"),
-                    "description":          cm_full.get("description"),
-                    "career_status":        cm_full.get("career_status"),
-                    "record_label":         cm_full.get("record_label"),
-                    "booking_agent":        cm_full.get("booking_agent"),
-                    "genres":               raw_genres[:10] if raw_genres else None,
-                    "cm_artist_score":      cm_full.get("cm_artist_score"),
-                    "cm_artist_rank":       cm_full.get("cm_artist_rank"),
-                    "sp_monthly_listeners": cm_full.get("spotify_monthly_listeners"),
-                    "sp_followers":         cm_full.get("spotify_followers"),
-                    "sp_popularity":        cm_full.get("spotify_popularity"),
-                    "ig_followers":         cm_full.get("ig_followers"),
-                    "tiktok_followers":     cm_full.get("tiktok_followers"),
-                    "yt_subscribers":       cm_full.get("yt_subscribers"),
-                }
+                if resolved_cm_id:
+                    profile = _full_profile(str(resolved_cm_id), cm_token)
+                else:
+                    raw_genres = cm_full.get("spotify_genres") or []
+                    profile = {
+                        "image_url":            cm_full.get("image_url"),
+                        "description":          cm_full.get("description"),
+                        "career_status":        cm_full.get("career_status"),
+                        "record_label":         cm_full.get("record_label"),
+                        "booking_agent":        cm_full.get("booking_agent"),
+                        "genres":               raw_genres[:10] if raw_genres else None,
+                        "cm_artist_score":      cm_full.get("cm_artist_score"),
+                        "cm_artist_rank":       cm_full.get("cm_artist_rank"),
+                        "sp_monthly_listeners": cm_full.get("spotify_monthly_listeners"),
+                        "sp_followers":         cm_full.get("spotify_followers"),
+                        "sp_popularity":        cm_full.get("spotify_popularity"),
+                        "ig_followers":         cm_full.get("ig_followers"),
+                        "tiktok_followers":     cm_full.get("tiktok_followers"),
+                        "yt_subscribers":       cm_full.get("yt_subscribers"),
+                    }
+
+            non_null_metrics = {
+                k: v for k, v in profile.items()
+                if v is not None and k not in {"image_url", "description", "genres"}
+            }
+
+            print(f"    Non-null fields fetched for {name}: {sorted(non_null_metrics.keys())}")
 
             cm_payload = {k: v for k, v in profile.items() if v is not None}
             cm_payload["artist_id"]  = artist_id
