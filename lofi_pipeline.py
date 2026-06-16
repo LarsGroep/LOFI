@@ -83,7 +83,7 @@ if page == "Discover":
     with col_info:
         st.markdown(f"## {row['name']}")
         if genres := cm.get("genres"):
-            st.caption(" · ".join(genres[:5]))
+            st.caption(" · ".join(genres[:8]))
         for label, val in [
             ("Career",  cm.get("career_status")),
             ("Label",   cm.get("record_label")),
@@ -93,15 +93,26 @@ if page == "Discover":
                 st.write(f"**{label}:** {val}")
 
     st.markdown("---")
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("SP Monthly",   _fmt(cm.get("sp_monthly_listeners")))
-    c2.metric("SP Followers", _fmt(cm.get("sp_followers")))
-    c3.metric("IG Followers", _fmt(cm.get("ig_followers")))
-    c4.metric("TikTok",       _fmt(cm.get("tiktok_followers")))
+
+    # Spotify
+    c1, c2, c3 = st.columns(3)
+    c1.metric("SP Monthly Listeners", _fmt(cm.get("sp_monthly_listeners")))
+    c2.metric("SP Followers",         _fmt(cm.get("sp_followers")))
+    c3.metric("SP Popularity",        _fmt(cm.get("sp_popularity")))
+
+    # Social + Chartmetric score
+    c4, c5, c6, c7 = st.columns(4)
+    c4.metric("IG Followers",  _fmt(cm.get("ig_followers")))
+    c5.metric("TikTok",        _fmt(cm.get("tiktok_followers")))
+    c6.metric("YT Subscribers",_fmt(cm.get("yt_subscribers")))
+    c7.metric("CM Score",      f"{cm['cm_artist_score']:.1f}" if cm.get("cm_artist_score") is not None else "—")
+
+    if cm.get("cm_artist_rank"):
+        st.caption(f"Chartmetric rank: #{cm['cm_artist_rank']:,}")
 
     if desc := cm.get("description"):
         st.markdown("---")
-        st.write(desc[:500])
+        st.write(desc[:800])
 
     st.markdown("---")
     ca, cb = st.columns(2)
