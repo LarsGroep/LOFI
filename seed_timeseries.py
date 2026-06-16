@@ -86,20 +86,47 @@ def search_cm(name: str) -> tuple[str | None, int | None]:
 
 def fetch_timeseries(cm_id: str, source: str, days: int) -> list[dict]:
     since = (date.today() - timedelta(days=days)).isoformat()
-    d = _get(f"/artist/{cm_id}/stat/{source}", {"since": since})
+    until = date.today().isoformat()
+
+    if source == "spotify":
+        d = _get(f"/artist/{cm_id}/stat/spotify", {
+            "field": "listeners", "since": since, "until": until,
+        })
+        metric_keys = ("listeners", "value")
+    elif source == "instagram":
+        d = _get(f"/artist/{cm_id}/social-audience-stats", {
+            "domain": "instagram", "audienceType": "followers",
+            "statsType": "stat", "since": since, "until": until, "limit": 365,
+        })
+        metric_keys = ("followers", "value")
+    elif source == "tiktok":
+        d = _get(f"/artist/{cm_id}/social-audience-stats", {
+            "domain": "tiktok", "audienceType": "followers",
+            "statsType": "stat", "since": since, "until": until, "limit": 365,
+        })
+        metric_keys = ("followers", "value")
+    elif source == "youtube_channel":
+        d = _get(f"/artist/{cm_id}/social-audience-stats", {
+            "domain": "youtube", "audienceType": "subscribers",
+            "statsType": "stat", "since": since, "until": until, "limit": 365,
+        })
+        metric_keys = ("subscribers", "value")
+    else:
+        d = _get(f"/artist/{cm_id}/stat/{source}", {"since": since, "until": until})
+        metric_keys = ("value",)
+
     obj = (d or {}).get("obj") or []
     if not isinstance(obj, list):
         return []
-    key = {
-        "spotify": "listeners",
-        "instagram": "followers",
-        "tiktok": "followers",
-        "youtube_channel": "subscribers",
-    }.get(source, "value")
+
     result = []
     for pt in obj:
         ts = pt.get("timestp") or pt.get("date") or ""
-        val = pt.get(key) or pt.get("value")
+        val = None
+        for key in metric_keys:
+            val = pt.get(key)
+            if val is not None:
+                break
         if ts and val is not None:
             try:
                 result.append({"date": str(ts)[:10], "value": int(float(val))})
