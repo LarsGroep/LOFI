@@ -142,9 +142,16 @@ benchmark_artists:
 
 # ── Scoring weights for hybrid composite ──────────────────────────────────────
 weights:
-  taxonomy:   0.35
-  embedding:  0.35
+  taxonomy:    0.35
+  embedding:   0.35
   neighboring: 0.30
+
+# ── Auto-promote threshold ────────────────────────────────────────────────────
+# Pending artists scoring >= this are automatically promoted to
+# candidate_status='accepted', needs_scraping=true after each scoring run.
+# Disqualified artists are never promoted regardless of score.
+# Override per-run with: python scoring/lofi_scorer.py --threshold 70
+auto_promote_threshold: 60
 
 # ── Taxonomy sub-weights (sum to 1.0) ────────────────────────────────────────
 taxonomy_weights:

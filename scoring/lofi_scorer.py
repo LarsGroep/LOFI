@@ -184,13 +184,18 @@ def main() -> None:
                         help="candidate_status filter: pending|accepted|all (default: pending)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print scores, do not write to DB")
+    parser.add_argument("--no-autopromote", action="store_true",
+                        help="Skip auto-promotion of high-scoring artists")
+    parser.add_argument("--threshold", type=int, default=0,
+                        help="Override auto-promote threshold (0 = use taxonomy YAML value)")
     args = parser.parse_args()
 
     from supabase import create_client
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
-    taxonomy = _load_taxonomy()
-    weights  = taxonomy.get("weights", {"taxonomy": 0.35, "embedding": 0.35, "neighboring": 0.30})
+    taxonomy  = _load_taxonomy()
+    weights   = taxonomy.get("weights", {"taxonomy": 0.35, "embedding": 0.35, "neighboring": 0.30})
+    threshold = args.threshold or taxonomy.get("auto_promote_threshold", 60)
 
     # Fetch artists + CM data + reference counts
     q = (
@@ -229,6 +234,7 @@ def main() -> None:
 
     done = errors = 0
     start = time.time()
+    promoted_ids: list[str] = []  # collect for auto-promote
 
     for i, row in enumerate(rows, 1):
         name = row["name"]
@@ -261,16 +267,19 @@ def main() -> None:
             }
 
             if args.dry_run:
+                promote_flag = " → PROMOTE" if composite >= threshold and not tax["disqualified"] else ""
                 print(
                     f"  [{i}/{len(rows)}] {name:<32}  "
                     f"composite={composite:3}  tax={tax['score']:3}  "
                     f"emb={emb:3}  nbr={nbr:3}  "
-                    f"{'DISQ' if tax['disqualified'] else ''}"
+                    f"{'DISQ' if tax['disqualified'] else ''}{promote_flag}"
                 )
             else:
                 sb.schema("tinder").table("artists").update(
                     {"lofi_feel": payload}
                 ).eq("id", row["id"]).execute()
+                if composite >= threshold and not tax["disqualified"]:
+                    promoted_ids.append(row["id"])
                 if i % 50 == 0 or i == len(rows):
                     elapsed = time.time() - start
                     print(f"  [{i}/{len(rows)}]  done={done}  elapsed={elapsed:.0f}s")
@@ -282,6 +291,31 @@ def main() -> None:
 
     elapsed = time.time() - start
     print(f"\nDone in {elapsed:.0f}s — {done} scored, {errors} errors")
+
+    # ── Auto-promote ─────────────────────────────────────────────────────────
+    if args.dry_run or args.no_autopromote or args.status != "pending":
+        if promoted_ids:
+            print(f"Would promote {len(promoted_ids)} artists (score >= {threshold}) — skipped (dry-run or --no-autopromote)")
+        return
+
+    if not promoted_ids:
+        print(f"No artists scored >= {threshold} — nothing to promote")
+        return
+
+    print(f"\nAuto-promoting {len(promoted_ids)} artists (score >= {threshold}) → accepted + needs_scraping")
+    promote_errors = 0
+    for artist_id in promoted_ids:
+        try:
+            sb.schema("tinder").table("artists").update({
+                "candidate_status": "accepted",
+                "needs_scraping":   True,
+                "updated_at":       datetime.now(timezone.utc).isoformat(),
+            }).eq("id", artist_id).execute()
+        except Exception as e:
+            promote_errors += 1
+            print(f"  promote error {artist_id}: {e}")
+
+    print(f"Promoted {len(promoted_ids) - promote_errors} artists  |  {promote_errors} errors")
 
 
 if __name__ == "__main__":
