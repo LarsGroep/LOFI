@@ -37,6 +37,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
 
+      - name: Check secrets are present
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: |
+          test -n "$SUPABASE_URL" || (echo "SUPABASE_URL missing" && exit 1)
+          test -n "$SUPABASE_KEY" || (echo "SUPABASE_KEY missing" && exit 1)
+          test -n "$CHARTMETRIC_REFRESH_TOKEN" || (echo "CHARTMETRIC_REFRESH_TOKEN missing" && exit 1)
+          echo "Secrets are present"
+
       - name: Backfill booked artist profiles
         env:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
