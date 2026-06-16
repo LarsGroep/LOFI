@@ -51,7 +51,7 @@ def _get(path: str, params: dict | None = None) -> dict | None:
     time.sleep(_RATE)
     if time.time() >= _tok_exp:
         _refresh()
-    for attempt in range(3):
+    for attempt in range(4):
         try:
             r = httpx.get(
                 f"{_BASE}{path}",
@@ -60,8 +60,12 @@ def _get(path: str, params: dict | None = None) -> dict | None:
                 timeout=20,
             )
             if r.status_code == 429:
-                wait = 30 * (attempt + 1)
-                print(f"    429 → sleeping {wait}s (attempt {attempt + 1}/3)")
+                reset = r.headers.get("X-RateLimit-Reset")
+                if reset:
+                    wait = max(0, float(reset) - time.time()) + 1.0
+                else:
+                    wait = 2 ** attempt * 5  # 5s, 10s, 20s, 40s
+                print(f"    429 → sleeping {wait:.0f}s (attempt {attempt + 1}/4)")
                 time.sleep(wait)
                 continue
             r.raise_for_status()
