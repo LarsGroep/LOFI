@@ -73,59 +73,66 @@ query GET_ARTIST_EVENTS($slug: String!, $limit: Int) {
 def _ra_slug(name: str) -> str:
     normalized = unicodedata.normalize("NFD", name)
     ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"[^a-z0-9]", "", ascii_name.lower())
+    slug = re.sub(r"[^a-z0-9\s]", "", ascii_name.lower())
+    return re.sub(r"\s+", "-", slug.strip())
 
 
 def _scrape_ra(name: str) -> dict | None:
     if not _HAS_HTTPX:
         return None
+
     slug = _ra_slug(name)
-    try:
-        resp = httpx.post(
-            _RA_GRAPHQL,
-            json={"query": _RA_QUERY, "variables": {"slug": slug, "limit": 100}},
-            headers={
-                "Content-Type": "application/json",
-                "Accept":        "application/json",
-                "Origin":        "https://ra.co",
-                "Referer":       f"https://ra.co/dj/{slug}",
-                "User-Agent":    "Mozilla/5.0 (compatible; lofi-research-bot/1.0)",
-            },
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data        = resp.json()
-        artist_data = (data.get("data") or {}).get("artist")
-        if not artist_data:
-            return None
-        events = artist_data.get("events") or []
-        # Flatten nested objects to plain dicts safe for JSONB
-        flat_events = []
-        for ev in events:
-            venue   = ev.get("venue") or {}
-            area    = venue.get("area") or {}
-            country = area.get("country") or {}
-            artists = ev.get("artists") or []
-            flat_events.append({
-                "id":       str(ev.get("id") or ""),
-                "date":     (ev.get("date") or "")[:10],
-                "title":    ev.get("title"),
-                "url":      f"https://ra.co{ev['contentUrl']}" if ev.get("contentUrl") else None,
-                "venue":    venue.get("name"),
-                "capacity": venue.get("capacity"),
-                "city":     area.get("name"),
-                "country":  country.get("name"),
-                "lineup":   [a["name"] for a in artists if a.get("name")],
-                "headliners": [a["name"] for a in artists if a.get("name") and a.get("headliner")],
-            })
-        return {
-            "ra_slug":     slug,
-            "event_count": len(flat_events),
-            "events":      flat_events,
-        }
-    except Exception as e:
-        print(f"    RA error: {e}")
-        return None
+    # Fallback: some artists use no separator (e.g. "blondish" not "blond-ish")
+    slug_no_hyphens = slug.replace("-", "")
+    slugs_to_try = [slug] if slug == slug_no_hyphens else [slug, slug_no_hyphens]
+
+    for attempt in slugs_to_try:
+        try:
+            resp = httpx.post(
+                _RA_GRAPHQL,
+                json={"query": _RA_QUERY, "variables": {"slug": attempt, "limit": 100}},
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept":        "application/json",
+                    "Origin":        "https://ra.co",
+                    "Referer":       f"https://ra.co/dj/{attempt}",
+                    "User-Agent":    "Mozilla/5.0 (compatible; lofi-research-bot/1.0)",
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data        = resp.json()
+            artist_data = (data.get("data") or {}).get("artist")
+            if not artist_data:
+                continue  # try next slug variant
+            slug = attempt  # use whichever slug worked
+            events = artist_data.get("events") or []
+            flat_events = []
+            for ev in events:
+                venue   = ev.get("venue") or {}
+                area    = venue.get("area") or {}
+                country = area.get("country") or {}
+                artists = ev.get("artists") or []
+                flat_events.append({
+                    "id":         str(ev.get("id") or ""),
+                    "date":       (ev.get("date") or "")[:10],
+                    "title":      ev.get("title"),
+                    "url":        f"https://ra.co{ev['contentUrl']}" if ev.get("contentUrl") else None,
+                    "venue":      venue.get("name"),
+                    "capacity":   venue.get("capacity"),
+                    "city":       area.get("name"),
+                    "country":    country.get("name"),
+                    "lineup":     [a["name"] for a in artists if a.get("name")],
+                    "headliners": [a["name"] for a in artists if a.get("name") and a.get("headliner")],
+                })
+            return {
+                "ra_slug":     slug,
+                "event_count": len(flat_events),
+                "events":      flat_events,
+            }
+        except Exception as e:
+            print(f"    RA error ({attempt}): {e}")
+    return None
 
 
 # ── Partyflock JSONL lookup ────────────────────────────────────────────────────
