@@ -27,6 +27,8 @@ from dotenv import load_dotenv
 load_dotenv(_ROOT / ".env")
 
 from supabase import create_client
+import re as _re
+
 from scrapers.chartmetric_client import (
     get_artist,
     get_stat,
@@ -35,6 +37,25 @@ from scrapers.chartmetric_client import (
     _refresh_token,
     _num,
 )
+
+
+def _clean_name_for_search(name: str) -> list[str]:
+    """Return candidate search strings for a raw artist name.
+
+    Handles: parentheticals (ITA), (live), (MCDE); duo splits on ' & '.
+    Returns the original name first, then cleaned variants.
+    """
+    candidates = [name]
+    # Strip trailing parenthetical — e.g. "Blackchild (ITA)" → "Blackchild"
+    stripped = _re.sub(r"\s*\([^)]+\)\s*$", "", name).strip()
+    if stripped and stripped != name:
+        candidates.append(stripped)
+    # For duos "A & B", try each half
+    if " & " in (stripped or name):
+        base = stripped or name
+        parts = [p.strip() for p in base.split(" & ") if p.strip()]
+        candidates.extend(parts)
+    return list(dict.fromkeys(candidates))  # deduplicate, preserve order
 
 
 def _full_profile(cm_id: str) -> dict:
@@ -124,8 +145,14 @@ def main() -> None:
             if cm_id:
                 profile = _full_profile(cm_id)
             else:
-                # Name search — also resolves and stores the CM ID
-                cm_full = enrich_from_chartmetric(name, include_timeseries=False) or {}
+                # Name search with cleaned variants — handles "(ITA)", "(live)", "A & B" duos
+                cm_full = {}
+                search_name = name
+                for candidate in _clean_name_for_search(name):
+                    cm_full = enrich_from_chartmetric(candidate, include_timeseries=False) or {}
+                    if cm_full:
+                        search_name = candidate
+                        break
                 if not cm_full:
                     print(f"  [{i}/{total}] NOT FOUND: {name}")
                     errors += 1
