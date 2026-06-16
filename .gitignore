@@ -42,6 +42,7 @@ scraper_data/mixcloud_artists.jsonl
 
 # Generated Excel exports
 scraper_data/*.xlsx
+allescraperdatatotnutoe.xlsx
 
 # OS
 .DS_Store
