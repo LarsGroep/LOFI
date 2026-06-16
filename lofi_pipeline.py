@@ -45,18 +45,11 @@ def _set_status(artist_id: str, status: str, needs_scraping: bool = False):
 
 page = st.sidebar.radio("", ["Discover", "Artists"])
 
-counts = sb.schema("tinder").table("artists").select(
-    "candidate_status", count="exact", head=True
-).execute()
+_status_rows = sb.schema("tinder").table("artists").select("candidate_status").execute().data or []
+pending_n  = sum(1 for r in _status_rows if r["candidate_status"] == "pending")
+accepted_n = sum(1 for r in _status_rows if r["candidate_status"] == "accepted")
 
-pending_n  = (sb.schema("tinder").table("artists")
-              .select("id", count="exact", head=True)
-              .eq("candidate_status", "pending").execute().count) or 0
-accepted_n = (sb.schema("tinder").table("artists")
-              .select("id", count="exact", head=True)
-              .eq("candidate_status", "accepted").execute().count) or 0
-
-st.sidebar.caption(f"{pending_n} pending · {accepted_n} accepted")
+st.sidebar.caption(f"{pending_n} pending  {accepted_n} accepted")
 
 # ── Discover ──────────────────────────────────────────────────────────────────
 
