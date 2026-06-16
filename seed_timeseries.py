@@ -88,39 +88,46 @@ def fetch_timeseries(cm_id: str, source: str, days: int) -> list[dict]:
     since = (date.today() - timedelta(days=days)).isoformat()
     until = date.today().isoformat()
 
+    # Spotify: obj is a dict {"listeners": [{value, timestp}, ...]}
+    # Instagram/TikTok/YouTube: obj is a list [{followers/subscribers, timestp}, ...]
     if source == "spotify":
         d = _get(f"/artist/{cm_id}/stat/spotify", {
             "field": "listeners", "since": since, "until": until,
         })
-        metric_keys = ("listeners", "value")
+        obj = (d or {}).get("obj") or {}
+        pts = (obj.get("listeners") or obj.get("followers") or []) if isinstance(obj, dict) else (obj if isinstance(obj, list) else [])
+        metric_keys = ("value",)
     elif source == "instagram":
         d = _get(f"/artist/{cm_id}/social-audience-stats", {
             "domain": "instagram", "audienceType": "followers",
             "statsType": "stat", "since": since, "until": until, "limit": 365,
         })
+        pts = (d or {}).get("obj") or []
         metric_keys = ("followers", "value")
     elif source == "tiktok":
         d = _get(f"/artist/{cm_id}/social-audience-stats", {
             "domain": "tiktok", "audienceType": "followers",
             "statsType": "stat", "since": since, "until": until, "limit": 365,
         })
+        pts = (d or {}).get("obj") or []
         metric_keys = ("followers", "value")
     elif source == "youtube_channel":
         d = _get(f"/artist/{cm_id}/social-audience-stats", {
             "domain": "youtube", "audienceType": "subscribers",
             "statsType": "stat", "since": since, "until": until, "limit": 365,
         })
-        metric_keys = ("subscribers", "value")
+        pts = (d or {}).get("obj") or []
+        metric_keys = ("subscribers", "followers", "value")
     else:
         d = _get(f"/artist/{cm_id}/stat/{source}", {"since": since, "until": until})
+        pts = (d or {}).get("obj") or []
         metric_keys = ("value",)
 
-    obj = (d or {}).get("obj") or []
-    if not isinstance(obj, list):
+    if not isinstance(pts, list):
         return []
 
     result = []
-    for pt in obj:
+    for pt in pts:
         ts = pt.get("timestp") or pt.get("date") or ""
         val = None
         for key in metric_keys:
