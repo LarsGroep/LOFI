@@ -1,0 +1,46 @@
+name: Scrape Flagged Artists
+
+# Runs nightly — picks up any artist with needs_scraping=TRUE,
+# fetches full Chartmetric profile + timeseries, saves to Supabase,
+# then sets needs_scraping=FALSE.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 3:00 AM UTC
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Max artists to scrape (0 = all)'
+        required: false
+        default: '0'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Scrape flagged artists
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: |
+          LIMIT="${{ github.event.inputs.limit || '0' }}"
+          python scrapers/scrape_flagged.py --limit $LIMIT
