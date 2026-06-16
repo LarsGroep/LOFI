@@ -125,28 +125,57 @@ def get_timeseries(chartmetric_id: int | str, source: str, days: int = 180) -> l
 
     Returns [{date: "YYYY-MM-DD", value: int}] sorted ascending.
     180 days by default — enough for ML trend/acceleration features.
+
+    Endpoint routing (confirmed against $350 plan):
+    - Spotify: /stat/spotify?field=listeners  (field param required)
+    - Instagram/TikTok/YouTube: /social-audience-stats?domain=...
     """
     since = (date.today() - timedelta(days=days)).isoformat()
-    data = _get(f"/artist/{chartmetric_id}/stat/{source}", {"since": since})
+    until = date.today().isoformat()
+
+    if source == "spotify":
+        data = _get(f"/artist/{chartmetric_id}/stat/spotify", {
+            "field": "listeners", "since": since, "until": until,
+        })
+        metric_keys = ("listeners", "value")
+    elif source == "instagram":
+        data = _get(f"/artist/{chartmetric_id}/social-audience-stats", {
+            "domain": "instagram", "audienceType": "followers",
+            "statsType": "stat", "since": since, "until": until, "limit": 365,
+        })
+        metric_keys = ("followers", "value")
+    elif source == "tiktok":
+        data = _get(f"/artist/{chartmetric_id}/social-audience-stats", {
+            "domain": "tiktok", "audienceType": "followers",
+            "statsType": "stat", "since": since, "until": until, "limit": 365,
+        })
+        metric_keys = ("followers", "value")
+    elif source == "youtube_channel":
+        data = _get(f"/artist/{chartmetric_id}/social-audience-stats", {
+            "domain": "youtube", "audienceType": "subscribers",
+            "statsType": "stat", "since": since, "until": until, "limit": 365,
+        })
+        metric_keys = ("subscribers", "value")
+    else:
+        data = _get(f"/artist/{chartmetric_id}/stat/{source}", {
+            "since": since, "until": until,
+        })
+        metric_keys = ("value", "followers")
+
     if not data:
         return []
     obj = data.get("obj") or []
     if not isinstance(obj, list):
         return []
 
-    # Primary metric key per platform
-    metric_key = {
-        "spotify": "listeners",
-        "instagram": "followers",
-        "tiktok": "followers",
-        "youtube_channel": "subscribers",
-        "soundcloud": "followers",
-    }.get(source, "value")
-
     result = []
     for pt in obj:
         ts = pt.get("timestp") or pt.get("date") or ""
-        val = pt.get(metric_key) or pt.get("value")
+        val = None
+        for key in metric_keys:
+            val = pt.get(key)
+            if val is not None:
+                break
         if ts and val is not None:
             try:
                 result.append({"date": str(ts)[:10], "value": int(float(val))})
