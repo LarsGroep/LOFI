@@ -1,4 +1,4 @@
-"""LOFI Artist Discovery — profile display, accept/skip candidates."""
+"""LOFI Artist Discovery — score-sorted queue with selective removal."""
 import json
 import os
 import streamlit as st
@@ -7,7 +7,7 @@ from supabase import create_client
 
 load_dotenv()
 
-st.set_page_config(page_title="LOFI Discovery", layout="centered")
+st.set_page_config(page_title="LOFI Discovery", layout="wide")
 
 
 @st.cache_resource
@@ -30,9 +30,22 @@ def _fmt(n) -> str:
 
 
 def _cm(row: dict) -> dict:
-    """PostgREST returns the 1:1 child as a list or dict depending on version."""
     raw = row.get("artist_chartmetric") or {}
     return raw[0] if isinstance(raw, list) else raw
+
+
+def _feel(row: dict) -> dict:
+    f = row.get("lofi_feel") or {}
+    if isinstance(f, str):
+        try:
+            f = json.loads(f)
+        except Exception:
+            f = {}
+    return f
+
+
+def _feel_score(row: dict) -> int:
+    return _feel(row).get("score", -1)
 
 
 def _set_status(artist_id: str, status: str, needs_scraping: bool = False):
@@ -42,146 +55,152 @@ def _set_status(artist_id: str, status: str, needs_scraping: bool = False):
     }).eq("id", artist_id).execute()
 
 
-def _lofi_feel_badge(row: dict) -> str | None:
-    """Return a coloured score badge string, or None if not yet scored."""
-    feel = row.get("lofi_feel")
-    if not feel:
-        return None
-    if isinstance(feel, str):
-        try:
-            feel = json.loads(feel)
-        except Exception:
-            return None
-    score = feel.get("score")
-    if score is None:
-        return None
+def _score_badge(score: int) -> str:
+    if score < 0:
+        return ":grey[not scored]"
     if score >= 80:
-        colour = "green"
-    elif score >= 60:
-        colour = "orange"
-    elif score >= 40:
-        colour = "grey"
-    else:
-        colour = "red"
-    return f":{colour}[LOFI Fit {score}/100]"
+        return f":green[**{score}/100**]"
+    if score >= 60:
+        return f":orange[**{score}/100**]"
+    if score >= 40:
+        return f":grey[**{score}/100**]"
+    return f":red[**{score}/100**]"
 
 
-# ── Navigation ────────────────────────────────────────────────────────────────
+# ── Sidebar ────────────────────────────────────────────────────────────────────
 
-page = st.sidebar.radio("Navigation", ["Discover", "Artists"], label_visibility="collapsed")
+page = st.sidebar.radio("Navigation", ["Queue", "Artists"], label_visibility="collapsed")
 
-_status_rows = sb.schema("tinder").table("artists").select("candidate_status").execute().data or []
-pending_n  = sum(1 for r in _status_rows if r["candidate_status"] == "pending")
-accepted_n = sum(1 for r in _status_rows if r["candidate_status"] == "accepted")
+_counts = sb.schema("tinder").table("artists").select("candidate_status").execute().data or []
+pending_n  = sum(1 for r in _counts if r["candidate_status"] == "pending")
+accepted_n = sum(1 for r in _counts if r["candidate_status"] == "accepted")
 
-st.sidebar.caption(f"{pending_n} pending  {accepted_n} accepted")
+st.sidebar.caption(f"{pending_n} in queue  ·  {accepted_n} accepted")
 
-# ── Discover ──────────────────────────────────────────────────────────────────
+# ── Queue (Discover) ───────────────────────────────────────────────────────────
 
-if page == "Discover":
-    st.title("Discover")
+if page == "Queue":
+    st.title("Discovery Queue")
+    st.caption("Artists are queued automatically from LOFI booking network. Remove ones that don't fit.")
+
+    col_filter, col_spacer = st.columns([1, 3])
+    with col_filter:
+        min_score = st.slider("Min score", 0, 100, 0, step=5)
 
     rows = (
         sb.schema("tinder").table("artists")
-        .select("*, artist_chartmetric(*)")
+        .select("id, name, slug, booked_similar_count, booked_neighbor_count, lofi_feel, artist_chartmetric(*)")
         .eq("candidate_status", "pending")
         .not_.is_("chartmetric_id", "null")
-        .order("updated_at", desc=False)  # oldest first — FIFO queue
-        .limit(20)
+        .limit(200)
         .execute().data or []
     )
-    # Sort in Python: scored artists first (highest score), unscored after
-    def _feel_score(r: dict) -> int:
-        f = r.get("lofi_feel")
-        if not f:
-            return -1
-        if isinstance(f, str):
-            try:
-                f = json.loads(f)
-            except Exception:
-                return -1
-        return f.get("score", -1)
 
+    # Sort by score DESC, unscored last
     rows.sort(key=_feel_score, reverse=True)
-    rows = rows[:1]  # show top candidate
 
-    if not rows:
-        st.info("Queue empty — run `python scrapers/queue_similar_artists.py` to find more.")
+    # Filter by min score (unscored always shown)
+    visible = [r for r in rows if _feel_score(r) >= min_score or _feel_score(r) == -1]
+
+    if not visible:
+        st.info("Queue empty — the nightly job will add more candidates.")
         st.stop()
 
-    row = rows[0]
-    cm  = _cm(row)
-
-    col_img, col_info = st.columns([1, 2])
-
-    with col_img:
-        if img := cm.get("image_url"):
-            st.image(img, width=180)
-        else:
-            st.markdown("*(no image)*")
-
-    with col_info:
-        st.markdown(f"## {row['name']}")
-        if badge := _lofi_feel_badge(row):
-            st.markdown(badge)
-        if genres := cm.get("genres"):
-            st.caption(" · ".join(genres[:8]))
-        for label, val in [
-            ("Career",  cm.get("career_status")),
-            ("Label",   cm.get("record_label")),
-            ("Booking", cm.get("booking_agent")),
-        ]:
-            if val:
-                st.write(f"**{label}:** {val}")
-
-    # LOFI feel breakdown (if scored)
-    feel = row.get("lofi_feel")
-    if feel:
-        if isinstance(feel, str):
-            try:
-                feel = json.loads(feel)
-            except Exception:
-                feel = None
-    if feel and feel.get("reason"):
-        with st.expander("LOFI Fit reasoning", expanded=False):
-            st.write(feel["reason"])
-            if feel.get("green_flags"):
-                st.markdown("**Fits:** " + "  ·  ".join(feel["green_flags"][:5]))
-            if feel.get("red_flags"):
-                st.markdown("**Concerns:** " + "  ·  ".join(feel["red_flags"][:3]))
-
+    st.caption(f"Showing {len(visible)} candidates (sorted by LOFI fit score)")
     st.markdown("---")
 
-    # Spotify
-    c1, c2, c3 = st.columns(3)
-    c1.metric("SP Monthly Listeners", _fmt(cm.get("sp_monthly_listeners")))
-    c2.metric("SP Followers",         _fmt(cm.get("sp_followers")))
-    c3.metric("SP Popularity",        _fmt(cm.get("sp_popularity")))
+    for row in visible:
+        cm    = _cm(row)
+        feel  = _feel(row)
+        score = feel.get("score", -1)
 
-    # Social + Chartmetric score
-    c4, c5, c6, c7 = st.columns(4)
-    c4.metric("IG Followers",  _fmt(cm.get("ig_followers")))
-    c5.metric("TikTok",        _fmt(cm.get("tiktok_followers")))
-    c6.metric("YT Subscribers",_fmt(cm.get("yt_subscribers")))
-    c7.metric("CM Score",      f"{cm['cm_artist_score']:.1f}" if cm.get("cm_artist_score") is not None else "—")
+        col_img, col_main, col_remove = st.columns([1, 8, 1])
 
-    if cm.get("cm_artist_rank"):
-        st.caption(f"Chartmetric rank: #{cm['cm_artist_rank']:,}")
+        with col_img:
+            if img := cm.get("image_url"):
+                st.image(img, width=64)
+            else:
+                st.markdown(" ")
 
-    if desc := cm.get("description"):
+        with col_main:
+            genres_str = " · ".join((cm.get("genres") or [])[:4]) or "—"
+            nbr = row.get("booked_neighbor_count") or 0
+            sim = row.get("booked_similar_count") or 0
+            network_str = ""
+            if nbr or sim:
+                network_str = f"  ·  🔗 {nbr}N {sim}S"
+
+            st.markdown(
+                f"**{row['name']}** &nbsp; {_score_badge(score)}"
+                f"{network_str}"
+            )
+            st.caption(f"{genres_str}  ·  SP {_fmt(cm.get('sp_monthly_listeners'))}  ·  IG {_fmt(cm.get('ig_followers'))}")
+
+            if feel.get("matched"):
+                hits = [m for m in feel["matched"] if not m.startswith("DISQ")][:4]
+                if hits:
+                    st.caption("✓ " + "  ·  ".join(hits))
+
+        with col_remove:
+            if st.button("Remove", key=f"rm_{row['id']}", help="Skip this artist"):
+                _set_status(row["id"], "skipped")
+                st.rerun()
+
+        # Expandable full profile
+        with st.expander(f"Full profile — {row['name']}", expanded=False):
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                if img := cm.get("image_url"):
+                    st.image(img, width=160)
+            with c2:
+                for label, val in [
+                    ("Career",  cm.get("career_status")),
+                    ("Label",   cm.get("record_label")),
+                    ("Booking", cm.get("booking_agent")),
+                ]:
+                    if val:
+                        st.write(f"**{label}:** {val}")
+
+            r1c1, r1c2, r1c3 = st.columns(3)
+            r1c1.metric("SP Monthly", _fmt(cm.get("sp_monthly_listeners")))
+            r1c2.metric("SP Followers", _fmt(cm.get("sp_followers")))
+            r1c3.metric("SP Popularity", _fmt(cm.get("sp_popularity")))
+
+            r2c1, r2c2, r2c3, r2c4 = st.columns(4)
+            r2c1.metric("IG", _fmt(cm.get("ig_followers")))
+            r2c2.metric("TikTok", _fmt(cm.get("tiktok_followers")))
+            r2c3.metric("YT Subs", _fmt(cm.get("yt_subscribers")))
+            r2c4.metric("CM Score",
+                        f"{cm['cm_artist_score']:.1f}"
+                        if cm.get("cm_artist_score") is not None else "—")
+
+            if cm.get("cm_artist_rank"):
+                st.caption(f"CM rank #{cm['cm_artist_rank']:,}")
+
+            if desc := cm.get("description"):
+                st.write(desc[:600])
+
+            # Score breakdown
+            if feel.get("scored_at"):
+                st.markdown("**Score breakdown**")
+                bc1, bc2, bc3 = st.columns(3)
+                bc1.metric("Taxonomy", feel.get("taxonomy_score", "—"))
+                bc2.metric("Embedding", feel.get("embedding_score", "—"))
+                bc3.metric("Network", feel.get("neighboring_score", "—"))
+                if feel.get("disqualified"):
+                    st.warning("Disqualified genre detected")
+
+            col_accept, col_remove2 = st.columns(2)
+            if col_accept.button("Accept + scrape", key=f"acc_{row['id']}", type="primary"):
+                _set_status(row["id"], "accepted", needs_scraping=True)
+                st.rerun()
+            if col_remove2.button("Remove", key=f"rm2_{row['id']}"):
+                _set_status(row["id"], "skipped")
+                st.rerun()
+
         st.markdown("---")
-        st.write(desc[:800])
 
-    st.markdown("---")
-    ca, cb = st.columns(2)
-    if ca.button("Accept", type="primary", use_container_width=True):
-        _set_status(row["id"], "accepted", needs_scraping=True)
-        st.rerun()
-    if cb.button("Skip", use_container_width=True):
-        _set_status(row["id"], "skipped")
-        st.rerun()
-
-# ── Artists ───────────────────────────────────────────────────────────────────
+# ── Artists ────────────────────────────────────────────────────────────────────
 
 elif page == "Artists":
     st.title(f"Accepted Artists ({accepted_n})")
@@ -199,14 +218,19 @@ elif page == "Artists":
         st.stop()
 
     for row in rows:
-        cm = _cm(row)
+        cm    = _cm(row)
+        feel  = _feel(row)
+        score = feel.get("score", -1)
+
         c_img, c_info = st.columns([1, 6])
         with c_img:
             if img := cm.get("image_url"):
                 st.image(img, width=70)
         with c_info:
             badge = "pending scrape" if row["needs_scraping"] else "scraped"
-            st.write(f"**{row['name']}** — {badge}")
+            st.write(
+                f"**{row['name']}** — {badge} &nbsp; {_score_badge(score)}"
+            )
             parts = []
             if v := cm.get("sp_monthly_listeners"):
                 parts.append(f"SP {_fmt(v)}")

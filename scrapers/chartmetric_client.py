@@ -491,5 +491,19 @@ def get_similar_artists(cm_id: int | str, limit: int = 20) -> list[dict]:
     return obj if isinstance(obj, list) else []
 
 
+def get_neighboring_artists(cm_id: int | str, limit: int = 20) -> list[dict]:
+    """Artists at the same career stage/trajectory in CM score space.
+
+    Complementary to similar-artists: similar = genre/fan overlap,
+    neighboring = same market position and momentum trajectory.
+    Returns [{id, name, sp_monthly_listeners, cm_artist_score, ...}] or [].
+    """
+    data = _get(f"/artist/{cm_id}/neighboring-artists", {"limit": limit})
+    if not data:
+        return []
+    obj = data.get("obj") or []
+    return obj if isinstance(obj, list) else []
+
+
 def is_configured() -> bool:
     return bool(os.environ.get("CHARTMETRIC_REFRESH_TOKEN"))

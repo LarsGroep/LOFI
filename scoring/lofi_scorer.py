@@ -1,28 +1,29 @@
 """
-LOFI Feel Scorer — hybrid taxonomy + LLM + embedding scoring.
+LOFI Feel Scorer — hybrid taxonomy + embedding + neighboring-network scoring.
+
+Three components (no LLM):
+  taxonomy   (35%) — genre/label/agency tier matching against lofi_feel_taxonomy.yaml
+  embedding  (35%) — cosine distance to centroid of all 173 booked artist embeddings
+  neighboring (30%) — how many LOFI-booked artists list this artist as a
+                      CM similar-artist or neighboring-artist (network signal)
 
 Usage:
     python scoring/lofi_scorer.py [--limit N] [--dry-run] [--status pending|all]
 
-Scores every pending (or all) artist with a `lofi_feel` JSONB:
+Scores stored on tinder.artists.lofi_feel:
     {
-        "score":           0-100  (weighted composite),
-        "taxonomy_score":  0-100,
-        "llm_score":       0-100,
-        "embedding_score": 0-100,  # cosine similarity to booked centroid
-        "reason":          str,    # LLM explanation
-        "green_flags":     [str],
-        "red_flags":       [str],
-        "scored_at":       ISO timestamp,
+        "score":            0-100  (weighted composite),
+        "taxonomy_score":   0-100,
+        "embedding_score":  0-100,
+        "neighboring_score":0-100,
+        "matched":          [str],   # taxonomy hits
+        "disqualified":     bool,
+        "scored_at":        ISO timestamp,
     }
-
-Scores are stored on tinder.artists.lofi_feel and re-computed whenever this
-script runs, so the Discover UI can sort/filter by LOFI fit without user input.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import sys
@@ -48,20 +49,20 @@ def _load_taxonomy() -> dict:
 
 # ── Taxonomy scorer ────────────────────────────────────────────────────────────
 
-def _normalise(s: str) -> str:
+def _norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]", " ", s.lower()).strip()
 
 
-def _list_match(value: str, tier: list[str]) -> bool:
-    v = _normalise(value)
-    return any(_normalise(t) in v or v in _normalise(t) for t in tier)
+def _match(value: str, tier: list[str]) -> bool:
+    v = _norm(value)
+    return any(_norm(t) in v or v in _norm(t) for t in tier)
 
 
-def score_taxonomy(artist_name: str, cm: dict, taxonomy: dict) -> dict:
+def score_taxonomy(cm: dict, taxonomy: dict) -> dict:
     """Return {score: 0-100, matched: [...], disqualified: bool}."""
-    genres   = [g.lower() for g in (cm.get("genres") or [])]
-    label    = (cm.get("record_label") or "").lower()
-    agency   = (cm.get("booking_agent") or "").lower()
+    genres = [g.lower() for g in (cm.get("genres") or [])]
+    label  = (cm.get("record_label") or "").lower()
+    agency = (cm.get("booking_agent") or "").lower()
 
     g_cfg = taxonomy.get("genres", {})
     l_cfg = taxonomy.get("labels", {})
@@ -71,47 +72,44 @@ def score_taxonomy(artist_name: str, cm: dict, taxonomy: dict) -> dict:
     matched = []
     disqualified = False
 
-    # Genre score
     g_score = 0
     for g in genres:
-        if any(_normalise(t) in _normalise(g) or _normalise(g) in _normalise(t)
-               for t in g_cfg.get("disqualifying", [])):
+        if any(_norm(d) in _norm(g) or _norm(g) in _norm(d)
+               for d in g_cfg.get("disqualifying", [])):
             disqualified = True
-            matched.append(f"DISQUALIFY genre: {g}")
+            matched.append(f"DISQUALIFY: {g}")
             break
-        if any(_normalise(t) in _normalise(g) or _normalise(g) in _normalise(t)
+        if any(_norm(t) in _norm(g) or _norm(g) in _norm(t)
                for t in g_cfg.get("tier_1", [])):
             g_score = max(g_score, 100)
             matched.append(f"genre tier-1: {g}")
-        elif any(_normalise(t) in _normalise(g) or _normalise(g) in _normalise(t)
+        elif any(_norm(t) in _norm(g) or _norm(g) in _norm(t)
                  for t in g_cfg.get("tier_2", [])):
             g_score = max(g_score, 60)
             matched.append(f"genre tier-2: {g}")
 
-    # Label score
     l_score = 0
     if label:
-        if any(_normalise(t) in _normalise(label) or _normalise(label) in _normalise(t)
+        if any(_norm(t) in _norm(label) or _norm(label) in _norm(t)
                for t in l_cfg.get("tier_1", [])):
             l_score = 100
             matched.append(f"label tier-1: {label}")
-        elif any(_normalise(t) in _normalise(label) or _normalise(label) in _normalise(t)
+        elif any(_norm(t) in _norm(label) or _norm(label) in _norm(t)
                  for t in l_cfg.get("tier_2", [])):
             l_score = 60
             matched.append(f"label tier-2: {label}")
 
-    # Agency score
     a_score = 0
     if agency:
-        if any(_normalise(t) in _normalise(agency) or _normalise(agency) in _normalise(t)
+        if any(_norm(t) in _norm(agency) or _norm(agency) in _norm(t)
                for t in a_cfg.get("tier_1", [])):
             a_score = 100
             matched.append(f"agency tier-1: {agency}")
-        elif any(_normalise(t) in _normalise(agency) or _normalise(agency) in _normalise(t)
+        elif any(_norm(t) in _norm(agency) or _norm(agency) in _norm(t)
                  for t in a_cfg.get("tier_2", [])):
             a_score = 80
             matched.append(f"agency tier-2: {agency}")
-        elif any(_normalise(t) in _normalise(agency) or _normalise(agency) in _normalise(t)
+        elif any(_norm(t) in _norm(agency) or _norm(agency) in _norm(t)
                  for t in a_cfg.get("tier_3", [])):
             a_score = 60
             matched.append(f"agency tier-3: {agency}")
@@ -121,127 +119,52 @@ def score_taxonomy(artist_name: str, cm: dict, taxonomy: dict) -> dict:
       + l_score * tw.get("label",  0.30)
       + a_score * tw.get("agency", 0.20)
     )
-
     if disqualified:
-        composite = max(0, composite - 50)
+        composite = max(0.0, composite - 50)
 
     return {"score": round(composite), "matched": matched, "disqualified": disqualified}
-
-
-# ── LLM judge ─────────────────────────────────────────────────────────────────
-
-_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
-
-_SYSTEM_PROMPT_TEMPLATE = """You are a talent scout for LOFI Amsterdam, a boutique underground electronic music club (200–1000 capacity). Your job is to assess whether a new artist fits the LOFI brand.
-
-LOFI books: underground tech house, house, minimal techno, organic house, deep house. The artists should feel credible in the European club scene. Think DC10 Ibiza, Circoloco, Paradise, Solid Grooves, Sunwaves — not festival main stages or commercial radio.
-
-NOT a fit: mainstream pop, commercial EDM, hip-hop, big-room, artists crossing over to celebrity culture. Monthly listener count alone is NOT a signal — a 40K underground tech-house artist beats a 2M pop-crossover act every time.
-
-Reference: Our benchmark artists (Tier A+) are {benchmark_str}.
-
-Tier-1 labels that signal strong fit: {labels_str}
-
-Tier-1 agencies: {agencies_str}
-
-Score the artist 0–100 for LOFI fit, where:
-- 80–100: Clear fit, would book immediately
-- 60–79: Good fit, worth watching
-- 40–59: Uncertain, missing key signals
-- 20–39: Poor fit, probably not
-- 0–19: Wrong genre/scene entirely
-
-Return ONLY valid JSON with this exact schema (no markdown, no extra text):
-{{"score": <int 0-100>, "reason": "<1-2 sentences>", "green_flags": ["<flag>", ...], "red_flags": ["<flag>", ...]}}"""
-
-_USER_PROMPT_TEMPLATE = """Artist: {name}
-Genres: {genres}
-Career stage: {career_status}
-Label: {record_label}
-Booking agent: {booking_agent}
-Monthly Spotify listeners: {listeners}
-Description: {description}"""
-
-
-def _build_system_prompt(taxonomy: dict) -> str:
-    ba = taxonomy.get("benchmark_artists", {})
-    benchmarks = ba.get("tier_a_plus", []) + ba.get("tier_a", [])[:3]
-    labels  = taxonomy.get("labels", {}).get("tier_1", [])[:8]
-    agencies = (
-        taxonomy.get("agencies", {}).get("tier_1", []) +
-        taxonomy.get("agencies", {}).get("tier_2", [])[:3]
-    )
-    return _SYSTEM_PROMPT_TEMPLATE.format(
-        benchmark_str=", ".join(benchmarks),
-        labels_str=", ".join(labels),
-        agencies_str=", ".join(agencies),
-    )
-
-
-def score_llm(artist_name: str, cm: dict, system_prompt: str) -> dict:
-    """Call Claude Haiku and return {score, reason, green_flags, red_flags}."""
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
-
-        genres_str   = ", ".join(cm.get("genres") or []) or "unknown"
-        career       = cm.get("career_status") or "unknown"
-        # career_status is sometimes a JSON string from CM
-        if isinstance(career, str) and career.startswith("{"):
-            try:
-                career = json.loads(career).get("stage", career)
-            except Exception:
-                pass
-
-        user_msg = _USER_PROMPT_TEMPLATE.format(
-            name=artist_name,
-            genres=genres_str,
-            career_status=career,
-            record_label=cm.get("record_label") or "unknown",
-            booking_agent=cm.get("booking_agent") or "unknown",
-            listeners=f"{cm.get('sp_monthly_listeners') or 0:,}",
-            description=(cm.get("description") or "")[:300],
-        )
-
-        resp = client.messages.create(
-            model=_ANTHROPIC_MODEL,
-            max_tokens=300,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_msg}],
-        )
-        text = resp.content[0].text.strip()
-        # Strip markdown fences if present
-        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.DOTALL).strip()
-        return json.loads(text)
-
-    except Exception as e:
-        return {"score": -1, "reason": f"LLM error: {e}", "green_flags": [], "red_flags": []}
 
 
 # ── Embedding scorer ───────────────────────────────────────────────────────────
 
 def score_embedding(cosine_dist: float | None) -> int:
-    """Convert cosine distance [0,2] → score [0,100]. Closer = higher score."""
+    """Cosine distance [0, 2] → score [0, 100]. Closer to booked centroid = higher."""
     if cosine_dist is None:
         return -1
-    # cosine_dist: 0 = identical, 1 = orthogonal, 2 = opposite
-    # Map [0, 0.8] → [100, 0] (most candidates fall in this range)
     clamped = max(0.0, min(1.0, cosine_dist / 0.8))
     return round((1.0 - clamped) * 100)
+
+
+# ── Neighboring network scorer ─────────────────────────────────────────────────
+
+def score_neighboring(booked_neighbor_count: int, booked_similar_count: int) -> int:
+    """Score based on how many LOFI-booked artists reference this artist.
+
+    neighbor references are weighted higher (career-stage proximity + genre filter
+    already applied at queue time) than generic similar-artist references.
+
+    Formula: each neighbor ref = 25 pts, each similar ref = 10 pts, cap 100.
+    """
+    raw = booked_neighbor_count * 25 + booked_similar_count * 10
+    return min(100, raw)
 
 
 # ── Composite ─────────────────────────────────────────────────────────────────
 
 def compute_composite(
     taxonomy_score: int,
-    llm_score: int,
     embedding_score: int,
+    neighboring_score: int,
     weights: dict,
 ) -> int:
-    """Weighted composite; skips components scored as -1 (unavailable)."""
+    """Weighted composite; components scored -1 are skipped (unavailable)."""
     total_w = 0.0
     total   = 0.0
-    for score, key in [(taxonomy_score, "taxonomy"), (llm_score, "llm"), (embedding_score, "embedding")]:
+    for score, key in [
+        (taxonomy_score,   "taxonomy"),
+        (embedding_score,  "embedding"),
+        (neighboring_score,"neighboring"),
+    ]:
         if score >= 0:
             w = weights.get(key, 0.0)
             total   += score * w
@@ -254,55 +177,36 @@ def compute_composite(
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Score artists for LOFI feel")
-    parser.add_argument("--limit", type=int, default=0, help="Max artists (0=all)")
+    parser = argparse.ArgumentParser(description="Score artists for LOFI feel (no LLM)")
+    parser.add_argument("--limit",  type=int, default=0,
+                        help="Max artists to score (0 = all)")
     parser.add_argument("--status", default="pending",
                         help="candidate_status filter: pending|accepted|all (default: pending)")
-    parser.add_argument("--dry-run", action="store_true", help="Print scores, don't save")
-    parser.add_argument("--no-llm", action="store_true", help="Skip LLM scoring (taxonomy+embedding only)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Print scores, do not write to DB")
     args = parser.parse_args()
 
-    # Dependencies
     from supabase import create_client
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
     taxonomy = _load_taxonomy()
-    weights  = taxonomy.get("weights", {"llm": 0.40, "embedding": 0.35, "taxonomy": 0.25})
-    sys_prompt = _build_system_prompt(taxonomy)
+    weights  = taxonomy.get("weights", {"taxonomy": 0.35, "embedding": 0.35, "neighboring": 0.30})
 
-    use_llm = not args.no_llm and bool(os.environ.get("ANTHROPIC_API_KEY"))
-    if not use_llm:
-        print("LLM scoring disabled (ANTHROPIC_API_KEY not set or --no-llm)")
-
-    # Fetch artists + CM data
-    q = sb.schema("tinder").table("artists").select("id, name, lofi_feel, artist_chartmetric(*)")
+    # Fetch artists + CM data + reference counts
+    q = (
+        sb.schema("tinder").table("artists")
+        .select("id, name, slug, booked_similar_count, booked_neighbor_count, artist_chartmetric(*)")
+    )
     if args.status != "all":
         q = q.eq("candidate_status", args.status)
-    q = q.not_.is_("chartmetric_id", "null")  # must have CM data
+    q = q.not_.is_("chartmetric_id", "null")
     if args.limit > 0:
         q = q.limit(args.limit)
 
     rows = q.execute().data or []
-    print(f"Artists to score: {len(rows)}  (status={args.status}, llm={use_llm})")
+    print(f"Artists to score: {len(rows)}  (status={args.status})")
 
-    # Fetch centroid from app_state for embedding scoring
-    centroid = None
-    try:
-        import numpy as np
-        centroid_row = (
-            sb.schema("tinder").table("app_state")
-            .select("value").eq("key", "lofi_centroid")
-            .single().execute()
-        )
-        if centroid_row.data and centroid_row.data.get("value"):
-            centroid = np.array(centroid_row.data["value"], dtype="float32")
-            print(f"Centroid loaded ({len(centroid)} dims)")
-    except Exception as e:
-        print(f"Centroid not available ({e}) — embedding scoring skipped")
-
-    # Fetch artist embeddings for KNN-style cosine distance
-    # We use the pre-computed cosine_dist from artist_profiles where available
-    # (computed by build_booked_profiles.py against the centroid)
+    # Load centroid-based cosine distances from artist_profiles
     profile_dist: dict[str, float] = {}
     try:
         offset = 0
@@ -321,9 +225,9 @@ def main() -> None:
             offset += 1000
         print(f"Embedding distances loaded for {len(profile_dist)} profiles")
     except Exception as e:
-        print(f"Embedding distances not available ({e})")
+        print(f"Embedding distances unavailable ({e})")
 
-    done = errors = skipped_llm = 0
+    done = errors = 0
     start = time.time()
 
     for i, row in enumerate(rows, 1):
@@ -332,57 +236,44 @@ def main() -> None:
 
         raw_cm = row.get("artist_chartmetric") or {}
         cm = raw_cm[0] if isinstance(raw_cm, list) else raw_cm
-
         if not cm:
-            print(f"  [{i}/{len(rows)}] SKIP (no CM data): {name}")
             continue
 
         try:
-            # 1. Taxonomy
-            tax = score_taxonomy(name, cm, taxonomy)
-            taxonomy_score = tax["score"]
-            matched        = tax["matched"]
-            disqualified   = tax["disqualified"]
-
-            # 2. LLM
-            llm_result = {"score": -1, "reason": "", "green_flags": [], "red_flags": []}
-            if use_llm:
-                llm_result = score_llm(name, cm, sys_prompt)
-                if llm_result["score"] < 0:
-                    skipped_llm += 1
-
-            # 3. Embedding
-            emb_score = score_embedding(profile_dist.get(slug))
-
-            # 4. Composite
-            composite = compute_composite(
-                taxonomy_score,
-                llm_result["score"],
-                emb_score,
-                weights,
+            tax = score_taxonomy(cm, taxonomy)
+            emb = score_embedding(profile_dist.get(slug))
+            nbr = score_neighboring(
+                row.get("booked_neighbor_count") or 0,
+                row.get("booked_similar_count")  or 0,
             )
+            composite = compute_composite(tax["score"], emb, nbr, weights)
 
             payload = {
-                "score":            composite,
-                "taxonomy_score":   taxonomy_score,
-                "llm_score":        llm_result["score"],
-                "embedding_score":  emb_score,
-                "reason":           llm_result.get("reason", ""),
-                "green_flags":      llm_result.get("green_flags", []) + matched,
-                "red_flags":        llm_result.get("red_flags", []),
-                "disqualified":     disqualified,
-                "scored_at":        datetime.now(timezone.utc).isoformat(),
+                "score":             composite,
+                "taxonomy_score":    tax["score"],
+                "embedding_score":   emb,
+                "neighboring_score": nbr,
+                "matched":           tax["matched"],
+                "disqualified":      tax["disqualified"],
+                "booked_neighbor_count": row.get("booked_neighbor_count") or 0,
+                "booked_similar_count":  row.get("booked_similar_count")  or 0,
+                "scored_at":         datetime.now(timezone.utc).isoformat(),
             }
 
             if args.dry_run:
-                print(f"  [{i}/{len(rows)}] {name:<32}  composite={composite:3}  "
-                      f"tax={taxonomy_score:3}  llm={llm_result['score']:3}  "
-                      f"emb={emb_score:3}  {'DISQ' if disqualified else ''}")
+                print(
+                    f"  [{i}/{len(rows)}] {name:<32}  "
+                    f"composite={composite:3}  tax={tax['score']:3}  "
+                    f"emb={emb:3}  nbr={nbr:3}  "
+                    f"{'DISQ' if tax['disqualified'] else ''}"
+                )
             else:
                 sb.schema("tinder").table("artists").update(
                     {"lofi_feel": payload}
                 ).eq("id", row["id"]).execute()
-                print(f"  [{i}/{len(rows)}] {name:<32}  score={composite:3}")
+                if i % 50 == 0 or i == len(rows):
+                    elapsed = time.time() - start
+                    print(f"  [{i}/{len(rows)}]  done={done}  elapsed={elapsed:.0f}s")
                 done += 1
 
         except Exception as e:
@@ -390,7 +281,7 @@ def main() -> None:
             print(f"  [{i}/{len(rows)}] ERROR {name}: {e}")
 
     elapsed = time.time() - start
-    print(f"\nDone in {elapsed:.0f}s — {done} scored, {errors} errors, {skipped_llm} LLM skips")
+    print(f"\nDone in {elapsed:.0f}s — {done} scored, {errors} errors")
 
 
 if __name__ == "__main__":

@@ -1,26 +1,33 @@
 name: Queue Similar Artists
 
-# Runs weekly — finds artists similar to LOFI bookings via Chartmetric,
-# adds new ones as pending candidates in Supabase for review in the app.
+# Runs nightly — discovers candidates from two CM sources per booked artist:
+#   1. /similar-artists  (genre/fan overlap, unfiltered)
+#   2. /neighboring-artists (career-stage proximity, genre-filtered)
+# Reference counts (booked_similar_count, booked_neighbor_count) are updated
+# for existing artists — these feed directly into the LOFI Feel neighboring score.
 
 on:
   schedule:
-    - cron: '0 1 * * 1'   # 1:00 AM UTC every Monday
+    - cron: '0 2 * * *'   # 2:00 AM UTC nightly (before score_artists at 03:30)
   workflow_dispatch:
     inputs:
       limit:
-        description: 'Max new candidates to add (0 = all)'
+        description: 'Max new candidates to add (0 = unlimited)'
         required: false
-        default: '50'
+        default: '100'
       per_artist:
-        description: 'Similar artists to fetch per booked artist'
+        description: 'Candidates per booked artist per source'
         required: false
         default: '10'
+      no_neighbors:
+        description: 'Skip neighboring-artists endpoint (true/false)'
+        required: false
+        default: 'false'
 
 jobs:
   queue:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
 
     steps:
       - uses: actions/checkout@v4
@@ -39,12 +46,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
 
-      - name: Queue similar artists
+      - name: Queue similar + neighbouring artists
         env:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
           CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
+          NO_NBR=""
+          if [ "${{ github.event.inputs.no_neighbors }}" = "true" ]; then
+            NO_NBR="--no-neighbors"
+          fi
           python scrapers/queue_similar_artists.py \
-            --limit ${{ github.event.inputs.limit || '50' }} \
-            --per-artist ${{ github.event.inputs.per_artist || '10' }}
+            --limit ${{ github.event.inputs.limit || '100' }} \
+            --per-artist ${{ github.event.inputs.per_artist || '10' }} \
+            $NO_NBR
