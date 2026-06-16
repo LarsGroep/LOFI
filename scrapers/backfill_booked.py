@@ -359,20 +359,6 @@ def main() -> None:
     else:
         print("--force: re-fetching all booked artists")
 
-    if not args.force:
-        existing_ids = {
-            r["artist_id"]
-            for r in (
-                sb.schema("tinder").table("artist_chartmetric")
-                .select("artist_id")
-                .execute().data or []
-            )
-        }
-        booked = [r for r in booked if r["id"] not in existing_ids]
-        print(f"Missing CM data: {len(booked)}")
-    else:
-        print("--force: re-fetching all booked artists")
-
     if not booked:
         print("All booked artists already have CM data. Use --force to refresh.")
         return
