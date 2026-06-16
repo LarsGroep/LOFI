@@ -44,6 +44,11 @@ scraper_data/mixcloud_artists.jsonl
 scraper_data/*.xlsx
 allescraperdatatotnutoe.xlsx
 
+#LOFI DATA
+artist_events_clean.csv
+artists_clean.csv
+events_clean.csv
+
 # OS
 .DS_Store
 Thumbs.db
