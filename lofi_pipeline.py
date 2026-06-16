@@ -43,7 +43,7 @@ def _set_status(artist_id: str, status: str, needs_scraping: bool = False):
 
 # ── Navigation ────────────────────────────────────────────────────────────────
 
-page = st.sidebar.radio("", ["Discover", "Artists"])
+page = st.sidebar.radio("Navigation", ["Discover", "Artists"], label_visibility="collapsed")
 
 _status_rows = sb.schema("tinder").table("artists").select("candidate_status").execute().data or []
 pending_n  = sum(1 for r in _status_rows if r["candidate_status"] == "pending")
