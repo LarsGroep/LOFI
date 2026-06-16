@@ -133,43 +133,58 @@ def get_timeseries(chartmetric_id: int | str, source: str, days: int = 180) -> l
     since = (date.today() - timedelta(days=days)).isoformat()
     until = date.today().isoformat()
 
+    # Spotify: GET /stat/spotify?field=listeners  → obj is a dict {"listeners": [{value, timestp}, ...]}
+    # Instagram/TikTok/YouTube: GET /social-audience-stats?domain=...  → obj is a list [{followers/subscribers, timestp}, ...]
     if source == "spotify":
         data = _get(f"/artist/{chartmetric_id}/stat/spotify", {
             "field": "listeners", "since": since, "until": until,
         })
-        metric_keys = ("listeners", "value")
+        if not data:
+            return []
+        obj = data.get("obj") or {}
+        pts = (obj.get("listeners") or obj.get("followers") or []) if isinstance(obj, dict) else (obj if isinstance(obj, list) else [])
+        metric_keys = ("value",)
     elif source == "instagram":
         data = _get(f"/artist/{chartmetric_id}/social-audience-stats", {
             "domain": "instagram", "audienceType": "followers",
             "statsType": "stat", "since": since, "until": until, "limit": 365,
         })
+        if not data:
+            return []
+        pts = data.get("obj") or []
         metric_keys = ("followers", "value")
     elif source == "tiktok":
         data = _get(f"/artist/{chartmetric_id}/social-audience-stats", {
             "domain": "tiktok", "audienceType": "followers",
             "statsType": "stat", "since": since, "until": until, "limit": 365,
         })
+        if not data:
+            return []
+        pts = data.get("obj") or []
         metric_keys = ("followers", "value")
     elif source == "youtube_channel":
         data = _get(f"/artist/{chartmetric_id}/social-audience-stats", {
             "domain": "youtube", "audienceType": "subscribers",
             "statsType": "stat", "since": since, "until": until, "limit": 365,
         })
-        metric_keys = ("subscribers", "value")
+        if not data:
+            return []
+        pts = data.get("obj") or []
+        metric_keys = ("subscribers", "followers", "value")
     else:
         data = _get(f"/artist/{chartmetric_id}/stat/{source}", {
             "since": since, "until": until,
         })
-        metric_keys = ("value", "followers")
+        if not data:
+            return []
+        pts = data.get("obj") or []
+        metric_keys = ("value",)
 
-    if not data:
-        return []
-    obj = data.get("obj") or []
-    if not isinstance(obj, list):
+    if not isinstance(pts, list):
         return []
 
     result = []
-    for pt in obj:
+    for pt in pts:
         ts = pt.get("timestp") or pt.get("date") or ""
         val = None
         for key in metric_keys:
