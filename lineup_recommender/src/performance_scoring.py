@@ -12,7 +12,28 @@ def add_performance_features(artist_events):
     """
     df = artist_events.copy()
 
-    df["revenue_per_visitor"] = safe_divide(df["total_revenue"], df["total_attendance"])
+    required_cols = [
+        "total_revenue",
+        "total_visitors",
+        "ticketing_revenue",
+        "bar_revenue",
+        "event_result",
+        "total_cost",
+        "artist_costs",
+    ]
+
+    missing = [col for col in required_cols if col not in df.columns]
+
+    if missing:
+        raise KeyError(
+            f"Missing required columns in artist_events: {missing}. "
+            f"Available columns are: {list(df.columns)}"
+        )
+
+    df["revenue_per_visitor"] = safe_divide(
+        df["total_revenue"],
+        df["total_visitors"],
+    )
 
     df["ticket_revenue_per_visitor"] = safe_divide(
         df["ticketing_revenue"],
