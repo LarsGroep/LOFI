@@ -142,9 +142,9 @@ benchmark_artists:
 
 # ── Scoring weights for hybrid composite ──────────────────────────────────────
 weights:
-  llm: 0.40
-  embedding: 0.35
-  taxonomy: 0.25
+  taxonomy:   0.35
+  embedding:  0.35
+  neighboring: 0.30
 
 # ── Taxonomy sub-weights (sum to 1.0) ────────────────────────────────────────
 taxonomy_weights:

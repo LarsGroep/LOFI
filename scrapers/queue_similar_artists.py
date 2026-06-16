@@ -1,14 +1,19 @@
 """
-Find artists similar to LOFI-booked artists via Chartmetric and queue them as candidates.
+Nightly job: find artists similar to / neighbouring LOFI bookings via Chartmetric.
 
-For each booked artist with a CM ID:
-  1. Calls CM /artist/{id}/similar-artists
-  2. Filters out artists already in tinder.artists
-  3. Fetches basic CM profile for each new candidate
-  4. Inserts into tinder.artists (candidate_status='pending') + tinder.artist_chartmetric
+Two sources per booked artist:
+  1. /similar-artists  — genre/fan-overlap similarity (no genre filter, any match queued)
+  2. /neighboring-artists — career-stage proximity, genre-filtered against the LOFI
+                            taxonomy so only relevant electronic acts are admitted
+
+For both sources:
+  - New artists → inserted as pending candidates, counts set to 1
+  - Already-known artists → booked_similar_count / booked_neighbor_count incremented
+
+The counts become the "neighboring score" in lofi_scorer.py, replacing the LLM judge.
 
 Run:
-    python scrapers/queue_similar_artists.py [--limit N] [--per-artist N]
+    python scrapers/queue_similar_artists.py [--limit N] [--per-artist N] [--no-neighbors]
 """
 from __future__ import annotations
 
@@ -17,8 +22,11 @@ import os
 import re
 import sys
 import unicodedata
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+
+import yaml
 
 _ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_ROOT))
@@ -29,6 +37,7 @@ load_dotenv(_ROOT / ".env")
 from supabase import create_client
 from scrapers.chartmetric_client import (
     get_similar_artists,
+    get_neighboring_artists,
     get_artist,
     get_stat,
     is_configured,
@@ -36,14 +45,40 @@ from scrapers.chartmetric_client import (
     _num,
 )
 
+_TAXONOMY_PATH = _ROOT / "scoring" / "lofi_feel_taxonomy.yaml"
+
 
 def _slug(name: str) -> str:
     n = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_")
 
 
+def _load_taxonomy() -> dict:
+    if _TAXONOMY_PATH.exists():
+        with open(_TAXONOMY_PATH, encoding="utf-8") as f:
+            return yaml.safe_load(f)
+    return {}
+
+
+def _passes_genre_filter(genres: list[str], taxonomy: dict) -> bool:
+    """True if genres contain at least one approved genre and no disqualifying genre."""
+    g_cfg = taxonomy.get("genres", {})
+    disq  = [d.lower() for d in g_cfg.get("disqualifying", [])]
+    tier1 = [t.lower() for t in g_cfg.get("tier_1", [])]
+    tier2 = [t.lower() for t in g_cfg.get("tier_2", [])]
+
+    has_approved = False
+    for g in genres:
+        gl = g.lower()
+        if any(d in gl or gl in d for d in disq):
+            return False
+        if any(t in gl or gl in t for t in tier1 + tier2):
+            has_approved = True
+    return has_approved
+
+
 def _basic_profile(cm_id: str) -> dict:
-    """Fetch just enough for the Discover profile card — 5 API calls."""
+    """Fetch profile card data — 5 API calls."""
     profile  = get_artist(cm_id) or {}
     sp_stats = get_stat(cm_id, "spotify") or {}
     ig_stats = get_stat(cm_id, "instagram") or {}
@@ -73,8 +108,12 @@ def _basic_profile(cm_id: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit",      type=int, default=0,  help="Max new candidates to add (0=all)")
-    parser.add_argument("--per-artist", type=int, default=10, help="Similar artists to request per booked artist")
+    parser.add_argument("--limit",        type=int, default=0,
+                        help="Max NEW candidates to add total (0 = unlimited)")
+    parser.add_argument("--per-artist",   type=int, default=10,
+                        help="Candidates to fetch per booked artist per source")
+    parser.add_argument("--no-neighbors", action="store_true",
+                        help="Skip neighboring-artists endpoint (similar-artists only)")
     args = parser.parse_args()
 
     if not is_configured():
@@ -84,7 +123,13 @@ def main() -> None:
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     _refresh_token()
 
-    # Booked artists with CM IDs are the source for recommendations
+    taxonomy = _load_taxonomy()
+    if taxonomy:
+        print(f"Taxonomy loaded — genre filter active for neighboring artists")
+    else:
+        print("WARNING: taxonomy YAML not found — neighboring artists unfiltered")
+
+    # ── Booked artists (source of recommendations) ────────────────────────────
     booked = (
         sb.schema("tinder").table("artists")
         .select("id, name, chartmetric_id")
@@ -94,73 +139,161 @@ def main() -> None:
     )
     print(f"Booked artists with CM ID: {len(booked)}")
 
-    # Build lookup of already-known artists to avoid duplicates
-    known = (
+    # ── Snapshot of all existing artists (slug + cm_id + reference counts) ───
+    existing_rows = (
         sb.schema("tinder").table("artists")
-        .select("slug, chartmetric_id")
+        .select("id, slug, chartmetric_id, booked_similar_count, booked_neighbor_count")
         .execute().data or []
     )
-    known_slugs  = {r["slug"] for r in known}
-    known_cm_ids = {r["chartmetric_id"] for r in known if r.get("chartmetric_id")}
+    known_slugs  = {r["slug"] for r in existing_rows}
+    known_cm_ids = {r["chartmetric_id"] for r in existing_rows if r.get("chartmetric_id")}
+    # Map cm_id → row for reference-count updates
+    existing_by_cmid: dict[str, dict] = {
+        r["chartmetric_id"]: r
+        for r in existing_rows if r.get("chartmetric_id")
+    }
+
+    # Accumulate reference count deltas in memory, write once at the end
+    similar_deltas:  defaultdict[str, int] = defaultdict(int)  # cm_id → count
+    neighbor_deltas: defaultdict[str, int] = defaultdict(int)
 
     added = 0
-    skipped = 0
+    skipped_known = 0
+    skipped_genre  = 0
 
+    # ── Process each booked artist ────────────────────────────────────────────
     for source in booked:
         if args.limit > 0 and added >= args.limit:
             break
 
-        print(f"\n  {source['name']}")
-        similars = get_similar_artists(source["chartmetric_id"], limit=args.per_artist)
-        if not similars:
-            print("    no similar artists returned")
-            continue
+        src_name  = source["name"]
+        src_cm_id = source["chartmetric_id"]
+        print(f"\n  {src_name}")
 
+        # ── 1. Similar artists (genre-unfiltered) ─────────────────────────────
+        similars = get_similar_artists(src_cm_id, limit=args.per_artist)
         for s in similars:
             if args.limit > 0 and added >= args.limit:
                 break
-
-            candidate_name  = (s.get("name") or "").strip()
-            candidate_cm_id = str(s.get("id") or "")
-            if not candidate_name or not candidate_cm_id:
+            cm_id = str(s.get("id") or "")
+            name  = (s.get("name") or "").strip()
+            if not cm_id or not name:
                 continue
 
-            slug = _slug(candidate_name)
-            if slug in known_slugs or candidate_cm_id in known_cm_ids:
-                skipped += 1
+            if cm_id in known_cm_ids or _slug(name) in known_slugs:
+                similar_deltas[cm_id] += 1
+                skipped_known += 1
                 continue
 
-            print(f"    + {candidate_name} (CM {candidate_cm_id})")
-
+            print(f"    ~similar  + {name}")
             try:
-                profile = _basic_profile(candidate_cm_id)
-
-                artist_rows = sb.schema("tinder").table("artists").insert({
-                    "chartmetric_id":   candidate_cm_id,
-                    "name":             candidate_name,
-                    "slug":             slug,
-                    "candidate_status": "pending",
-                    "needs_scraping":   False,
+                profile = _basic_profile(cm_id)
+                artist_row = sb.schema("tinder").table("artists").insert({
+                    "chartmetric_id":      cm_id,
+                    "name":                name,
+                    "slug":                _slug(name),
+                    "candidate_status":    "pending",
+                    "needs_scraping":      False,
+                    "booked_similar_count": 1,
                 }).execute().data
-
-                if not artist_rows:
+                if not artist_row:
                     continue
-
-                artist_id = artist_rows[0]["id"]
-
+                artist_id = artist_row[0]["id"]
                 cm_payload = {k: v for k, v in profile.items() if v is not None}
-                cm_payload["artist_id"] = artist_id
+                cm_payload["artist_id"]  = artist_id
                 cm_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
                 sb.schema("tinder").table("artist_chartmetric").insert(cm_payload).execute()
-
-                known_slugs.add(slug)
-                known_cm_ids.add(candidate_cm_id)
+                known_slugs.add(_slug(name))
+                known_cm_ids.add(cm_id)
+                existing_by_cmid[cm_id] = {"id": artist_id, "booked_similar_count": 1, "booked_neighbor_count": 0}
                 added += 1
-
             except Exception as e:
                 print(f"      ERROR: {e}")
 
-    print(f"\nDone — {added} candidates queued, {skipped} already known")
+        if args.no_neighbors:
+            continue
+
+        # ── 2. Neighboring artists (genre-filtered) ───────────────────────────
+        neighbors = get_neighboring_artists(src_cm_id, limit=args.per_artist)
+        for n in neighbors:
+            if args.limit > 0 and added >= args.limit:
+                break
+            cm_id = str(n.get("id") or "")
+            name  = (n.get("name") or "").strip()
+            if not cm_id or not name:
+                continue
+
+            if cm_id in known_cm_ids or _slug(name) in known_slugs:
+                neighbor_deltas[cm_id] += 1
+                skipped_known += 1
+                continue
+
+            # Fetch profile to check genres before queuing
+            print(f"    ?neighbor  {name} — fetching profile...")
+            try:
+                profile = _basic_profile(cm_id)
+                genres  = profile.get("genres") or []
+
+                if taxonomy and not _passes_genre_filter(genres, taxonomy):
+                    skipped_genre += 1
+                    print(f"      genre filtered: {genres[:3]}")
+                    continue
+
+                print(f"    ~neighbor  + {name}  genres={genres[:3]}")
+                artist_row = sb.schema("tinder").table("artists").insert({
+                    "chartmetric_id":       cm_id,
+                    "name":                 name,
+                    "slug":                 _slug(name),
+                    "candidate_status":     "pending",
+                    "needs_scraping":       False,
+                    "booked_neighbor_count": 1,
+                }).execute().data
+                if not artist_row:
+                    continue
+                artist_id = artist_row[0]["id"]
+                cm_payload = {k: v for k, v in profile.items() if v is not None}
+                cm_payload["artist_id"]  = artist_id
+                cm_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
+                sb.schema("tinder").table("artist_chartmetric").insert(cm_payload).execute()
+                known_slugs.add(_slug(name))
+                known_cm_ids.add(cm_id)
+                existing_by_cmid[cm_id] = {"id": artist_id, "booked_similar_count": 0, "booked_neighbor_count": 1}
+                added += 1
+            except Exception as e:
+                print(f"      ERROR: {e}")
+
+    # ── Flush reference-count updates for already-known artists ───────────────
+    updated_counts = 0
+    for cm_id, delta in similar_deltas.items():
+        if delta > 0 and cm_id in existing_by_cmid:
+            row = existing_by_cmid[cm_id]
+            new_count = (row.get("booked_similar_count") or 0) + delta
+            try:
+                sb.schema("tinder").table("artists").update(
+                    {"booked_similar_count": new_count}
+                ).eq("id", row["id"]).execute()
+                updated_counts += 1
+            except Exception:
+                pass
+
+    for cm_id, delta in neighbor_deltas.items():
+        if delta > 0 and cm_id in existing_by_cmid:
+            row = existing_by_cmid[cm_id]
+            new_count = (row.get("booked_neighbor_count") or 0) + delta
+            try:
+                sb.schema("tinder").table("artists").update(
+                    {"booked_neighbor_count": new_count}
+                ).eq("id", row["id"]).execute()
+                updated_counts += 1
+            except Exception:
+                pass
+
+    print(
+        f"\nDone — {added} new candidates queued  |  "
+        f"{skipped_known} already known (counts updated)  |  "
+        f"{skipped_genre} filtered by genre  |  "
+        f"{updated_counts} reference counts incremented"
+    )
 
 
 if __name__ == "__main__":
