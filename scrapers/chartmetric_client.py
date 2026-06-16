@@ -320,6 +320,50 @@ def compute_growth_features(ts: dict, sp_followers: int | None = None) -> dict:
             if g90 is not None:
                 features["yt_subs_90d_pct"] = g90
 
+    # ── YouTube artist (aggregate daily/monthly views) ────────────────────────
+    yta = ts.get("youtube_artist", {})
+    yta_daily = yta.get("daily_views", [])
+    if yta_daily:
+        current = yta_daily[-1]["value"]
+        p30 = _past(yta_daily, 30)
+        p90 = _past(yta_daily, 90)
+        g30 = _pct(current, p30["value"] if p30 else None)
+        if g30 is not None:
+            features["yt_daily_views_30d_pct"] = g30
+            if g30 > 0:
+                growing_platforms += 1
+        if p90:
+            g90 = _pct(current, p90["value"])
+            if g90 is not None:
+                features["yt_daily_views_90d_pct"] = g90
+
+    # ── SoundCloud ────────────────────────────────────────────────────────────
+    sc = ts.get("soundcloud", {}).get("followers", [])
+    if sc:
+        current = sc[-1]["value"]
+        p30 = _past(sc, 30)
+        g30 = _pct(current, p30["value"] if p30 else None)
+        if g30 is not None:
+            features["sc_followers_30d_pct"] = g30
+            if g30 > 0:
+                growing_platforms += 1
+
+    # ── CPP score trend (Chartmetric Career Performance Platform) ─────────────
+    cpp_scores = ts.get("cpp", {}).get("score", [])
+    if cpp_scores:
+        current_cpp = cpp_scores[-1]["value"]
+        features["cpp_score_current"] = round(current_cpp, 4)
+        p30_cpp = _past(cpp_scores, 30)
+        p90_cpp = _past(cpp_scores, 90)
+        if p30_cpp and p30_cpp["value"] > 0:
+            features["cpp_score_30d_pct"] = round(
+                (current_cpp - p30_cpp["value"]) / p30_cpp["value"] * 100, 2
+            )
+        if p90_cpp and p90_cpp["value"] > 0:
+            features["cpp_score_90d_pct"] = round(
+                (current_cpp - p90_cpp["value"]) / p90_cpp["value"] * 100, 2
+            )
+
     # ── Cross-platform ────────────────────────────────────────────────────────
     if growing_platforms:
         features["platforms_growing_30d"] = growing_platforms
@@ -480,6 +524,137 @@ def enrich_by_id(cm_id: int | str, include_timeseries: bool = True) -> dict | No
             result["ml_features"] = compute_growth_features(ts, sp_followers=sp_followers)
 
     return {k: v for k, v in result.items() if v is not None}
+
+
+def _parse_stat_field(data: dict | None) -> list[dict]:
+    """Parse /stat/{source}?field=X response → [{date, value}] sorted ascending."""
+    if not data:
+        return []
+    obj = data.get("obj") or {}
+    # Response is either {field_name: [{value, timestp}, ...]} or a flat list
+    pts: list = []
+    if isinstance(obj, dict):
+        for v in obj.values():
+            if isinstance(v, list):
+                pts = v
+                break
+    elif isinstance(obj, list):
+        pts = obj
+    result = []
+    for p in pts:
+        if not isinstance(p, dict):
+            continue
+        ts  = p.get("timestp") or p.get("date") or ""
+        val = p.get("value")
+        if ts and val is not None:
+            try:
+                result.append({"date": str(ts)[:10], "value": int(float(val))})
+            except (TypeError, ValueError):
+                pass
+    return sorted(result, key=lambda x: x["date"])
+
+
+def _parse_cpp(data: dict | None, stat: str) -> list[dict]:
+    """Parse /api/artist/{id}/cpp?stat={score|rank} → [{date, value}]."""
+    if not data:
+        return []
+    pts = data.get("obj") or []
+    if not isinstance(pts, list):
+        return []
+    result = []
+    for p in pts:
+        if not isinstance(p, dict):
+            continue
+        ts  = p.get("timestp") or p.get("date") or ""
+        val = p.get(stat)
+        if ts and val is not None:
+            try:
+                v = float(val) if stat == "score" else int(float(val))
+                result.append({"date": str(ts)[:10], "value": v})
+            except (TypeError, ValueError):
+                pass
+    return sorted(result, key=lambda x: x["date"])
+
+
+def get_full_timeseries(cm_id: int | str, since_days: int = 365) -> dict:
+    """Comprehensive time-series pull — mirrors chartmetric_artist_timeseries_pull.py.
+
+    Endpoints hit (13 API calls):
+      Spotify:         followers, listeners, popularity
+      Instagram:       followers
+      TikTok:          followers, likes
+      YouTube channel: subscribers, views
+      YouTube artist:  daily_views, monthly_views
+      SoundCloud:      followers
+      CPP:             score, rank
+
+    Returns nested dict:
+      {source: {metric: [{date, value}, ...]}}
+    All series are sorted ascending by date.
+    """
+    from datetime import date, timedelta
+    since = (date.today() - timedelta(days=since_days)).isoformat()
+    until = date.today().isoformat()
+    base  = {"since": since, "until": until, "interpolated": "false"}
+
+    result: dict[str, dict] = {}
+
+    # Spotify: 3 fields
+    sp: dict[str, list] = {}
+    for field in ("followers", "listeners", "popularity"):
+        pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/spotify", {**base, "field": field}))
+        if pts:
+            sp[field] = pts
+    if sp:
+        result["spotify"] = sp
+
+    # Instagram
+    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/instagram", {**base, "field": "followers"}))
+    if pts:
+        result["instagram"] = {"followers": pts}
+
+    # TikTok: followers + likes
+    tk: dict[str, list] = {}
+    for field in ("followers", "likes"):
+        pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/tiktok", {**base, "field": field}))
+        if pts:
+            tk[field] = pts
+    if tk:
+        result["tiktok"] = tk
+
+    # YouTube channel: subscribers + views
+    ytc: dict[str, list] = {}
+    for field in ("subscribers", "views"):
+        pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/youtube_channel", {**base, "field": field}))
+        if pts:
+            ytc[field] = pts
+    if ytc:
+        result["youtube_channel"] = ytc
+
+    # YouTube artist: daily + monthly views
+    yta: dict[str, list] = {}
+    for field in ("daily_views", "monthly_views"):
+        pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/youtube_artist", {**base, "field": field}))
+        if pts:
+            yta[field] = pts
+    if yta:
+        result["youtube_artist"] = yta
+
+    # SoundCloud
+    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/soundcloud", {**base, "field": "followers"}))
+    if pts:
+        result["soundcloud"] = {"followers": pts}
+
+    # CPP: score + rank
+    cpp: dict[str, list] = {}
+    for stat in ("score", "rank"):
+        pts = _parse_cpp(_get(f"/artist/{cm_id}/cpp", {"stat": stat, "since": since, "until": until}), stat)
+        if pts:
+            cpp[stat] = pts
+    if cpp:
+        result["cpp"] = cpp
+
+    return result
 
 
 def get_similar_artists(cm_id: int | str, limit: int = 20) -> list[dict]:

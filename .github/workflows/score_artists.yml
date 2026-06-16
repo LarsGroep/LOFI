@@ -1,13 +1,13 @@
 name: Score LOFI Feel
 
-# Nightly pipeline (no LLM — taxonomy + embedding + neighboring network):
+# Nightly pipeline order:
 #   02:00  queue_similar  — adds candidates, updates reference counts
-#   03:00  scrape_flagged — enriches accepted artists
-#   03:30  score_artists  — scores pending artists using updated counts
+#   03:00  score_artists  — scores pending artists, auto-promotes score >= threshold
+#   04:00  scrape_flagged — full timeseries for auto-promoted (accepted) artists
 
 on:
   schedule:
-    - cron: '30 3 * * *'
+    - cron: '0 3 * * *'
   workflow_dispatch:
     inputs:
       status:
@@ -18,6 +18,14 @@ on:
         description: 'Max artists (0 = all matching)'
         required: false
         default: '0'
+      threshold:
+        description: 'Auto-promote threshold 0-100 (0 = use taxonomy YAML default of 60)'
+        required: false
+        default: '0'
+      no_autopromote:
+        description: 'Skip auto-promotion (true/false)'
+        required: false
+        default: 'false'
 
 jobs:
   score:
@@ -41,11 +49,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt --quiet
 
-      - name: Score artists
+      - name: Score artists + auto-promote
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
+          NO_AP=""
+          if [ "${{ github.event.inputs.no_autopromote }}" = "true" ]; then
+            NO_AP="--no-autopromote"
+          fi
           python scoring/lofi_scorer.py \
             --status "${{ github.event.inputs.status || 'pending' }}" \
-            --limit "${{ github.event.inputs.limit || '0' }}"
+            --limit  "${{ github.event.inputs.limit || '0' }}" \
+            --threshold "${{ github.event.inputs.threshold || '0' }}" \
+            $NO_AP

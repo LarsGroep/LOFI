@@ -1,18 +1,26 @@
 name: Scrape Flagged Artists
 
-# Runs nightly — picks up any artist with needs_scraping=TRUE,
-# fetches full Chartmetric profile + timeseries, saves to Supabase,
-# then sets needs_scraping=FALSE.
+# Nightly pipeline order:
+#   02:00  queue_similar  — adds candidates + updates reference counts
+#   03:00  score_artists  — scores + auto-promotes (score >= 60 → accepted + needs_scraping)
+#   04:00  scrape_flagged — comprehensive CM timeseries for all needs_scraping artists
+#
+# Timeseries per artist: spotify(3) + instagram + tiktok(2) + yt_channel(2)
+#                        + yt_artist(2) + soundcloud + cpp(2) = 13 API calls ≈ 30s/artist
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # 3:00 AM UTC
+    - cron: '0 4 * * *'   # 4:00 AM UTC — after score_artists promotes candidates
   workflow_dispatch:
     inputs:
       limit:
         description: 'Max artists to scrape (0 = all)'
         required: false
         default: '0'
+      days:
+        description: 'Timeseries lookback in days (default 365)'
+        required: false
+        default: '365'
 
 jobs:
   scrape:
@@ -42,5 +50,6 @@ jobs:
           SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
           CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
-          LIMIT="${{ github.event.inputs.limit || '0' }}"
-          python scrapers/scrape_flagged.py --limit $LIMIT
+          python scrapers/scrape_flagged.py \
+            --limit "${{ github.event.inputs.limit || '0' }}" \
+            --days  "${{ github.event.inputs.days  || '365' }}"

@@ -35,10 +35,14 @@ load_dotenv(_ROOT / ".env")
 
 from supabase import create_client
 from scrapers.chartmetric_client import (
-    enrich_by_id,
-    enrich_from_chartmetric,
+    get_artist,
+    get_stat,
+    get_full_timeseries,
+    compute_growth_features,
+    search_artist,
     is_configured,
     _refresh_token,
+    _num,
 )
 
 try:
@@ -218,16 +222,15 @@ def _embed(text: str) -> list[float]:
     return model.encode([text], normalize_embeddings=True)[0].tolist()
 
 
-def _profile_text(name: str, cm: dict) -> str:
+def _profile_text(name: str, profile: dict, genres: list) -> str:
     parts = [name]
-    if genres := cm.get("spotify_genres"):
-        if isinstance(genres, list):
-            parts.append(f"Genre: {', '.join(genres[:4])}")
-    if career := cm.get("career_status"):
+    if genres:
+        parts.append(f"Genre: {', '.join(genres[:4])}")
+    if career := profile.get("career_status"):
         parts.append(f"Career: {career}")
-    if label := cm.get("record_label"):
+    if label := profile.get("record_label"):
         parts.append(f"Label: {label}")
-    if desc := cm.get("description"):
+    if desc := profile.get("description"):
         parts.append(desc[:200])
     return ". ".join(filter(None, parts))
 
@@ -237,7 +240,8 @@ def _profile_text(name: str, cm: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=0, help="Max artists to scrape (0=all)")
-    parser.add_argument("--days",  type=int, default=180)
+    parser.add_argument("--days",  type=int, default=365,
+                        help="Timeseries lookback in days (default 365)")
     args = parser.parse_args()
 
     if not is_configured():
@@ -273,48 +277,63 @@ def main() -> None:
         print(f"  [{i}/{total}] {name}")
 
         try:
-            # ── Chartmetric ──────────────────────────────────────────────────
-            if cm_id:
-                cm = enrich_by_id(cm_id, include_timeseries=True) or {}
-            else:
-                cm = enrich_from_chartmetric(name, include_timeseries=True) or {}
+            # ── Chartmetric: resolve CM ID if missing ─────────────────────────
+            if not cm_id:
+                candidates = search_artist(name, limit=3)
+                if candidates:
+                    cm_id = str(candidates[0]["id"])
+                    sb.schema("tinder").table("artists").update(
+                        {"chartmetric_id": cm_id}
+                    ).eq("id", artist_id).execute()
 
-            if not cm:
-                print(f"    CM: not found")
+            if not cm_id:
+                print(f"    CM: not found in search")
                 errors += 1
                 continue
 
-            resolved_cm_id = cm.get("chartmetric_id") or cm_id
-            if resolved_cm_id and not cm_id:
-                sb.schema("tinder").table("artists").update(
-                    {"chartmetric_id": str(resolved_cm_id)}
-                ).eq("id", artist_id).execute()
+            # ── Chartmetric: comprehensive pull ───────────────────────────────
+            profile  = get_artist(cm_id) or {}
+            sp_stats = get_stat(cm_id, "spotify") or {}
+            ig_stats = get_stat(cm_id, "instagram") or {}
+            tk_stats = get_stat(cm_id, "tiktok") or {}
+            yt_stats = get_stat(cm_id, "youtube_channel") or {}
+
+            raw_genres = profile.get("genres") or []
+            genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
+
+            sp_followers = _num(sp_stats.get("followers") or profile.get("sp_followers"))
+
+            # Full timeseries: spotify(3) + instagram + tiktok(2) + yt_channel(2)
+            #                  + yt_artist(2) + soundcloud + cpp(2) = 13 API calls
+            ts = get_full_timeseries(cm_id, since_days=args.days)
+            ml = compute_growth_features(ts, sp_followers=sp_followers)
 
             cm_row = {
                 "artist_id":            artist_id,
-                "image_url":            cm.get("image_url"),
-                "description":          cm.get("description"),
-                "career_status":        cm.get("career_status"),
-                "record_label":         cm.get("record_label"),
-                "booking_agent":        cm.get("booking_agent"),
-                "genres":               cm.get("spotify_genres"),
-                "cm_artist_score":      cm.get("cm_artist_score"),
-                "cm_artist_rank":       cm.get("cm_artist_rank"),
-                "sp_monthly_listeners": cm.get("spotify_monthly_listeners"),
-                "sp_followers":         cm.get("spotify_followers"),
-                "sp_popularity":        cm.get("spotify_popularity"),
-                "ig_followers":         cm.get("ig_followers"),
-                "tiktok_followers":     cm.get("tiktok_followers"),
-                "yt_subscribers":       cm.get("yt_subscribers"),
-                "cm_timeseries":        cm.get("cm_timeseries"),
-                "ml_features":          cm.get("ml_features"),
+                "image_url":            profile.get("image_url"),
+                "description":          profile.get("description"),
+                "career_status":        profile.get("career_status"),
+                "record_label":         profile.get("record_label"),
+                "booking_agent":        profile.get("booking_agent"),
+                "genres":               genres or None,
+                "cm_artist_score":      profile.get("cm_artist_score"),
+                "cm_artist_rank":       profile.get("cm_artist_rank"),
+                "sp_monthly_listeners": _num(sp_stats.get("listeners") or sp_stats.get("sp_monthly_listeners")),
+                "sp_followers":         sp_followers,
+                "sp_popularity":        _num(sp_stats.get("popularity")),
+                "ig_followers":         _num(ig_stats.get("followers")),
+                "tiktok_followers":     _num(tk_stats.get("followers")),
+                "yt_subscribers":       _num(yt_stats.get("subscribers")),
+                "cm_timeseries":        ts if ts else None,
+                "ml_features":          ml if ml else None,
                 "updated_at":           datetime.now(timezone.utc).isoformat(),
             }
             sb.schema("tinder").table("artist_chartmetric").upsert(
                 {k: v for k, v in cm_row.items() if v is not None},
                 on_conflict="artist_id",
             ).execute()
-            print(f"    CM: ok")
+            ts_sources = list(ts.keys()) if ts else []
+            print(f"    CM: ok  timeseries={ts_sources}")
 
             # ── Resident Advisor ─────────────────────────────────────────────
             ra = _scrape_ra(name)
@@ -350,7 +369,7 @@ def main() -> None:
                 print(f"    PF: not found")
 
             # ── Embedding ────────────────────────────────────────────────────
-            profile_text = _profile_text(name, cm)
+            profile_text = _profile_text(name, profile, genres)
             emb = _embed(profile_text)
             sb.schema("tinder").table("artist_embeddings").upsert({
                 "artist_id":    artist_id,
