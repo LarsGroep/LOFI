@@ -1,13 +1,13 @@
 name: Score LOFI Feel
 
 # Nightly pipeline order:
-#   02:00  queue_similar  — adds candidates, updates reference counts
-#   03:00  score_artists  — scores pending artists, auto-promotes score >= threshold
-#   04:00  scrape_flagged — full timeseries for auto-promoted (accepted) artists
+#   22:00  queue_similar  — adds candidates, updates reference counts
+#   23:00  score_artists  — scores pending artists, auto-promotes score >= threshold
+#   00:00  scrape_flagged — full timeseries for auto-promoted (accepted) artists
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 23 * * *'
   workflow_dispatch:
     inputs:
       status:

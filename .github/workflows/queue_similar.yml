@@ -8,7 +8,7 @@ name: Queue Similar Artists
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # 2:00 AM UTC nightly (before score_artists at 03:30)
+    - cron: '0 22 * * *'  # 10:00 PM UTC nightly (before score_artists at 23:00)
   workflow_dispatch:
     inputs:
       limit:
