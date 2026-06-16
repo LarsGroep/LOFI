@@ -429,5 +429,67 @@ def enrich_from_chartmetric(name: str, include_timeseries: bool = True) -> dict 
     return {k: v for k, v in result.items() if v is not None}
 
 
+def enrich_by_id(cm_id: int | str, include_timeseries: bool = True) -> dict | None:
+    """
+    Same as enrich_from_chartmetric but takes a known CM ID — skips the search call.
+    Use this when chartmetric_id is already stored in the database.
+    """
+    profile = get_artist(cm_id) or {}
+    if not profile:
+        return None
+
+    sp_stats = get_stat(cm_id, "spotify") or {}
+    ig_stats = get_stat(cm_id, "instagram") or {}
+    tk_stats = get_stat(cm_id, "tiktok") or {}
+    yt_stats = get_stat(cm_id, "youtube_channel") or {}
+
+    raw_genres = profile.get("genres") or []
+    genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
+
+    sp_monthly  = _num(sp_stats.get("listeners") or sp_stats.get("sp_monthly_listeners") or profile.get("sp_monthly_listeners"))
+    sp_followers = _num(sp_stats.get("followers") or profile.get("sp_followers"))
+    sp_popularity = _num(sp_stats.get("popularity") or profile.get("sp_popularity"))
+
+    result: dict = {
+        "chartmetric_id":            str(cm_id),
+        "image_url":                 profile.get("image_url"),
+        "description":               profile.get("description"),
+        "cm_artist_rank":            profile.get("cm_artist_rank"),
+        "cm_artist_score":           profile.get("cm_artist_score"),
+        "career_status":             profile.get("career_status"),
+        "record_label":              profile.get("record_label"),
+        "booking_agent":             profile.get("booking_agent"),
+        "spotify_monthly_listeners": sp_monthly,
+        "spotify_followers":         sp_followers,
+        "spotify_popularity":        sp_popularity,
+        "spotify_genres":            genres,
+        "ig_followers":              _num(ig_stats.get("followers")),
+        "tiktok_followers":          _num(tk_stats.get("followers")),
+        "yt_subscribers":            _num(yt_stats.get("subscribers")),
+        "yt_views":                  _num(yt_stats.get("views")),
+    }
+
+    if include_timeseries:
+        ts: dict[str, list[dict]] = {}
+        for source in ("spotify", "instagram", "tiktok", "youtube_channel"):
+            points = get_timeseries(cm_id, source, days=180)
+            if points:
+                ts[source] = points
+        if ts:
+            result["cm_timeseries"] = ts
+            result["ml_features"] = compute_growth_features(ts, sp_followers=sp_followers)
+
+    return {k: v for k, v in result.items() if v is not None}
+
+
+def get_similar_artists(cm_id: int | str, limit: int = 20) -> list[dict]:
+    """Returns [{id, name, sp_monthly_listeners, cm_artist_score, ...}] or [] on failure."""
+    data = _get(f"/artist/{cm_id}/similar-artists", {"limit": limit})
+    if not data:
+        return []
+    obj = data.get("obj") or []
+    return obj if isinstance(obj, list) else []
+
+
 def is_configured() -> bool:
     return bool(os.environ.get("CHARTMETRIC_REFRESH_TOKEN"))

@@ -16,7 +16,6 @@ import argparse
 import os
 import re
 import sys
-import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,9 +28,12 @@ load_dotenv(_ROOT / ".env")
 
 from supabase import create_client
 from scrapers.chartmetric_client import (
-    _get, _refresh_token,
-    search_artist, get_artist, get_stat,
+    get_similar_artists,
+    get_artist,
+    get_stat,
     is_configured,
+    _refresh_token,
+    _num,
 )
 
 
@@ -40,19 +42,8 @@ def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_")
 
 
-def get_similar_artists(cm_id: str, limit: int = 20) -> list[dict]:
-    """Returns [{id, name, sp_monthly_listeners, cm_artist_score, ...}]"""
-    data = _get(f"/artist/{cm_id}/similar-artists", {"limit": limit})
-    if not data:
-        return []
-    obj = data.get("obj") or []
-    return obj if isinstance(obj, list) else []
-
-
-def fetch_basic_profile(cm_id: str, name: str) -> dict:
-    """Fetch image, genres, career, stats for a candidate."""
-    from scrapers.chartmetric_client import _num
-
+def _basic_profile(cm_id: str) -> dict:
+    """Fetch just enough for the Discover profile card — 5 API calls."""
     profile  = get_artist(cm_id) or {}
     sp_stats = get_stat(cm_id, "spotify") or {}
     ig_stats = get_stat(cm_id, "instagram") or {}
@@ -83,7 +74,7 @@ def fetch_basic_profile(cm_id: str, name: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit",      type=int, default=0,  help="Max new candidates to add (0=all)")
-    parser.add_argument("--per-artist", type=int, default=10, help="Similar artists to fetch per booked artist")
+    parser.add_argument("--per-artist", type=int, default=10, help="Similar artists to request per booked artist")
     args = parser.parse_args()
 
     if not is_configured():
@@ -93,43 +84,43 @@ def main() -> None:
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     _refresh_token()
 
-    # Load booked artists with CM IDs
+    # Booked artists with CM IDs are the source for recommendations
     booked = (
         sb.schema("tinder").table("artists")
-        .select("id, name, slug, chartmetric_id")
+        .select("id, name, chartmetric_id")
         .eq("candidate_status", "booked")
         .not_.is_("chartmetric_id", "null")
         .execute().data or []
     )
     print(f"Booked artists with CM ID: {len(booked)}")
 
-    # Load known slugs to avoid duplicates
+    # Build lookup of already-known artists to avoid duplicates
     known = (
         sb.schema("tinder").table("artists")
         .select("slug, chartmetric_id")
         .execute().data or []
     )
-    known_slugs   = {r["slug"] for r in known}
-    known_cm_ids  = {r["chartmetric_id"] for r in known if r.get("chartmetric_id")}
+    known_slugs  = {r["slug"] for r in known}
+    known_cm_ids = {r["chartmetric_id"] for r in known if r.get("chartmetric_id")}
 
     added = 0
     skipped = 0
 
-    for booked_artist in booked:
+    for source in booked:
         if args.limit > 0 and added >= args.limit:
             break
 
-        print(f"\n→ {booked_artist['name']}")
-        similars = get_similar_artists(booked_artist["chartmetric_id"], limit=args.per_artist)
+        print(f"\n  {source['name']}")
+        similars = get_similar_artists(source["chartmetric_id"], limit=args.per_artist)
         if not similars:
-            print("  no similar artists returned")
+            print("    no similar artists returned")
             continue
 
         for s in similars:
             if args.limit > 0 and added >= args.limit:
                 break
 
-            candidate_name = s.get("name") or ""
+            candidate_name  = (s.get("name") or "").strip()
             candidate_cm_id = str(s.get("id") or "")
             if not candidate_name or not candidate_cm_id:
                 continue
@@ -139,14 +130,12 @@ def main() -> None:
                 skipped += 1
                 continue
 
-            print(f"  + {candidate_name} (CM {candidate_cm_id})")
+            print(f"    + {candidate_name} (CM {candidate_cm_id})")
 
-            # Fetch basic profile
-            profile = fetch_basic_profile(candidate_cm_id, candidate_name)
-
-            # Insert into artists
             try:
-                artist_row = sb.schema("tinder").table("artists").insert({
+                profile = _basic_profile(candidate_cm_id)
+
+                artist_rows = sb.schema("tinder").table("artists").insert({
                     "chartmetric_id":   candidate_cm_id,
                     "name":             candidate_name,
                     "slug":             slug,
@@ -154,12 +143,11 @@ def main() -> None:
                     "needs_scraping":   False,
                 }).execute().data
 
-                if not artist_row:
+                if not artist_rows:
                     continue
 
-                artist_id = artist_row[0]["id"]
+                artist_id = artist_rows[0]["id"]
 
-                # Insert CM data
                 cm_payload = {k: v for k, v in profile.items() if v is not None}
                 cm_payload["artist_id"] = artist_id
                 cm_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -170,9 +158,9 @@ def main() -> None:
                 added += 1
 
             except Exception as e:
-                print(f"    ERROR inserting {candidate_name}: {e}")
+                print(f"      ERROR: {e}")
 
-    print(f"\nDone — {added} candidates added, {skipped} already known")
+    print(f"\nDone — {added} candidates queued, {skipped} already known")
 
 
 if __name__ == "__main__":

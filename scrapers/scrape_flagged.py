@@ -1,10 +1,11 @@
 """
-Scrape full Chartmetric data for artists with needs_scraping=TRUE.
+Scrape full Chartmetric data for artists flagged with needs_scraping=TRUE.
 
 For each flagged artist:
-  - Pulls full CM profile (stats, timeseries, ml_features)
+  - Uses stored chartmetric_id directly (falls back to name search if missing)
+  - Pulls full CM profile: stats, timeseries, ml_features
   - Upserts into artist_chartmetric
-  - Generates text embedding, saves to artist_embeddings
+  - Generates embedding, saves to artist_embeddings
   - Sets needs_scraping=FALSE
 
 Run:
@@ -14,10 +15,8 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import sys
 import time
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,13 +28,14 @@ load_dotenv(_ROOT / ".env")
 
 from supabase import create_client
 from scrapers.chartmetric_client import (
+    enrich_by_id,
     enrich_from_chartmetric,
     is_configured,
     _refresh_token,
 )
 
 
-def _embed(text: str):
+def _embed(text: str) -> list[float]:
     from sentence_transformers import SentenceTransformer
     model = SentenceTransformer("all-MiniLM-L6-v2")
     return model.encode([text], normalize_embeddings=True)[0].tolist()
@@ -43,7 +43,7 @@ def _embed(text: str):
 
 def _profile_text(name: str, cm: dict) -> str:
     parts = [name]
-    if genres := cm.get("genres") or cm.get("spotify_genres"):
+    if genres := cm.get("spotify_genres"):
         if isinstance(genres, list):
             parts.append(f"Genre: {', '.join(genres[:4])}")
     if career := cm.get("career_status"):
@@ -57,7 +57,7 @@ def _profile_text(name: str, cm: dict) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=0, help="Max artists to process (0=all)")
+    parser.add_argument("--limit", type=int, default=0, help="Max artists to scrape (0=all)")
     parser.add_argument("--days",  type=int, default=180)
     args = parser.parse_args()
 
@@ -81,7 +81,7 @@ def main() -> None:
     total = len(rows)
     print(f"Artists to scrape: {total}")
     if not total:
-        print("Nothing to do.")
+        print("Nothing flagged. Accept artists in the app to queue them.")
         return
 
     done = errors = 0
@@ -90,23 +90,29 @@ def main() -> None:
     for i, row in enumerate(rows, 1):
         name      = row["name"]
         artist_id = row["id"]
+        cm_id     = row.get("chartmetric_id")
 
         try:
-            cm = enrich_from_chartmetric(name, include_timeseries=True) or {}
+            # Use stored CM ID when available — avoids name-search mismatch
+            if cm_id:
+                cm = enrich_by_id(cm_id, include_timeseries=True) or {}
+            else:
+                cm = enrich_from_chartmetric(name, include_timeseries=True) or {}
+
             if not cm:
                 print(f"  [{i}/{total}] NOT FOUND: {name}")
                 errors += 1
                 continue
 
-            # Update chartmetric_id on the artist record if we got one
-            new_cm_id = str(cm.get("chartmetric_id") or "")
-            if new_cm_id and not row.get("chartmetric_id"):
+            # Store CM ID if we didn't have it
+            resolved_cm_id = cm.get("chartmetric_id") or cm_id
+            if resolved_cm_id and not cm_id:
                 sb.schema("tinder").table("artists").update(
-                    {"chartmetric_id": new_cm_id}
+                    {"chartmetric_id": str(resolved_cm_id)}
                 ).eq("id", artist_id).execute()
 
             # Upsert into artist_chartmetric
-            cm_payload: dict = {
+            cm_row = {
                 "artist_id":            artist_id,
                 "image_url":            cm.get("image_url"),
                 "description":          cm.get("description"),
@@ -126,12 +132,12 @@ def main() -> None:
                 "ml_features":          cm.get("ml_features"),
                 "updated_at":           datetime.now(timezone.utc).isoformat(),
             }
-            cm_payload = {k: v for k, v in cm_payload.items() if v is not None}
             sb.schema("tinder").table("artist_chartmetric").upsert(
-                cm_payload, on_conflict="artist_id"
+                {k: v for k, v in cm_row.items() if v is not None},
+                on_conflict="artist_id",
             ).execute()
 
-            # Generate and save embedding
+            # Embedding
             profile_text = _profile_text(name, cm)
             emb = _embed(profile_text)
             sb.schema("tinder").table("artist_embeddings").upsert({
@@ -141,7 +147,7 @@ def main() -> None:
                 "updated_at":   datetime.now(timezone.utc).isoformat(),
             }, on_conflict="artist_id").execute()
 
-            # Mark done
+            # Clear flag
             sb.schema("tinder").table("artists").update({
                 "needs_scraping": False,
                 "updated_at":     datetime.now(timezone.utc).isoformat(),
@@ -149,8 +155,8 @@ def main() -> None:
 
             done += 1
             elapsed = time.time() - start
-            eta = (total - i) * (elapsed / i) / 60
-            print(f"  [{i}/{total}] {name:<30}  ETA:{eta:.0f}m")
+            eta_min = (total - i) * (elapsed / i) / 60
+            print(f"  [{i}/{total}] {name:<32}  ETA: {eta_min:.0f}m")
 
         except Exception as e:
             errors += 1
