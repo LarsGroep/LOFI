@@ -367,7 +367,7 @@ def main() -> None:
 
         try:
             if cm_id:
-                profile = _full_profile(cm_id)
+                profile = _full_profile(str(cm_id), cm_token)
             else:
                 # Name search with cleaned variants — handles "(ITA)", "(live)", "A & B" duos
                 cm_full = {}
