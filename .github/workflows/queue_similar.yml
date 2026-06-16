@@ -1,0 +1,50 @@
+name: Queue Similar Artists
+
+# Runs weekly — finds artists similar to LOFI bookings via Chartmetric,
+# adds new ones as pending candidates in Supabase for review in the app.
+
+on:
+  schedule:
+    - cron: '0 1 * * 1'   # 1:00 AM UTC every Monday
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Max new candidates to add (0 = all)'
+        required: false
+        default: '50'
+      per_artist:
+        description: 'Similar artists to fetch per booked artist'
+        required: false
+        default: '10'
+
+jobs:
+  queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Queue similar artists
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: |
+          python scrapers/queue_similar_artists.py \
+            --limit ${{ github.event.inputs.limit || '50' }} \
+            --per-artist ${{ github.event.inputs.per_artist || '10' }}
