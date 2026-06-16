@@ -144,7 +144,7 @@ def detect_milestones_for_artist(ra_events: list[dict], pf_events: list[dict]) -
             _record("ants", date)
         if _piv(event_name):
             _record("piv", date)
-        if "boiler room" in event_name.lower():
+        if "boiler room" in (event_name or "").lower():
             _record("boiler_room", date)
 
     # Earliest date per milestone

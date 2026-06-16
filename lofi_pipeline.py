@@ -112,10 +112,10 @@ if page == "Discover":
 
     st.markdown("---")
     ca, cb = st.columns(2)
-    if ca.button("✓ Accept", type="primary", use_container_width=True):
+    if ca.button("Accept", type="primary", use_container_width=True):
         _set_status(row["id"], "accepted", needs_scraping=True)
         st.rerun()
-    if cb.button("✗ Skip", use_container_width=True):
+    if cb.button("Skip", use_container_width=True):
         _set_status(row["id"], "skipped")
         st.rerun()
 
@@ -143,8 +143,8 @@ elif page == "Artists":
             if img := cm.get("image_url"):
                 st.image(img, width=70)
         with c_info:
-            badge = "⏳" if row["needs_scraping"] else "✓"
-            st.write(f"**{row['name']}** {badge}")
+            badge = "pending scrape" if row["needs_scraping"] else "scraped"
+            st.write(f"**{row['name']}** — {badge}")
             parts = []
             if v := cm.get("sp_monthly_listeners"):
                 parts.append(f"SP {_fmt(v)}")
