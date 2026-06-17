@@ -290,6 +290,7 @@ def _profile_text(name: str, profile: dict, genres: list) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--artist-id", help="Single artist UUID (skips needs_scraping filter)")
     parser.add_argument("--limit", type=int, default=0, help="Max artists to scrape (0=all)")
     parser.add_argument("--days",  type=int, default=365,
                         help="Timeseries lookback in days (default 365)")
@@ -302,25 +303,33 @@ def main() -> None:
     sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
     _refresh_token()
 
-    rows = (
-        sb.schema("tinder").table("artists")
-        .select("id, name, slug, chartmetric_id, artist_chartmetric(cm_artist_score)")
-        .eq("needs_scraping", True)
-        .order("updated_at", desc=False)
-        .execute().data or []
-    )
-    # Sort in Python: artists with a CM score first (highest score first), unscored last
-    def _cm_score(r: dict) -> float:
-        ac = r.get("artist_chartmetric")
-        if isinstance(ac, list):
-            return -((ac[0] or {}).get("cm_artist_score") or 0) if ac else 0.0
-        if isinstance(ac, dict):
-            return -(ac.get("cm_artist_score") or 0)
-        return 0.0
-    rows.sort(key=_cm_score)
+    if args.artist_id:
+        rows = (
+            sb.schema("tinder").table("artists")
+            .select("id, name, slug, chartmetric_id, artist_chartmetric(cm_artist_score)")
+            .eq("id", args.artist_id)
+            .execute().data or []
+        )
+    else:
+        rows = (
+            sb.schema("tinder").table("artists")
+            .select("id, name, slug, chartmetric_id, artist_chartmetric(cm_artist_score)")
+            .eq("needs_scraping", True)
+            .order("updated_at", desc=False)
+            .execute().data or []
+        )
+        # Sort in Python: artists with a CM score first (highest score first), unscored last
+        def _cm_score(r: dict) -> float:
+            ac = r.get("artist_chartmetric")
+            if isinstance(ac, list):
+                return -((ac[0] or {}).get("cm_artist_score") or 0) if ac else 0.0
+            if isinstance(ac, dict):
+                return -(ac.get("cm_artist_score") or 0)
+            return 0.0
+        rows.sort(key=_cm_score)
 
-    if args.limit > 0:
-        rows = rows[:args.limit]
+        if args.limit > 0:
+            rows = rows[:args.limit]
 
     total = len(rows)
     print(f"Artists to scrape: {total}")
