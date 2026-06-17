@@ -168,18 +168,6 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
         result["shazam_chart_entries"] = entries
         result["shazam_chart_count"]   = len(obj.get("uniqueTracks") or [])
 
-    # -- Apple Music -----------------------------------------------------------
-    pts, status = _stat_timeseries(cm_id, "applemusic", "followers", since, until)
-    log["applemusic_followers"] = status
-    if pts:
-        result["applemusic_followers"]  = pts[-1]["value"]
-        result["applemusic_timeseries"] = pts
-
-    pts, status = _stat_timeseries(cm_id, "applemusic", "listeners", since, until)
-    log["applemusic_listeners"] = status
-    if pts:
-        result["applemusic_listeners"] = pts[-1]["value"]
-
     # -- Beatport charts -------------------------------------------------------
     data, status = _get(f"/artist/{cm_id}/beatport/charts", {"since": since, "until": until})
     log["beatport_charts"] = status
@@ -237,12 +225,6 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
                 "playlist_count":      t.get("playlist_count"),
             })
         result["tracks"] = tracks
-
-    # -- Top tracks (CM-ranked) ------------------------------------------------
-    data, status = _get(f"/artist/{cm_id}/top-tracks/cm", {"limit": 10})
-    log["top_tracks_cm"] = status
-    if data:
-        result["top_tracks_cm"] = _obj_list(data)
 
     # -- Fan city distribution -------------------------------------------------
     data, status = _get(f"/artist/{cm_id}/where-people-listen", {"limit": 20})
@@ -353,12 +335,10 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
 
 _EXT_SCALAR_FIELDS = (
     "shazam_chart_entries", "shazam_chart_count",
-    "applemusic_followers", "applemusic_listeners",
-    "applemusic_timeseries", "beatport_chart_count",
     "fan_cities", "cm_stats", "milestones", "noteworthy_insights",
     "news", "related_artists", "career_history",
     "instagram_audience", "youtube_audience", "tiktok_audience",
-    "events_external", "venues", "albums", "top_tracks_cm",
+    "events_external", "venues", "albums",
     "urls", "riaa_certifications",
 )
 
@@ -470,7 +450,7 @@ def main() -> None:
         sp_pl  = len(data.get("playlists_spotify", []))
         am_pl  = len(data.get("playlists_applemusic", []))
         tracks = len(data.get("tracks", []))
-        shazam = data.get("shazam_count")
+        shazam = data.get("shazam_chart_count")
         print(
             f"    shazam={shazam}  sp_playlists={sp_pl}  am_playlists={am_pl}  "
             f"tracks={tracks}  log={log}"

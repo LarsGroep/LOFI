@@ -86,9 +86,7 @@ def _parse_event(ev: dict, artist_id: str, ra_slug: str, artist_name: str) -> di
     country  = area.get("country") or {}
     artists  = ev.get("artists") or []
 
-    lineup_names    = [a["name"] for a in artists if a.get("name")]
-    headliner_names = None   # headliner field not available in RA public API
-    is_headliner    = None
+    lineup_names = [a["name"] for a in artists if a.get("name")]
 
     content_url = ev.get("contentUrl") or ""
     event_url   = f"https://ra.co{content_url}" if content_url.startswith("/") else content_url or None
@@ -106,8 +104,6 @@ def _parse_event(ev: dict, artist_id: str, ra_slug: str, artist_name: str) -> di
         "country":        country.get("name"),
         "venue_capacity": venue.get("capacity"),
         "lineup":         lineup_names or None,
-        "headliner_names": headliner_names or None,
-        "is_headliner":   is_headliner,
         "lineup_size":    len(lineup_names) if lineup_names else None,
         "scraped_at":     datetime.now(timezone.utc).isoformat(),
     }
@@ -181,7 +177,7 @@ def main() -> None:
 
         if args.dry_run:
             for p in parsed[:3]:
-                print(f"      {p['date']}  {p['title']}  {p['city']}  headliner={p['is_headliner']}")
+                print(f"      {p['date']}  {p['title']}  {p['city']}  lineup_size={p['lineup_size']}")
             continue
 
         for ev_row in parsed:
