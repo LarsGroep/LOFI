@@ -48,7 +48,7 @@ query GET_ARTIST_EVENTS($slug: String!, $limit: Int) {
     events(limit: $limit, type: LATEST) {
       id date title contentUrl
       venue { name capacity area { name country { name } } }
-      artists { name headliner }
+      artists { name }
     }
   }
 }
@@ -86,15 +86,9 @@ def _parse_event(ev: dict, artist_id: str, ra_slug: str, artist_name: str) -> di
     country  = area.get("country") or {}
     artists  = ev.get("artists") or []
 
-    lineup_names   = [a["name"] for a in artists if a.get("name")]
-    headliner_names = [a["name"] for a in artists if a.get("headliner") and a.get("name")]
-
-    # Determine headliner status for this artist
-    is_headliner: bool | None = None
-    for a in artists:
-        if (a.get("name") or "").strip().lower() == artist_name.strip().lower():
-            is_headliner = bool(a.get("headliner"))
-            break
+    lineup_names    = [a["name"] for a in artists if a.get("name")]
+    headliner_names = None   # headliner field not available in RA public API
+    is_headliner    = None
 
     content_url = ev.get("contentUrl") or ""
     event_url   = f"https://ra.co{content_url}" if content_url.startswith("/") else content_url or None
