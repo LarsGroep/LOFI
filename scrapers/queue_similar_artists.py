@@ -77,9 +77,16 @@ def _passes_genre_filter(genres: list[str], taxonomy: dict) -> bool:
     return has_approved
 
 
-def _basic_profile(cm_id: str) -> dict:
-    """Fetch profile card data — 5 API calls."""
-    profile  = get_artist(cm_id) or {}
+def _fetch_genres(cm_id: str) -> tuple[dict, list[str]]:
+    """Fetch artist profile only (1 API call). Returns (profile, genres)."""
+    profile    = get_artist(cm_id) or {}
+    raw_genres = profile.get("genres") or []
+    genres     = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
+    return profile, genres
+
+
+def _fetch_stats(cm_id: str, profile: dict) -> dict:
+    """Fetch the 4 stat endpoints and assemble the full profile row (4 API calls)."""
     sp_stats = get_stat(cm_id, "spotify") or {}
     ig_stats = get_stat(cm_id, "instagram") or {}
     tk_stats = get_stat(cm_id, "tiktok") or {}
@@ -104,6 +111,12 @@ def _basic_profile(cm_id: str) -> dict:
         "tiktok_followers":     _num(tk_stats.get("followers")),
         "yt_subscribers":       _num(yt_stats.get("subscribers")),
     }
+
+
+def _basic_profile(cm_id: str) -> dict:
+    """Fetch full profile card data — 5 API calls."""
+    profile, _ = _fetch_genres(cm_id)
+    return _fetch_stats(cm_id, profile)
 
 
 def main() -> None:
@@ -228,18 +241,17 @@ def main() -> None:
                 skipped_known += 1
                 continue
 
-            # Fetch profile to check genres before queuing
-            print(f"    ?neighbor  {name} — fetching profile...")
+            # 1 API call for genre check; only fetch stats if it passes
+            print(f"    ?neighbor  {name} — checking genres...")
             try:
-                profile = _basic_profile(cm_id)
-                genres  = profile.get("genres") or []
+                profile, genres = _fetch_genres(cm_id)
 
                 if taxonomy and not _passes_genre_filter(genres, taxonomy):
                     skipped_genre += 1
-                    print(f"      genre filtered: {genres[:3]}")
                     continue
 
                 print(f"    ~neighbor  + {name}  genres={genres[:3]}")
+                full_profile = _fetch_stats(cm_id, profile)
                 artist_row = sb.schema("tinder").table("artists").insert({
                     "chartmetric_id":       cm_id,
                     "name":                 name,
@@ -251,7 +263,7 @@ def main() -> None:
                 if not artist_row:
                     continue
                 artist_id = artist_row[0]["id"]
-                cm_payload = {k: v for k, v in profile.items() if v is not None}
+                cm_payload = {k: v for k, v in full_profile.items() if v is not None}
                 cm_payload["artist_id"]  = artist_id
                 cm_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
                 sb.schema("tinder").table("artist_chartmetric").insert(cm_payload).execute()
