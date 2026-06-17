@@ -1,0 +1,54 @@
+name: Detect Validation Events
+
+# Runs after scrape_flagged so RA event data is fresh.
+# Re-processes all artists with RA events to find first-occurrence milestones.
+
+on:
+  schedule:
+    - cron: '30 1 * * *'   # 01:30 UTC — after scrape_flagged (00:00) finishes
+  workflow_dispatch:
+    inputs:
+      artist_id:
+        description: 'Single artist UUID to process (leave blank for all)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Print only, do not write to DB (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Detect validation events
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.artist_id }}" ]; then
+            ARGS="--artist-id ${{ github.event.inputs.artist_id }}"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          python scrapers/detect_validation_events.py $ARGS
