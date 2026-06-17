@@ -63,7 +63,7 @@ jobs:
         run: |
           LIMIT="${{ github.event.inputs.limit || '50' }}"
           DAYS="${{ github.event.inputs.days || '365' }}"
-          MAX_BATCHES="${{ github.event.inputs.batches || '8' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '4' }}"
           QUEUE_EMPTY=false
           for i in $(seq 1 $MAX_BATCHES); do
             echo "=== Batch $i / $MAX_BATCHES ==="
@@ -86,5 +86,5 @@ jobs:
           gh workflow run scrape_flagged.yml \
             --repo "${{ github.repository }}" \
             --field limit="${{ github.event.inputs.limit || '50' }}" \
-            --field batches="${{ github.event.inputs.batches || '8' }}" \
+            --field batches="${{ github.event.inputs.batches || '4' }}" \
             --field days="${{ github.event.inputs.days || '365' }}"
