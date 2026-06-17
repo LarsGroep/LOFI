@@ -82,7 +82,10 @@ def _fetch_genres(cm_id: str) -> tuple[dict, list[str]]:
     """Fetch artist profile only (1 API call). Returns (profile, genres)."""
     profile    = get_artist(cm_id) or {}
     raw_genres = profile.get("genres") or []
-    genres     = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
+    if isinstance(raw_genres, dict):
+        genres = [v for v in raw_genres.values() if v and isinstance(v, str)][:10]
+    else:
+        genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
     return profile, genres
 
 
@@ -94,7 +97,10 @@ def _fetch_stats(cm_id: str, profile: dict) -> dict:
     yt_stats = get_stat(cm_id, "youtube_channel") or {}
 
     raw_genres = profile.get("genres") or []
-    genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
+    if isinstance(raw_genres, dict):
+        genres = [v for v in raw_genres.values() if v and isinstance(v, str)][:10]
+    else:
+        genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
 
     cm_stats = profile.get("cm_statistics") or {}
 
