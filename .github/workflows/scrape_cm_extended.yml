@@ -2,7 +2,7 @@ name: Scrape CM Extended
 
 # Runs after the core scrape_flagged pipeline.
 # Tries all available CM endpoints per artist (~21 returning data after cleanup).
-# At 1.2s/req x 21 endpoints = ~25s/artist, 20 batches of 20 = ~400 artists per run (~140 min).
+# At 1.2s/req x 21 endpoints = ~25s/artist, 4 batches of 20 = 80 artists per run (~40 min).
 # Self-chains until queue is empty so the full roster is covered in one night.
 # All plan-restricted endpoints are logged in endpoint_log and retried nightly.
 
@@ -22,7 +22,7 @@ on:
       batches:
         description: 'Max batches per run (chains automatically if queue not empty)'
         required: false
-        default: '20'
+        default: '4'
       dry_run:
         description: 'Print only, do not write to DB (true/false)'
         required: false
