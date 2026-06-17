@@ -51,5 +51,5 @@ jobs:
           CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
           python scrapers/scrape_flagged.py \
-            --limit "${{ github.event.inputs.limit || '0' }}" \
+            --limit "${{ github.event.inputs.limit || '50' }}" \
             --days  "${{ github.event.inputs.days  || '365' }}"

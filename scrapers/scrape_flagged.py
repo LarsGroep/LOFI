@@ -252,8 +252,9 @@ def main() -> None:
 
     rows = (
         sb.schema("tinder").table("artists")
-        .select("id, name, slug, chartmetric_id")
+        .select("id, name, slug, chartmetric_id, artist_chartmetric(cm_artist_score)")
         .eq("needs_scraping", True)
+        .order("artist_chartmetric(cm_artist_score)", desc=True, nulls_first=False)
         .execute().data or []
     )
 
