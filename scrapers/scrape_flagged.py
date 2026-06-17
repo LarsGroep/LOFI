@@ -258,9 +258,14 @@ def main() -> None:
         .execute().data or []
     )
     # Sort in Python: artists with a CM score first (highest score first), unscored last
-    rows.sort(
-        key=lambda r: -(((r.get("artist_chartmetric") or [{}])[0] or {}).get("cm_artist_score") or 0)
-    )
+    def _cm_score(r: dict) -> float:
+        ac = r.get("artist_chartmetric")
+        if isinstance(ac, list):
+            return -((ac[0] or {}).get("cm_artist_score") or 0) if ac else 0.0
+        if isinstance(ac, dict):
+            return -(ac.get("cm_artist_score") or 0)
+        return 0.0
+    rows.sort(key=_cm_score)
 
     if args.limit > 0:
         rows = rows[:args.limit]
