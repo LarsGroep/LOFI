@@ -77,7 +77,8 @@ def _get(path: str, params: dict | None = None) -> dict | None:
                 continue
             resp.raise_for_status()
             return resp.json()
-        except httpx.HTTPStatusError:
+        except httpx.HTTPStatusError as e:
+            print(f"[chartmetric] {e.response.status_code} on {path}: {e.response.text[:200]}")
             return None
         except Exception as e:
             print(f"[chartmetric] GET {path} failed: {e}")
@@ -727,7 +728,10 @@ def get_similar_artists(cm_id: int | str, limit: int = 20) -> list[dict]:
     if not data:
         return []
     obj = data.get("obj") or []
-    return obj if isinstance(obj, list) else []
+    if not isinstance(obj, list):
+        print(f"[chartmetric] similar-artists unexpected obj type {type(obj).__name__}: {str(obj)[:100]}")
+        return []
+    return obj
 
 
 def get_neighboring_artists(cm_id: int | str, limit: int = 20) -> list[dict]:
