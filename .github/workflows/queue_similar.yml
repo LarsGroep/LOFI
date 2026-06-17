@@ -22,6 +22,10 @@ on:
         description: 'Skip neighboring-artists endpoint (true/false)'
         required: false
         default: 'true'
+      score_threshold:
+        description: 'Min taxonomy score to add a similar artist (0 = no filter)'
+        required: false
+        default: '40'
 
 jobs:
   queue:
@@ -58,4 +62,5 @@ jobs:
           python scrapers/queue_similar_artists.py \
             --limit ${{ github.event.inputs.limit || '0' }} \
             --per-artist ${{ github.event.inputs.per_artist || '30' }} \
+            --score-threshold ${{ github.event.inputs.score_threshold || '40' }} \
             $NO_NBR

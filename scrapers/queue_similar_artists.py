@@ -44,6 +44,7 @@ from scrapers.chartmetric_client import (
     _refresh_token,
     _num,
 )
+from scoring.lofi_scorer import score_taxonomy
 
 _TAXONOMY_PATH = _ROOT / "scoring" / "lofi_feel_taxonomy.yaml"
 
@@ -127,6 +128,8 @@ def main() -> None:
                         help="Candidates to fetch per booked artist per source")
     parser.add_argument("--no-neighbors", action="store_true",
                         help="Skip neighboring-artists endpoint (similar-artists only)")
+    parser.add_argument("--score-threshold", type=int, default=40,
+                        help="Min taxonomy score to add a new similar artist (0 = no filter)")
     args = parser.parse_args()
 
     if not is_configured():
@@ -138,9 +141,9 @@ def main() -> None:
 
     taxonomy = _load_taxonomy()
     if taxonomy:
-        print(f"Taxonomy loaded — genre filter active for neighboring artists")
+        print(f"Taxonomy loaded — score threshold {args.score_threshold} for similar, genre filter for neighbors")
     else:
-        print("WARNING: taxonomy YAML not found — neighboring artists unfiltered")
+        print("WARNING: taxonomy YAML not found — all artists unfiltered")
 
     # ── Booked artists (source of recommendations) ────────────────────────────
     booked = (
@@ -198,21 +201,33 @@ def main() -> None:
                 skipped_known += 1
                 continue
 
-            print(f"    ~similar  + {name}")
             try:
-                profile = _basic_profile(cm_id)
+                # 1 API call: fetch genres for taxonomy pre-filter
+                profile, genres = _fetch_genres(cm_id)
+                if taxonomy and args.score_threshold > 0:
+                    tax = score_taxonomy({"genres": genres,
+                                         "record_label": profile.get("record_label", ""),
+                                         "booking_agent": profile.get("booking_agent", "")},
+                                        taxonomy)
+                    if tax["disqualified"] or tax["score"] < args.score_threshold:
+                        skipped_genre += 1
+                        continue
+
+                print(f"    ~similar  + {name}  genres={genres[:3]}")
+                # 4 more API calls: fetch stats now that taxonomy passed
+                full_profile = _fetch_stats(cm_id, profile)
                 artist_row = sb.schema("tinder").table("artists").insert({
                     "chartmetric_id":      cm_id,
                     "name":                name,
                     "slug":                _slug(name),
                     "candidate_status":    "pending",
-                    "needs_scraping":      False,
+                    "needs_scraping":      True,
                     "booked_similar_count": 1,
                 }).execute().data
                 if not artist_row:
                     continue
                 artist_id = artist_row[0]["id"]
-                cm_payload = {k: v for k, v in profile.items() if v is not None}
+                cm_payload = {k: v for k, v in full_profile.items() if v is not None}
                 cm_payload["artist_id"]  = artist_id
                 cm_payload["updated_at"] = datetime.now(timezone.utc).isoformat()
                 sb.schema("tinder").table("artist_chartmetric").insert(cm_payload).execute()
