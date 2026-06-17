@@ -1,0 +1,69 @@
+name: Scrape RA Events
+
+# Runs after scrape_flagged (00:00 UTC) and detect_validation_events (01:30 UTC).
+# Loops in batches of 20 until all artists are processed (unprocessed first).
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      artist_id:
+        description: 'Single artist UUID (leave blank for batch)'
+        required: false
+        default: ''
+      limit:
+        description: 'Artists per batch'
+        required: false
+        default: '20'
+      batches:
+        description: 'Max batches to run (0 = unlimited until done)'
+        required: false
+        default: '50'
+      dry_run:
+        description: 'Print only, do not write to DB (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Scrape RA events
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.artist_id }}" ]; then
+            ARGS="--artist-id ${{ github.event.inputs.artist_id }}"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          LIMIT="${{ github.event.inputs.limit || '20' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '50' }}"
+          for i in $(seq 1 $MAX_BATCHES); do
+            echo "=== Batch $i / $MAX_BATCHES ==="
+            OUTPUT=$(python -u scrapers/scrape_ra_events.py --limit "$LIMIT" $ARGS 2>&1)
+            echo "$OUTPUT"
+            if echo "$OUTPUT" | grep -q "Nothing to scrape"; then echo "All done -- stopping."; break; fi
+          done
