@@ -159,20 +159,14 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
     result: dict        = {}
     log: dict[str, int] = {}
 
-    # -- Shazam ----------------------------------------------------------------
-    pts, status = _stat_timeseries(cm_id, "shazam", "shazam_count", since, until)
+    # -- Shazam (via charts endpoint -- /stat/shazam is not a valid source) ----
+    data, status = _get(f"/artist/{cm_id}/shazam/charts", {"since": since, "until": until})
     log["shazam"] = status
-    if pts:
-        current = pts[-1]["value"]
-        result["shazam_count"]      = current
-        result["shazam_timeseries"] = pts
-        today = date.today()
-        p30 = next((p for p in reversed(pts) if p["date"] <= (today - timedelta(days=30)).isoformat()), None)
-        p90 = next((p for p in reversed(pts) if p["date"] <= (today - timedelta(days=90)).isoformat()), None)
-        if p30:
-            result["shazam_30d_pct"] = _pct(current, p30["value"])
-        if p90:
-            result["shazam_90d_pct"] = _pct(current, p90["value"])
+    if data:
+        obj = (_obj(data) or {}).get("data") or {}
+        entries = obj.get("entries") or []
+        result["shazam_chart_entries"] = entries
+        result["shazam_chart_count"]   = len(obj.get("uniqueTracks") or [])
 
     # -- Apple Music -----------------------------------------------------------
     pts, status = _stat_timeseries(cm_id, "applemusic", "followers", since, until)
@@ -187,17 +181,11 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
         result["applemusic_listeners"] = pts[-1]["value"]
 
     # -- Beatport charts -------------------------------------------------------
-    data, status = _get(f"/artist/{cm_id}/beatport/charts")
+    data, status = _get(f"/artist/{cm_id}/beatport/charts", {"since": since, "until": until})
     log["beatport_charts"] = status
     if data:
-        obj = _obj_list(data)
-        result["beatport_chart_count"] = len(obj)
-
-    # -- Traxsource charts -----------------------------------------------------
-    data, status = _get(f"/artist/{cm_id}/traxsource/charts")
-    log["traxsource_charts"] = status
-    if data:
-        result["traxsource_chart_count"] = len(_obj_list(data))
+        obj = (_obj(data) or {}).get("data") or {}
+        result["beatport_chart_count"] = len(obj.get("uniqueTracks") or [])
 
     # -- Spotify playlists -----------------------------------------------------
     data, status = _get(f"/artist/{cm_id}/spotify/current/playlists", {"limit": 100})
@@ -232,7 +220,7 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
         result["playlists_applemusic"] = playlists
 
     # -- Tracks (Spotify-sorted) -----------------------------------------------
-    data, status = _get(f"/artist/{cm_id}/tracks", {"limit": 20, "sortColumn": "spotify_streams", "sortOrder": "desc"})
+    data, status = _get(f"/artist/{cm_id}/tracks", {"limit": 20})
     log["tracks"] = status
     if data:
         tracks = []
@@ -269,13 +257,14 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
         result["cm_stats"] = _obj(data)
 
     # -- CM milestones (chart debuts, playlist adds, stat thresholds) ----------
-    data, status = _get(f"/artist/{cm_id}/milestones", {"since": since, "until": until, "limit": 100})
+    data, status = _get(f"/artist/{cm_id}/milestones", {"limit": 100})
     log["milestones"] = status
     if data:
-        result["milestones"] = _obj_list(data)
+        obj = _obj(data)
+        result["milestones"] = (obj.get("insights") if isinstance(obj, dict) else None) or _obj_list(data)
 
     # -- Noteworthy insights (statistical outliers / breakout signals) ---------
-    data, status = _get(f"/artist/{cm_id}/noteworthy-insights", {"since": since, "until": until})
+    data, status = _get(f"/artist/{cm_id}/noteworthy-insights")
     log["noteworthy_insights"] = status
     if data:
         result["noteworthy_insights"] = _obj_list(data)
@@ -287,7 +276,7 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
         result["news"] = _obj_list(data)
 
     # -- Related artists ("fans also listen to") --------------------------------
-    data, status = _get(f"/artist/{cm_id}/relatedartists")
+    data, status = _get(f"/artist/{cm_id}/relatedartists", {"limit": 20})
     log["related_artists"] = status
     if data:
         result["related_artists"] = _obj_list(data)
@@ -317,11 +306,12 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
         result["tiktok_audience"] = _obj(data)
 
     # -- Live events (current + past, from Songkick / SeatGeek / Ticketmaster) -
-    data, status = _get(f"/artist/{cm_id}/current/events", {"limit": 50})
+    # fromDaysAgo=-180 = 180 days into the future; toDaysAgo=0 = today
+    data, status = _get(f"/artist/{cm_id}/current/events", {"limit": 50, "fromDaysAgo": -180, "toDaysAgo": 0})
     log["events_current"] = status
     events_ext: list = _obj_list(data) if data else []
 
-    data, status = _get(f"/artist/{cm_id}/past/events", {"limit": 100})
+    data, status = _get(f"/artist/{cm_id}/past/events", {"limit": 100, "fromDaysAgo": 365, "toDaysAgo": 0})
     log["events_past"] = status
     if data:
         events_ext += _obj_list(data)
@@ -362,10 +352,9 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
 # ---------------------------------------------------------------------------
 
 _EXT_SCALAR_FIELDS = (
-    "shazam_count", "shazam_30d_pct", "shazam_90d_pct",
+    "shazam_chart_entries", "shazam_chart_count",
     "applemusic_followers", "applemusic_listeners",
-    "beatport_chart_count", "traxsource_chart_count",
-    "shazam_timeseries", "applemusic_timeseries",
+    "applemusic_timeseries", "beatport_chart_count",
     "fan_cities", "cm_stats", "milestones", "noteworthy_insights",
     "news", "related_artists", "career_history",
     "instagram_audience", "youtube_audience", "tiktok_audience",
