@@ -11,9 +11,13 @@ on:
   workflow_dispatch:
     inputs:
       limit:
-        description: 'Max new candidates to add (0 = unlimited)'
+        description: 'Max new candidates per batch (0 = unlimited)'
         required: false
         default: '100'
+      batches:
+        description: 'Max batches to run (0 = unlimited until no new artists)'
+        required: false
+        default: '10'
       per_artist:
         description: 'Candidates per booked artist (similar-artists depth)'
         required: false
@@ -30,7 +34,7 @@ on:
 jobs:
   queue:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 200
 
     steps:
       - uses: actions/checkout@v4
@@ -59,8 +63,15 @@ jobs:
           if [ "${{ github.event.inputs.no_neighbors }}" = "true" ]; then
             NO_NBR="--no-neighbors"
           fi
-          python scrapers/queue_similar_artists.py \
-            --limit ${{ github.event.inputs.limit || '0' }} \
-            --per-artist ${{ github.event.inputs.per_artist || '30' }} \
-            --score-threshold ${{ github.event.inputs.score_threshold || '40' }} \
-            $NO_NBR
+          LIMIT="${{ github.event.inputs.limit || '100' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '10' }}"
+          for i in $(seq 1 $MAX_BATCHES); do
+            echo "=== Batch $i / $MAX_BATCHES ==="
+            OUTPUT=$(python -u scrapers/queue_similar_artists.py \
+              --limit "$LIMIT" \
+              --per-artist ${{ github.event.inputs.per_artist || '30' }} \
+              --score-threshold ${{ github.event.inputs.score_threshold || '40' }} \
+              $NO_NBR 2>&1)
+            echo "$OUTPUT"
+            echo "$OUTPUT" | grep -q "0 new candidates queued" && echo "No new artists — stopping." && break
+          done
