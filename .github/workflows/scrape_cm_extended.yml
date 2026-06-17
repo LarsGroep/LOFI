@@ -31,6 +31,10 @@ on:
         description: 'Probe first artist only to see which endpoints return data (true/false)'
         required: false
         default: 'false'
+      no_chain:
+        description: 'Do not trigger a follow-up run when queue is not empty (true/false)'
+        required: false
+        default: 'false'
 
 permissions:
   actions: write
@@ -95,7 +99,8 @@ jobs:
           steps.scrape.outputs.queue_empty != 'true' &&
           github.event.inputs.artist_id == '' &&
           github.event.inputs.dry_run != 'true' &&
-          github.event.inputs.probe != 'true'
+          github.event.inputs.probe != 'true' &&
+          github.event.inputs.no_chain != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
