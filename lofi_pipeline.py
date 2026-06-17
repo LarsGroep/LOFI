@@ -1,4 +1,4 @@
-"""LOFI Artist Intelligence — main dashboard."""
+"""LOFI Artist Intelligence -- main dashboard."""
 import os
 import json
 import pandas as pd
@@ -8,9 +8,9 @@ from supabase import create_client
 
 load_dotenv()
 
-st.set_page_config(page_title="LOFI Intelligence", layout="wide", page_icon="🎛️")
+st.set_page_config(page_title="LOFI Intelligence", layout="wide")
 
-# ── DB ─────────────────────────────────────────────────────────────────────────
+# -- DB -------------------------------------------------------------------------
 
 @st.cache_resource
 def _sb():
@@ -18,11 +18,11 @@ def _sb():
 
 sb = _sb()
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 def _fmt(n) -> str:
     if n is None:
-        return "—"
+        return "-"
     try:
         n = float(n)
     except (ValueError, TypeError):
@@ -36,7 +36,7 @@ def _fmt(n) -> str:
 
 def _score_badge(score) -> str:
     if score is None:
-        return ":grey[—]"
+        return ":grey[-]"
     s = float(score)
     if s >= 80:
         return f":green[**{s:.1f}**]"
@@ -62,7 +62,7 @@ def _feel(row: dict) -> dict:
     return f
 
 
-# ── Load flat data ──────────────────────────────────────────────────────────────
+# -- Load flat data ------------------------------------------------------------
 
 @st.cache_data(ttl=120)
 def load_flat() -> pd.DataFrame:
@@ -70,12 +70,11 @@ def load_flat() -> pd.DataFrame:
     if not rows:
         return pd.DataFrame()
     df = pd.DataFrame(rows)
-    # Genres: list → comma string for display
     df["genres_str"] = df["genres"].apply(
-        lambda g: ", ".join(g[:4]) if isinstance(g, list) else "—"
+        lambda g: ", ".join(g[:4]) if isinstance(g, list) else "-"
     )
     df["lfm_similar_str"] = df["lfm_similar_artists"].apply(
-        lambda s: ", ".join(s[:5]) if isinstance(s, list) else "—"
+        lambda s: ", ".join(s[:5]) if isinstance(s, list) else "-"
     )
     numeric_cols = [
         "cm_artist_score", "cm_artist_rank", "fan_base_rank", "engagement_rank",
@@ -103,28 +102,28 @@ def load_validation_events() -> pd.DataFrame:
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
-# ── Sidebar ─────────────────────────────────────────────────────────────────────
+# -- Sidebar -------------------------------------------------------------------
 
 page = st.sidebar.radio(
     "Navigation",
-    ["📊 Scraped Data", "🔍 Queue", "🏆 Validation Events"],
+    ["Scraped Data", "Queue", "Validation Events"],
     label_visibility="collapsed",
 )
 
 counts = sb.schema("tinder").table("artists").select("candidate_status").execute().data or []
 pending_n  = sum(1 for r in counts if r["candidate_status"] == "pending")
 accepted_n = sum(1 for r in counts if r["candidate_status"] in ("accepted", "booked"))
-st.sidebar.caption(f"{pending_n} pending · {accepted_n} booked/accepted")
+st.sidebar.caption(f"{pending_n} pending  |  {accepted_n} booked/accepted")
 
-if st.sidebar.button("🔄 Refresh data"):
+if st.sidebar.button("Refresh data"):
     st.cache_data.clear()
     st.rerun()
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # PAGE: SCRAPED DATA
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
-if page == "📊 Scraped Data":
+if page == "Scraped Data":
     st.title("Scraped Artist Data")
 
     df = load_flat()
@@ -136,14 +135,13 @@ if page == "📊 Scraped Data":
 
     df["ra_events"] = df["artist_id"].map(ra_counts).fillna(0).astype(int)
 
-    # ── Filters ────────────────────────────────────────────────────────────────
+    # Filters
     with st.expander("Filters", expanded=True):
         fc1, fc2, fc3, fc4 = st.columns(4)
-
-        search = fc1.text_input("Search artist", placeholder="e.g. ANOTR")
-        career_opts = ["All"] + sorted(df["career_status"].dropna().unique().tolist())
+        search       = fc1.text_input("Search artist", placeholder="e.g. ANOTR")
+        career_opts  = ["All"] + sorted(df["career_status"].dropna().unique().tolist())
         career_filter = fc2.selectbox("Career stage", career_opts)
-        min_score = fc3.slider("Min CM score", 0.0, 100.0, 0.0, step=5.0)
+        min_score    = fc3.slider("Min CM score", 0.0, 100.0, 0.0, step=5.0)
         genre_search = fc4.text_input("Genre contains", placeholder="e.g. house")
 
     mask = pd.Series([True] * len(df), index=df.index)
@@ -159,7 +157,7 @@ if page == "📊 Scraped Data":
     filtered = df[mask].copy()
     st.caption(f"Showing {len(filtered):,} of {len(df):,} artists")
 
-    # ── Main table ─────────────────────────────────────────────────────────────
+    # Main table
     display_cols = {
         "artist_name":            "Artist",
         "cm_artist_score":        "CM Score",
@@ -189,35 +187,35 @@ if page == "📊 Scraped Data":
         use_container_width=True,
         height=520,
         column_config={
-            "CM Score":          st.column_config.NumberColumn(format="%.1f"),
-            "SP Listeners":      st.column_config.NumberColumn(format="%d"),
-            "SP Followers":      st.column_config.NumberColumn(format="%d"),
-            "Instagram":         st.column_config.NumberColumn(format="%d"),
-            "TikTok Followers":  st.column_config.NumberColumn(format="%d"),
-            "TikTok Likes":      st.column_config.NumberColumn(format="%d"),
-            "YT Views":          st.column_config.NumberColumn(format="%d"),
-            "SoundCloud":        st.column_config.NumberColumn(format="%d"),
-            "LFM Listeners":     st.column_config.NumberColumn(format="%d"),
-            "LFM Plays":         st.column_config.NumberColumn(format="%d"),
-            "RA Events":         st.column_config.NumberColumn(format="%d"),
+            "CM Score":         st.column_config.NumberColumn(format="%.1f"),
+            "SP Listeners":     st.column_config.NumberColumn(format="%d"),
+            "SP Followers":     st.column_config.NumberColumn(format="%d"),
+            "Instagram":        st.column_config.NumberColumn(format="%d"),
+            "TikTok Followers": st.column_config.NumberColumn(format="%d"),
+            "TikTok Likes":     st.column_config.NumberColumn(format="%d"),
+            "YT Views":         st.column_config.NumberColumn(format="%d"),
+            "SoundCloud":       st.column_config.NumberColumn(format="%d"),
+            "LFM Listeners":    st.column_config.NumberColumn(format="%d"),
+            "LFM Plays":        st.column_config.NumberColumn(format="%d"),
+            "RA Events":        st.column_config.NumberColumn(format="%d"),
         },
         hide_index=True,
     )
 
-    # ── Artist detail ──────────────────────────────────────────────────────────
+    # Artist detail
     st.markdown("---")
     st.subheader("Artist detail")
-    artist_names = ["— select —"] + sorted(filtered["artist_name"].dropna().tolist())
+    artist_names = ["-- select --"] + sorted(filtered["artist_name"].dropna().tolist())
     selected = st.selectbox("Pick an artist", artist_names, label_visibility="collapsed")
 
-    if selected != "— select —":
+    if selected != "-- select --":
         row = filtered[filtered["artist_name"] == selected].iloc[0]
         vdf = load_validation_events()
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("CM Score", f"{row['cm_artist_score']:.1f}" if pd.notna(row["cm_artist_score"]) else "—")
-        c2.metric("CM Rank", f"#{int(row['cm_artist_rank']):,}" if pd.notna(row["cm_artist_rank"]) else "—")
-        c3.metric("Career", row["career_status"] or "—")
+        c1.metric("CM Score", f"{row['cm_artist_score']:.1f}" if pd.notna(row["cm_artist_score"]) else "-")
+        c2.metric("CM Rank", f"#{int(row['cm_artist_rank']):,}" if pd.notna(row["cm_artist_rank"]) else "-")
+        c3.metric("Career", row["career_status"] or "-")
 
         st.markdown(f"**Genres:** {row['genres_str']}")
         if pd.notna(row.get("record_label")):
@@ -229,10 +227,10 @@ if page == "📊 Scraped Data":
 
         st.markdown("**Platform stats**")
         mc1, mc2, mc3, mc4 = st.columns(4)
-        mc1.metric("SP Listeners",  _fmt(row.get("spotify_listeners")))
-        mc2.metric("SP Followers",  _fmt(row.get("spotify_followers")))
-        mc3.metric("Instagram",     _fmt(row.get("instagram_followers")))
-        mc4.metric("TikTok Flwrs",  _fmt(row.get("tiktok_followers")))
+        mc1.metric("SP Listeners", _fmt(row.get("spotify_listeners")))
+        mc2.metric("SP Followers", _fmt(row.get("spotify_followers")))
+        mc3.metric("Instagram",    _fmt(row.get("instagram_followers")))
+        mc4.metric("TikTok Flwrs", _fmt(row.get("tiktok_followers")))
 
         mc5, mc6, mc7, mc8 = st.columns(4)
         mc5.metric("TikTok Likes",  _fmt(row.get("tiktok_likes")))
@@ -241,13 +239,12 @@ if page == "📊 Scraped Data":
         mc8.metric("LFM Listeners", _fmt(row.get("lfm_listeners")))
 
         mc9, mc10 = st.columns(4)[:2]
-        mc9.metric("LFM Plays",   _fmt(row.get("lfm_playcount")))
-        mc10.metric("RA Events",  int(row.get("ra_events") or 0))
+        mc9.metric("LFM Plays",  _fmt(row.get("lfm_playcount")))
+        mc10.metric("RA Events", int(row.get("ra_events") or 0))
 
-        if row.get("lfm_similar_str") and row["lfm_similar_str"] != "—":
+        if row.get("lfm_similar_str") and row["lfm_similar_str"] != "-":
             st.markdown(f"**Similar artists (Last.fm):** {row['lfm_similar_str']}")
 
-        # Validation milestones
         if not vdf.empty and "artist_id" in vdf.columns:
             artist_milestones = vdf[vdf["artist_id"] == row["artist_id"]]
             if not artist_milestones.empty:
@@ -259,15 +256,15 @@ if page == "📊 Scraped Data":
                 )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # PAGE: QUEUE
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
-elif page == "🔍 Queue":
+elif page == "Queue":
     st.title("Discovery Queue")
-    st.caption("Pending artists from the LOFI booking network. Accept to trigger full scrape, or remove.")
+    st.caption("Pending artists from the LOFI booking network. Accept to trigger a full scrape, or remove.")
 
-    fc1, fc2 = st.columns([1, 3])
+    fc1, _ = st.columns([1, 3])
     min_score_q = fc1.slider("Min LOFI fit score", 0, 100, 0, step=5)
 
     rows = (
@@ -290,7 +287,7 @@ elif page == "🔍 Queue":
     visible = [r for r in rows if _feel_score(r) >= min_score_q or _feel_score(r) == -1]
 
     if not visible:
-        st.info("Queue empty — the nightly job adds more candidates.")
+        st.info("Queue empty -- the nightly job adds more candidates.")
         st.stop()
 
     st.caption(f"{len(visible)} candidates")
@@ -308,20 +305,20 @@ elif page == "🔍 Queue":
                 st.image(img, width=56)
 
         with col_main:
-            genres_str = ", ".join((cm.get("genres") or [])[:4]) or "—"
+            genres_str = ", ".join((cm.get("genres") or [])[:4]) or "-"
             nbr = row.get("booked_neighbor_count") or 0
             sim = row.get("booked_similar_count") or 0
-            net = f"  ·  🔗 {nbr}N {sim}S" if nbr or sim else ""
-            st.markdown(f"**{row['name']}** &nbsp; {_score_badge(score)}{net}")
+            net = f"  |  {nbr}N {sim}S" if nbr or sim else ""
+            st.markdown(f"**{row['name']}**  {_score_badge(score)}{net}")
             st.caption(
-                f"{genres_str}  ·  "
-                f"SP {_fmt(cm.get('sp_monthly_listeners'))}  ·  "
+                f"{genres_str}  |  "
+                f"SP {_fmt(cm.get('sp_monthly_listeners'))}  |  "
                 f"IG {_fmt(cm.get('ig_followers'))}"
             )
             if feel.get("matched"):
                 hits = [m for m in feel["matched"] if not m.startswith("DISQ")][:4]
                 if hits:
-                    st.caption("✓ " + "  ·  ".join(hits))
+                    st.caption("matched: " + ", ".join(hits))
 
         with col_btns:
             if st.button("Accept", key=f"acc_{row['id']}", type="primary"):
@@ -331,16 +328,16 @@ elif page == "🔍 Queue":
                 _set_status(row["id"], "skipped")
                 st.rerun()
 
-        with st.expander(f"Full profile — {row['name']}", expanded=False):
+        with st.expander(f"Full profile -- {row['name']}", expanded=False):
             c1, c2 = st.columns([1, 2])
             with c1:
                 if img := cm.get("image_url"):
                     st.image(img, width=140)
             with c2:
                 for label, val in [
-                    ("Career",  cm.get("career_status")),
-                    ("Label",   cm.get("record_label")),
-                    ("Agent",   cm.get("booking_agent")),
+                    ("Career", cm.get("career_status")),
+                    ("Label",  cm.get("record_label")),
+                    ("Agent",  cm.get("booking_agent")),
                 ]:
                     if val:
                         st.write(f"**{label}:** {val}")
@@ -348,20 +345,20 @@ elif page == "🔍 Queue":
             m1.metric("SP Listeners", _fmt(cm.get("sp_monthly_listeners")))
             m2.metric("IG",           _fmt(cm.get("ig_followers")))
             m3.metric("TikTok",       _fmt(cm.get("tiktok_followers")))
-            m4.metric("CM Score",     f"{cm['cm_artist_score']:.1f}" if cm.get("cm_artist_score") else "—")
+            m4.metric("CM Score",     f"{cm['cm_artist_score']:.1f}" if cm.get("cm_artist_score") else "-")
             if desc := cm.get("description"):
                 st.write(desc[:500])
 
         st.markdown("---")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 # PAGE: VALIDATION EVENTS
-# ══════════════════════════════════════════════════════════════════════════════
+# ==============================================================================
 
-elif page == "🏆 Validation Events":
+elif page == "Validation Events":
     st.title("Validation Events")
-    st.caption("Auto-detected career milestones from RA events. Confirm or dismiss each.")
+    st.caption("Auto-detected career milestones from RA events.")
 
     vdf = load_validation_events()
     flat = load_flat()
@@ -370,7 +367,6 @@ elif page == "🏆 Validation Events":
         st.info("No validation events detected yet.")
         st.stop()
 
-    # Join artist names
     if not flat.empty:
         name_map = flat.set_index("artist_id")["artist_name"].to_dict()
         vdf["artist_name"] = vdf["artist_id"].map(name_map).fillna("Unknown")
@@ -399,9 +395,9 @@ elif page == "🏆 Validation Events":
         height=480,
         hide_index=True,
         column_config={
-            "confirmed": st.column_config.CheckboxColumn("Confirmed"),
+            "confirmed":  st.column_config.CheckboxColumn("Confirmed"),
             "event_date": st.column_config.DateColumn("Date"),
         },
     )
 
-    st.caption(f"{len(fv)} milestones shown · {vdf['confirmed'].sum()} confirmed total")
+    st.caption(f"{len(fv)} milestones shown  |  {int(vdf['confirmed'].sum())} confirmed total")
