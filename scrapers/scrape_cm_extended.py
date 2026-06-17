@@ -180,58 +180,51 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
     if pts:
         result["applemusic_listeners"] = pts[-1]["value"]
 
-    # -- Beatport --------------------------------------------------------------
-    pts, status = _stat_timeseries(cm_id, "beatport", "followers", since, until)
-    log["beatport_followers"] = status
-    if pts:
-        result["beatport_followers"] = pts[-1]["value"]
-        result["beatport_timeseries"] = pts
-
-    # Beatport chart count (how many times charted)
-    data, status = _get(f"/artist/{cm_id}/charts/beatport")
+    # -- Beatport charts (no dedicated followers stat endpoint on this plan) ------
+    data, status = _get(f"/artist/{cm_id}/beatport/charts")
     log["beatport_charts"] = status
     if data:
         obj = data.get("obj") or []
         result["beatport_chart_count"] = len(obj) if isinstance(obj, list) else 0
 
     # -- Traxsource ------------------------------------------------------------
-    data, status = _get(f"/artist/{cm_id}/charts/traxsource")
+    data, status = _get(f"/artist/{cm_id}/traxsource/charts")
     log["traxsource_charts"] = status
     if data:
         obj = data.get("obj") or []
         result["traxsource_chart_count"] = len(obj) if isinstance(obj, list) else 0
 
     # -- Spotify playlist placements -------------------------------------------
-    data, status = _get(f"/artist/{cm_id}/playlists", {"type": "spotify", "status": "current", "limit": 100})
+    data, status = _get(f"/artist/{cm_id}/spotify/current/playlists", {"limit": 100})
     log["playlists_spotify"] = status
     if data:
         obj = data.get("obj") or []
         playlists = []
         for p in (obj if isinstance(obj, list) else []):
             playlists.append({
-                "platform":          "spotify",
-                "playlist_id":       str(p.get("id") or p.get("playlist_id") or ""),
-                "playlist_name":     p.get("name") or p.get("playlist_name"),
+                "platform":           "spotify",
+                "playlist_id":        str(p.get("id") or p.get("playlist_id") or ""),
+                "playlist_name":      p.get("name") or p.get("playlist_name"),
                 "playlist_followers": p.get("followers") or p.get("current_followers"),
-                "position":          p.get("position") or p.get("peak_position"),
-                "added_at":          (p.get("added_at") or "")[:10] or None,
+                "position":           p.get("position") or p.get("peak_position"),
+                "added_at":           (p.get("added_at") or "")[:10] or None,
             })
         result["playlists_spotify"] = playlists
 
     # -- Apple Music playlist placements ---------------------------------------
-    data, status = _get(f"/artist/{cm_id}/playlists", {"type": "applemusic", "status": "current", "limit": 50})
+    data, status = _get(f"/artist/{cm_id}/applemusic/current/playlists", {"limit": 50})
     log["playlists_applemusic"] = status
     if data:
         obj = data.get("obj") or []
         playlists = []
         for p in (obj if isinstance(obj, list) else []):
             playlists.append({
-                "platform":          "applemusic",
-                "playlist_id":       str(p.get("id") or p.get("playlist_id") or ""),
-                "playlist_name":     p.get("name") or p.get("playlist_name"),
+                "platform":           "applemusic",
+                "playlist_id":        str(p.get("id") or p.get("playlist_id") or ""),
+                "playlist_name":      p.get("name") or p.get("playlist_name"),
                 "playlist_followers": p.get("followers") or p.get("current_followers"),
-                "position":          p.get("position") or p.get("peak_position"),
-                "added_at":          (p.get("added_at") or "")[:10] or None,
+                "position":           p.get("position") or p.get("peak_position"),
+                "added_at":           (p.get("added_at") or "")[:10] or None,
             })
         result["playlists_applemusic"] = playlists
 
@@ -243,25 +236,21 @@ def scrape_artist(cm_id: int | str, since: str, until: str) -> dict:
         tracks = []
         for t in (obj if isinstance(obj, list) else []):
             tracks.append({
-                "cm_track_id":       str(t.get("id") or ""),
-                "track_name":        t.get("name"),
-                "isrc":              t.get("isrc"),
-                "release_date":      (t.get("release_date") or "")[:10] or None,
-                "spotify_streams":   t.get("spotify_streams") or t.get("sp_streams"),
+                "cm_track_id":        str(t.get("id") or ""),
+                "track_name":         t.get("name"),
+                "isrc":               t.get("isrc"),
+                "release_date":       (t.get("release_date") or "")[:10] or None,
+                "spotify_streams":    t.get("spotify_streams") or t.get("sp_streams"),
                 "spotify_popularity": t.get("sp_popularity") or t.get("spotify_popularity"),
                 "peak_spotify_chart": t.get("peak_spotify_chart"),
                 "peak_beatport_chart": t.get("peak_beatport_chart"),
-                "playlist_count":    t.get("playlist_count"),
+                "playlist_count":     t.get("playlist_count"),
             })
         result["tracks"] = tracks
 
     # -- Fan city distribution -------------------------------------------------
-    data, status = _get(f"/artist/{cm_id}/fans/distribution", {"type": "city", "limit": 20})
+    data, status = _get(f"/artist/{cm_id}/where-people-listen", {"limit": 20})
     log["fan_cities"] = status
-    if not data:
-        # try alternate endpoint path
-        data, status2 = _get(f"/artist/{cm_id}/fans-distribution", {"type": "city", "limit": 20})
-        log["fan_cities_alt"] = status2
     if data:
         obj = data.get("obj") or []
         result["fan_cities"] = obj if isinstance(obj, list) else []
