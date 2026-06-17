@@ -2,12 +2,13 @@ name: Scrape CM Extended
 
 # Runs after the core scrape_flagged pipeline.
 # Tries Shazam, Apple Music, Beatport, playlists, tracks, fan cities per artist.
+# Loops in batches of 20 until all artists are processed (unprocessed first).
 # All endpoints are attempted gracefully -- 404/403 means plan-restricted, logged
 # in endpoint_log so we know exactly what becomes available after a plan upgrade.
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # 03:00 UTC -- after scrape_flagged (00:00) finishes
+    - cron: '30 3 * * *'   # 03:30 UTC -- 3.5 hours after scrape_flagged (00:00)
   workflow_dispatch:
     inputs:
       artist_id:
@@ -15,7 +16,11 @@ on:
         required: false
         default: ''
       limit:
-        description: 'Max artists per run'
+        description: 'Artists per batch'
+        required: false
+        default: '20'
+      batches:
+        description: 'Max batches to run (0 = unlimited until done)'
         required: false
         default: '50'
       dry_run:
@@ -65,5 +70,11 @@ jobs:
           if [ "${{ github.event.inputs.probe }}" = "true" ]; then
             ARGS="$ARGS --probe"
           fi
-          LIMIT="${{ github.event.inputs.limit || '50' }}"
-          python scrapers/scrape_cm_extended.py --limit "$LIMIT" $ARGS
+          LIMIT="${{ github.event.inputs.limit || '20' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '50' }}"
+          for i in $(seq 1 $MAX_BATCHES); do
+            echo "=== Batch $i / $MAX_BATCHES ==="
+            OUTPUT=$(python -u scrapers/scrape_cm_extended.py --limit "$LIMIT" $ARGS 2>&1)
+            echo "$OUTPUT"
+            if echo "$OUTPUT" | grep -q "Nothing to scrape"; then echo "All done -- stopping."; break; fi
+          done

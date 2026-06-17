@@ -288,23 +288,30 @@ def main() -> None:
     since = (date.today() - timedelta(days=365)).isoformat()
     until = date.today().isoformat()
 
-    # Fetch artists that have a chartmetric_id and have already been scraped
-    query = (
-        sb.schema("tinder").table("artists")
-        .select("id, name, chartmetric_id")
-        .not_.is_("chartmetric_id", "null")
-    )
+    # Fetch artists prioritising those never extended-scraped (unprocessed first,
+    # then oldest updated_at). Uses a DB function to do the LEFT JOIN server-side.
     if args.artist_id:
-        query = query.eq("id", args.artist_id)
+        artists = (
+            sb.schema("tinder").table("artists")
+            .select("id, name, chartmetric_id")
+            .eq("id", args.artist_id)
+            .not_.is_("chartmetric_id", "null")
+            .execute().data or []
+        )
     else:
-        query = query.limit(args.limit)
-
-    artists = query.execute().data or []
+        artists = (
+            sb.schema("tinder")
+            .rpc("get_cm_extended_queue", {"p_limit": args.limit})
+            .execute().data or []
+        )
 
     if args.probe:
         artists = artists[:1]
 
-    print(f"Extended scrape: {len(artists)} artists  since={since}")
+    print(f"Extended scrape: {len(artists)} artists queued  since={since}")
+    if not artists:
+        print("Nothing to scrape -- stopping.")
+        return
 
     ok = errors = 0
 
