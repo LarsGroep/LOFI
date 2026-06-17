@@ -83,7 +83,21 @@ def _fetch_genres(cm_id: str) -> tuple[dict, list[str]]:
     profile    = get_artist(cm_id) or {}
     raw_genres = profile.get("genres") or []
     if isinstance(raw_genres, dict):
-        genres = [v for v in raw_genres.values() if v and isinstance(v, str)][:10]
+        genres = []
+        for v in raw_genres.values():
+            if not v:
+                continue
+            if isinstance(v, str):
+                genres.append(v)
+            elif isinstance(v, dict) and v.get("name"):
+                genres.append(v["name"])
+            elif isinstance(v, list):
+                for item in v:
+                    if isinstance(item, dict) and item.get("name"):
+                        genres.append(item["name"])
+                    elif isinstance(item, str):
+                        genres.append(item)
+        genres = genres[:10]
     else:
         genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
     return profile, genres
@@ -98,7 +112,21 @@ def _fetch_stats(cm_id: str, profile: dict) -> dict:
 
     raw_genres = profile.get("genres") or []
     if isinstance(raw_genres, dict):
-        genres = [v for v in raw_genres.values() if v and isinstance(v, str)][:10]
+        genres = []
+        for v in raw_genres.values():
+            if not v:
+                continue
+            if isinstance(v, str):
+                genres.append(v)
+            elif isinstance(v, dict) and v.get("name"):
+                genres.append(v["name"])
+            elif isinstance(v, list):
+                for item in v:
+                    if isinstance(item, dict) and item.get("name"):
+                        genres.append(item["name"])
+                    elif isinstance(item, str):
+                        genres.append(item)
+        genres = genres[:10]
     else:
         genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
 
