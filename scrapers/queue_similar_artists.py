@@ -96,21 +96,46 @@ def _fetch_stats(cm_id: str, profile: dict) -> dict:
     raw_genres = profile.get("genres") or []
     genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
 
+    cm_stats = profile.get("cm_statistics") or {}
+
+    career_obj = profile.get("career_status")
+    if isinstance(career_obj, dict):
+        career_status_str  = career_obj.get("stage") or career_obj.get("status")
+        career_stage_score = _num(career_obj.get("stage_score") or career_obj.get("score"))
+        career_trend_score = _num(career_obj.get("trend_score") or career_obj.get("momentum_score"))
+    else:
+        career_status_str  = career_obj
+        career_stage_score = None
+        career_trend_score = None
+
     return {
-        "image_url":            profile.get("image_url"),
-        "description":          profile.get("description"),
-        "career_status":        profile.get("career_status"),
-        "record_label":         profile.get("record_label"),
-        "booking_agent":        profile.get("booking_agent"),
-        "genres":               genres or None,
-        "cm_artist_score":      profile.get("cm_artist_score"),
-        "cm_artist_rank":       profile.get("cm_artist_rank"),
-        "sp_monthly_listeners": _num(sp_stats.get("listeners") or sp_stats.get("sp_monthly_listeners")),
-        "sp_followers":         _num(sp_stats.get("followers")),
-        "sp_popularity":        _num(sp_stats.get("popularity")),
-        "ig_followers":         _num(ig_stats.get("followers")),
-        "tiktok_followers":     _num(tk_stats.get("followers")),
-        "yt_subscribers":       _num(yt_stats.get("subscribers")),
+        "image_url":              profile.get("image_url"),
+        "cover_url":              profile.get("cover_url"),
+        "description":            profile.get("description"),
+        "career_status":          career_status_str,
+        "career_stage_score":     career_stage_score,
+        "career_trend_score":     career_trend_score,
+        "record_label":           profile.get("record_label"),
+        "booking_agent":          profile.get("booking_agent"),
+        "press_contact":          profile.get("press_contact"),
+        "general_manager":        profile.get("general_manager"),
+        "hometown_city":          profile.get("hometown_city"),
+        "current_city":           profile.get("current_city"),
+        "genres":                 genres or None,
+        "cm_artist_score":        profile.get("cm_artist_score") or _num(cm_stats.get("cm_artist_score")),
+        "cm_artist_rank":         profile.get("cm_artist_rank") or _num(cm_stats.get("cm_artist_rank")),
+        "fan_base_rank":          _num(profile.get("fan_base_rank") or cm_stats.get("fan_base_rank")),
+        "engagement_rank":        _num(profile.get("engagement_rank") or cm_stats.get("engagement_rank")),
+        "sp_monthly_listeners":   _num(sp_stats.get("listeners") or sp_stats.get("sp_monthly_listeners")),
+        "sp_followers":           _num(sp_stats.get("followers")),
+        "sp_popularity":          _num(sp_stats.get("popularity")),
+        "ig_followers":           _num(ig_stats.get("followers")),
+        "tiktok_followers":       _num(tk_stats.get("followers") or cm_stats.get("tiktok_followers")),
+        "tiktok_likes":           _num(tk_stats.get("likes") or cm_stats.get("tiktok_likes")),
+        "tiktok_top_video_views": _num(cm_stats.get("tiktok_top_video_views")),
+        "tiktok_track_posts":     _num(cm_stats.get("tiktok_track_posts")),
+        "yt_subscribers":         _num(yt_stats.get("subscribers")),
+        "yt_views":               _num(yt_stats.get("views")),
     }
 
 
