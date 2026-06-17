@@ -254,8 +254,12 @@ def main() -> None:
         sb.schema("tinder").table("artists")
         .select("id, name, slug, chartmetric_id, artist_chartmetric(cm_artist_score)")
         .eq("needs_scraping", True)
-        .order("artist_chartmetric(cm_artist_score)", desc=True, nulls_first=False)
+        .order("updated_at", desc=False)
         .execute().data or []
+    )
+    # Sort in Python: artists with a CM score first (highest score first), unscored last
+    rows.sort(
+        key=lambda r: -(((r.get("artist_chartmetric") or [{}])[0] or {}).get("cm_artist_score") or 0)
     )
 
     if args.limit > 0:
