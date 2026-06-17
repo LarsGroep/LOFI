@@ -328,7 +328,7 @@ def main() -> None:
 
             # Full timeseries: spotify(3) + instagram + tiktok(2) + yt_channel(2)
             #                  + yt_artist(2) + soundcloud + shazam + deezer + facebook
-            #                  + pandora(2) + wikipedia + cpp(2) = 19 API calls
+            #                  + wikipedia + cpp(2) = 15 API calls
             ts = get_full_timeseries(cm_id, since_days=args.days)
             ml = compute_growth_features(ts, sp_followers=sp_followers)
 
@@ -380,7 +380,7 @@ def main() -> None:
                 "youtube_artist_daily_views":   _ts_latest("youtube_artist", "daily_views"),
                 "youtube_artist_monthly_views":  _ts_latest("youtube_artist", "monthly_views"),
                 "soundcloud_followers":          _ts_latest("soundcloud", "followers"),
-                "shazam_count":                  _ts_latest("shazam", "shazam_count"),
+                "wikipedia_views":               _ts_latest("wikipedia", "views"),
                 "deezer_fans":                   _ts_latest("deezer", "fans"),
                 "facebook_likes":                _ts_latest("facebook", "likes"),
                 "cpp_score":                     _ts_latest("cpp", "score"),

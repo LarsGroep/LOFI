@@ -681,11 +681,6 @@ def get_full_timeseries(cm_id: int | str, since_days: int = 365) -> dict:
     if pts:
         result["soundcloud"] = {"followers": pts}
 
-    # Shazam
-    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/shazam", {**base, "field": "shazam_count"}))
-    if pts:
-        result["shazam"] = {"shazam_count": pts}
-
     # Deezer
     pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/deezer", {**base, "field": "fans"}))
     if pts:
@@ -696,19 +691,10 @@ def get_full_timeseries(cm_id: int | str, since_days: int = 365) -> dict:
     if pts:
         result["facebook"] = {"likes": pts}
 
-    # Pandora: streams + station_adds
-    pan: dict[str, list] = {}
-    for field in ("streams", "station_adds"):
-        pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/pandora", {**base, "field": field}))
-        if pts:
-            pan[field] = pts
-    if pan:
-        result["pandora"] = pan
-
-    # Wikipedia
-    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/wikipedia", {**base, "field": "pageviews"}))
+    # Wikipedia (field is "views", not "pageviews")
+    pts = _parse_stat_field(_get(f"/artist/{cm_id}/stat/wikipedia", {**base, "field": "views"}))
     if pts:
-        result["wikipedia"] = {"pageviews": pts}
+        result["wikipedia"] = {"views": pts}
 
     # CPP: score + rank
     cpp: dict[str, list] = {}
