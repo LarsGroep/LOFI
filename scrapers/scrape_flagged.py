@@ -483,16 +483,19 @@ def main() -> None:
                 print(f"    PF: not found")
 
             # ── Last.fm ──────────────────────────────────────────────────────
-            lfm = _scrape_lastfm(name)
-            if lfm:
-                sb.schema("tinder").table("artist_lastfm").upsert({
-                    "artist_id":  artist_id,
-                    **{k: v for k, v in lfm.items() if v is not None},
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                }, on_conflict="artist_id").execute()
-                print(f"    LFM: listeners={lfm.get('lfm_listeners')}  similar={len(lfm.get('similar_artists') or [])}")
-            else:
-                print(f"    LFM: not found")
+            try:
+                lfm = _scrape_lastfm(name)
+                if lfm:
+                    sb.schema("tinder").table("artist_lastfm").upsert({
+                        "artist_id":  artist_id,
+                        **{k: v for k, v in lfm.items() if v is not None},
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }, on_conflict="artist_id").execute()
+                    print(f"    LFM: listeners={lfm.get('lfm_listeners')}  similar={len(lfm.get('similar_artists') or [])}")
+                else:
+                    print(f"    LFM: not found")
+            except Exception as lfm_e:
+                print(f"    LFM error: {lfm_e}")
 
             # ── Embedding ────────────────────────────────────────────────────
             profile_text = _profile_text(name, profile, genres)
