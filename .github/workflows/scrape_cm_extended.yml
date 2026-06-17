@@ -1,10 +1,9 @@
 name: Scrape CM Extended
 
 # Runs after the core scrape_flagged pipeline.
-# Tries all available CM endpoints per artist (20 returning data, 4 plan-restricted).
-# Loops in batches of 20 until all artists are processed (unprocessed first).
-# At 1.2s/req x 24 endpoints = ~28s/artist, 350-min timeout handles ~700 artists
-# in a single run -- enough to clear the full backlog in one night.
+# Tries all available CM endpoints per artist (~21 returning data after cleanup).
+# At 1.2s/req x 21 endpoints = ~25s/artist, 20 batches of 20 = ~400 artists per run (~140 min).
+# Self-chains until queue is empty so the full roster is covered in one night.
 # All plan-restricted endpoints are logged in endpoint_log and retried nightly.
 
 on:
@@ -21,9 +20,9 @@ on:
         required: false
         default: '20'
       batches:
-        description: 'Max batches to run (0 = unlimited until done)'
+        description: 'Max batches per run (chains automatically if queue not empty)'
         required: false
-        default: '40'
+        default: '20'
       dry_run:
         description: 'Print only, do not write to DB (true/false)'
         required: false
@@ -33,10 +32,14 @@ on:
         required: false
         default: 'false'
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 220
 
     steps:
       - uses: actions/checkout@v4
@@ -56,6 +59,7 @@ jobs:
         run: pip install -r requirements.txt --quiet
 
       - name: Scrape extended CM data
+        id: scrape
         env:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
@@ -72,10 +76,31 @@ jobs:
             ARGS="$ARGS --probe"
           fi
           LIMIT="${{ github.event.inputs.limit || '20' }}"
-          MAX_BATCHES="${{ github.event.inputs.batches || '40' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '20' }}"
+          QUEUE_EMPTY=false
           for i in $(seq 1 $MAX_BATCHES); do
             echo "=== Batch $i / $MAX_BATCHES ==="
             OUTPUT=$(python -u scrapers/scrape_cm_extended.py --limit "$LIMIT" $ARGS 2>&1)
             echo "$OUTPUT"
-            if echo "$OUTPUT" | grep -q "Nothing to scrape"; then echo "All done -- stopping."; break; fi
+            if echo "$OUTPUT" | grep -q "Nothing to scrape"; then
+              echo "All done -- stopping."
+              QUEUE_EMPTY=true
+              break
+            fi
           done
+          echo "queue_empty=$QUEUE_EMPTY" >> $GITHUB_OUTPUT
+
+      - name: Chain next run if queue not empty
+        if: |
+          steps.scrape.outputs.queue_empty != 'true' &&
+          github.event.inputs.artist_id == '' &&
+          github.event.inputs.dry_run != 'true' &&
+          github.event.inputs.probe != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Queue not empty — chaining next scrape_cm_extended run"
+          gh workflow run scrape_cm_extended.yml \
+            --repo "${{ github.repository }}" \
+            --field limit="${{ github.event.inputs.limit || '20' }}" \
+            --field batches="${{ github.event.inputs.batches || '20' }}"
