@@ -360,10 +360,12 @@ def main() -> None:
             yt_stats = get_stat(cm_id, "youtube_channel") or {}
 
             raw_genres = profile.get("genres") or []
+            print(f"    DEBUG genres raw={repr(raw_genres)[:120]}")
             if isinstance(raw_genres, dict):
                 genres = [v for v in raw_genres.values() if v and isinstance(v, str)][:10]
             else:
                 genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
+            print(f"    DEBUG genres parsed={genres}")
 
             sp_followers = _num(sp_stats.get("followers") or profile.get("sp_followers"))
 
