@@ -61,5 +61,5 @@ jobs:
             echo "=== Batch $i / $MAX_BATCHES ==="
             OUTPUT=$(python -u scrapers/scrape_flagged.py --limit "$LIMIT" --days "$DAYS" 2>&1)
             echo "$OUTPUT"
-            echo "$OUTPUT" | grep -q "Nothing flagged" && echo "Queue empty — stopping." && break
+            if echo "$OUTPUT" | grep -q "Nothing flagged"; then echo "Queue empty — stopping."; break; fi
           done

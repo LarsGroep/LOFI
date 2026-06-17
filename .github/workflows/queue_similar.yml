@@ -73,5 +73,5 @@ jobs:
               --score-threshold ${{ github.event.inputs.score_threshold || '40' }} \
               $NO_NBR 2>&1)
             echo "$OUTPUT"
-            echo "$OUTPUT" | grep -q "0 new candidates queued" && echo "No new artists — stopping." && break
+            if echo "$OUTPUT" | grep -q "0 new candidates queued"; then echo "No new artists — stopping."; break; fi
           done
