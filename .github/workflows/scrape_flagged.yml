@@ -7,6 +7,8 @@ name: Scrape Flagged Artists
 #
 # Timeseries per artist: spotify(3) + instagram + tiktok(2) + yt_channel(2)
 #                        + yt_artist(2) + soundcloud + cpp(2) = 13 API calls ≈ 30s/artist
+# At 30s/artist x 50/batch = 25 min/batch. 8 batches = ~200 min, safe under 4h limit.
+# Self-chains until queue is empty so the full roster is covered in one night.
 
 on:
   schedule:
@@ -18,18 +20,22 @@ on:
         required: false
         default: '50'
       batches:
-        description: 'Max batches to run (0 = unlimited until queue empty)'
+        description: 'Max batches per run (chains automatically if queue not empty)'
         required: false
-        default: '20'
+        default: '8'
       days:
         description: 'Timeseries lookback in days (default 365)'
         required: false
         default: '365'
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 220
 
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +55,7 @@ jobs:
         run: pip install -r requirements.txt --quiet
 
       - name: Scrape flagged artists
+        id: scrape
         env:
           SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
@@ -56,10 +63,28 @@ jobs:
         run: |
           LIMIT="${{ github.event.inputs.limit || '50' }}"
           DAYS="${{ github.event.inputs.days || '365' }}"
-          MAX_BATCHES="${{ github.event.inputs.batches || '20' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '8' }}"
+          QUEUE_EMPTY=false
           for i in $(seq 1 $MAX_BATCHES); do
             echo "=== Batch $i / $MAX_BATCHES ==="
             OUTPUT=$(python -u scrapers/scrape_flagged.py --limit "$LIMIT" --days "$DAYS" 2>&1)
             echo "$OUTPUT"
-            if echo "$OUTPUT" | grep -q "Nothing flagged"; then echo "Queue empty — stopping."; break; fi
+            if echo "$OUTPUT" | grep -q "Nothing flagged"; then
+              echo "Queue empty — stopping."
+              QUEUE_EMPTY=true
+              break
+            fi
           done
+          echo "queue_empty=$QUEUE_EMPTY" >> $GITHUB_OUTPUT
+
+      - name: Chain next run if artists remain
+        if: steps.scrape.outputs.queue_empty != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Artists still in queue — chaining next scrape_flagged run"
+          gh workflow run scrape_flagged.yml \
+            --repo "${{ github.repository }}" \
+            --field limit="${{ github.event.inputs.limit || '50' }}" \
+            --field batches="${{ github.event.inputs.batches || '8' }}" \
+            --field days="${{ github.event.inputs.days || '365' }}"
