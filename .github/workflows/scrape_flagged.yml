@@ -7,7 +7,7 @@ name: Scrape Flagged Artists
 #
 # Timeseries per artist: spotify(3) + instagram + tiktok(2) + yt_channel(2)
 #                        + yt_artist(2) + soundcloud + cpp(2) = 13 API calls ≈ 30s/artist
-# At 30s/artist x 50/batch = 25 min/batch. 8 batches = ~200 min, safe under 4h limit.
+# At ~46s/artist x 50/batch = ~38 min/batch. 4 batches = ~155 min, safe under 4h limit.
 # Self-chains until queue is empty so the full roster is covered in one night.
 
 on:
@@ -22,7 +22,7 @@ on:
       batches:
         description: 'Max batches per run (chains automatically if queue not empty)'
         required: false
-        default: '8'
+        default: '4'
       days:
         description: 'Timeseries lookback in days (default 365)'
         required: false
