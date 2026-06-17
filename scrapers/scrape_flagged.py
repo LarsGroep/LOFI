@@ -5,8 +5,9 @@ For each flagged artist:
   1. Chartmetric: full profile + timeseries + ml_features → artist_chartmetric
   2. Resident Advisor: events via GraphQL → artist_ra
   3. Partyflock: fan counts + events from local JSONL → artist_partyflock
-  4. Embedding: sentence-transformer → artist_embeddings
-  5. Clears needs_scraping flag
+  4. Last.fm: listeners, playcount, tags, similar artists → artist_lastfm
+  5. Embedding: sentence-transformer → artist_embeddings
+  6. Clears needs_scraping flag
 
 Run:
     python scrapers/scrape_flagged.py [--limit N] [--days 180]
@@ -211,6 +212,57 @@ def _lookup_partyflock(name: str) -> dict | None:
         "pf_fans":      artist_row.get("fans") if artist_row else None,
         "events":       events,
     }
+
+
+# ── Last.fm ───────────────────────────────────────────────────────────────────
+
+_LFM_API  = "https://ws.audioscrobbler.com/2.0/"
+_LFM_KEY  = os.environ.get("LASTFM_API_KEY", "5a03e4d23e2fe689339fab0a79438f20")
+_LFM_UA   = "LofiArtistScout/1.0 (lars.vandergroep@gmail.com)"
+
+
+def _scrape_lastfm(name: str) -> dict | None:
+    if not _HAS_HTTPX:
+        return None
+    try:
+        resp = httpx.get(
+            _LFM_API,
+            params={"method": "artist.getInfo", "artist": name, "api_key": _LFM_KEY,
+                    "format": "json", "autocorrect": "1"},
+            headers={"User-Agent": _LFM_UA},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data   = resp.json()
+        artist = (data.get("artist") or {})
+        if not artist:
+            return None
+
+        stats   = artist.get("stats") or {}
+        tags    = [t["name"] for t in (artist.get("tags") or {}).get("tag") or []]
+        similar = [s["name"] for s in (artist.get("similar") or {}).get("artist") or []]
+
+        # Extended similar: up to 30 more
+        sim_resp = httpx.get(
+            _LFM_API,
+            params={"method": "artist.getSimilar", "artist": name, "api_key": _LFM_KEY,
+                    "format": "json", "limit": "30", "autocorrect": "1"},
+            headers={"User-Agent": _LFM_UA},
+            timeout=15,
+        )
+        if sim_resp.status_code == 200:
+            sim_data = sim_resp.json()
+            similar  = [s["name"] for s in (sim_data.get("similarartists") or {}).get("artist") or []]
+
+        return {
+            "lfm_listeners":   int(stats.get("listeners") or 0) or None,
+            "lfm_playcount":   int(stats.get("playcount") or 0) or None,
+            "tags":            tags[:15] or None,
+            "similar_artists": similar[:30] or None,
+        }
+    except Exception as e:
+        print(f"    LFM error ({name}): {e}")
+    return None
 
 
 # ── Embedding ─────────────────────────────────────────────────────────────────
@@ -429,6 +481,18 @@ def main() -> None:
                 print(f"    PF: {len(pf['events'])} events, fans={pf.get('pf_fans')}")
             else:
                 print(f"    PF: not found")
+
+            # ── Last.fm ──────────────────────────────────────────────────────
+            lfm = _scrape_lastfm(name)
+            if lfm:
+                sb.schema("tinder").table("artist_lastfm").upsert({
+                    "artist_id":  artist_id,
+                    **{k: v for k, v in lfm.items() if v is not None},
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }, on_conflict="artist_id").execute()
+                print(f"    LFM: listeners={lfm.get('lfm_listeners')}  similar={len(lfm.get('similar_artists') or [])}")
+            else:
+                print(f"    LFM: not found")
 
             # ── Embedding ────────────────────────────────────────────────────
             profile_text = _profile_text(name, profile, genres)
