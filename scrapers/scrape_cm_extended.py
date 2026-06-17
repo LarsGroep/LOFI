@@ -35,7 +35,7 @@ from supabase import create_client
 
 _BASE        = "https://api.chartmetric.com/api"
 _TOKEN_URL   = "https://api.chartmetric.com/api/token"
-_RATE_SLEEP  = 2.2  # stay safely under 1 req/sec
+_RATE_SLEEP  = 1.2  # 0.83 req/sec -- well within CM limits, ~28s per artist
 
 _access_token: str   = ""
 _token_expires: float = 0.0

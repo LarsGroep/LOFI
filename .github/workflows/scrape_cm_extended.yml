@@ -1,10 +1,11 @@
 name: Scrape CM Extended
 
 # Runs after the core scrape_flagged pipeline.
-# Tries Shazam, Apple Music, Beatport, playlists, tracks, fan cities per artist.
+# Tries all available CM endpoints per artist (20 returning data, 4 plan-restricted).
 # Loops in batches of 20 until all artists are processed (unprocessed first).
-# All endpoints are attempted gracefully -- 404/403 means plan-restricted, logged
-# in endpoint_log so we know exactly what becomes available after a plan upgrade.
+# At 1.2s/req x 24 endpoints = ~28s/artist, 350-min timeout handles ~700 artists
+# in a single run -- enough to clear the full backlog in one night.
+# All plan-restricted endpoints are logged in endpoint_log and retried nightly.
 
 on:
   schedule:
@@ -22,7 +23,7 @@ on:
       batches:
         description: 'Max batches to run (0 = unlimited until done)'
         required: false
-        default: '50'
+        default: '40'
       dry_run:
         description: 'Print only, do not write to DB (true/false)'
         required: false
@@ -35,7 +36,7 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 350
 
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +72,7 @@ jobs:
             ARGS="$ARGS --probe"
           fi
           LIMIT="${{ github.event.inputs.limit || '20' }}"
-          MAX_BATCHES="${{ github.event.inputs.batches || '50' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '40' }}"
           for i in $(seq 1 $MAX_BATCHES); do
             echo "=== Batch $i / $MAX_BATCHES ==="
             OUTPUT=$(python -u scrapers/scrape_cm_extended.py --limit "$LIMIT" $ARGS 2>&1)
