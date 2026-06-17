@@ -1,0 +1,69 @@
+name: Scrape CM Extended
+
+# Runs after the core scrape_flagged pipeline.
+# Tries Shazam, Apple Music, Beatport, playlists, tracks, fan cities per artist.
+# All endpoints are attempted gracefully -- 404/403 means plan-restricted, logged
+# in endpoint_log so we know exactly what becomes available after a plan upgrade.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 03:00 UTC -- after scrape_flagged (00:00) finishes
+  workflow_dispatch:
+    inputs:
+      artist_id:
+        description: 'Single artist UUID (leave blank for batch)'
+        required: false
+        default: ''
+      limit:
+        description: 'Max artists per run'
+        required: false
+        default: '50'
+      dry_run:
+        description: 'Print only, do not write to DB (true/false)'
+        required: false
+        default: 'false'
+      probe:
+        description: 'Probe first artist only to see which endpoints return data (true/false)'
+        required: false
+        default: 'false'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Scrape extended CM data
+        env:
+          SUPABASE_URL:              ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
+          CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.artist_id }}" ]; then
+            ARGS="--artist-id ${{ github.event.inputs.artist_id }}"
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ "${{ github.event.inputs.probe }}" = "true" ]; then
+            ARGS="$ARGS --probe"
+          fi
+          LIMIT="${{ github.event.inputs.limit || '50' }}"
+          python scrapers/scrape_cm_extended.py --limit "$LIMIT" $ARGS
