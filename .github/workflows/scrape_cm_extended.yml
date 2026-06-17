@@ -80,7 +80,7 @@ jobs:
             ARGS="$ARGS --probe"
           fi
           LIMIT="${{ github.event.inputs.limit || '20' }}"
-          MAX_BATCHES="${{ github.event.inputs.batches || '20' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '4' }}"
           QUEUE_EMPTY=false
           for i in $(seq 1 $MAX_BATCHES); do
             echo "=== Batch $i / $MAX_BATCHES ==="
