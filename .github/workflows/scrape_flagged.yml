@@ -14,9 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       limit:
-        description: 'Max artists to scrape (0 = all)'
+        description: 'Artists per batch'
         required: false
-        default: '0'
+        default: '50'
+      batches:
+        description: 'Max batches to run (0 = unlimited until queue empty)'
+        required: false
+        default: '20'
       days:
         description: 'Timeseries lookback in days (default 365)'
         required: false
@@ -50,6 +54,12 @@ jobs:
           SUPABASE_KEY:              ${{ secrets.SUPABASE_KEY }}
           CHARTMETRIC_REFRESH_TOKEN: ${{ secrets.CHARTMETRIC_REFRESH_TOKEN }}
         run: |
-          python scrapers/scrape_flagged.py \
-            --limit "${{ github.event.inputs.limit || '50' }}" \
-            --days  "${{ github.event.inputs.days  || '365' }}"
+          LIMIT="${{ github.event.inputs.limit || '50' }}"
+          DAYS="${{ github.event.inputs.days || '365' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '20' }}"
+          for i in $(seq 1 $MAX_BATCHES); do
+            echo "=== Batch $i / $MAX_BATCHES ==="
+            OUTPUT=$(python -u scrapers/scrape_flagged.py --limit "$LIMIT" --days "$DAYS" 2>&1)
+            echo "$OUTPUT"
+            echo "$OUTPUT" | grep -q "Nothing flagged" && echo "Queue empty — stopping." && break
+          done
