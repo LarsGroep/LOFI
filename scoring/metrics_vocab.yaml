@@ -1,0 +1,159 @@
+# metrics_vocab.yaml — one descriptor per (source.metric) Chartmetric series.
+#
+# This is the single source of truth for HOW each metric is read by the future
+# predictor. Adding a new Chartmetric endpoint = add a row here, zero code change.
+#
+# Fields
+#   transform   log | raw | neg_log
+#               log     -> ln(value+1)        (counts: followers, listeners, views)
+#               raw     -> value              (0-100 indices: popularity, cpp_score)
+#               neg_log -> -ln(value)         (ranks: cpp_rank — LOWER is better, so
+#                                              -ln(rank) makes "improving" = increasing)
+#   kind        count | index | rank          (semantic class)
+#   role        signal | context | bonus | geo
+#               signal  -> drives the score (growth/acceleration sub-scores)
+#               context -> shown, never a positive sort key (e.g. popularity, level)
+#               bonus   -> small additive only (geo / Amsterdam)
+#               geo     -> routed to the geo_reach provider, not scalar features
+#   platform    breadth dedup key for cross-platform corroboration
+#   allowed_as  [feature] and/or [label]
+#   forbidden_as guard list; cpp_* are forbidden_as [label] (circular — cpp is itself
+#               a momentum index, so predicting future cpp would be leakage).
+#   noise_p90_pct_day  per-metric p90 of |daily %-change|.
+#               RECALIBRATED 2026-06-17 as a POOLED robust statistic over the 160 LOFI
+#               *booked* artists with cm_timeseries (the N>=20 re-estimation the
+#               methodology called for). Replaces the earlier single-artist (Len Faki)
+#               seeds — the cohort is materially noisier for some metrics (e.g. Spotify
+#               followers 0.26 vs 0.03; Instagram 0.19 vs 0.02) because it includes
+#               smaller/emerging acts. Followers are still ~5x quieter than monthly
+#               listeners, so per-metric scaling remains essential.
+
+metrics:
+  spotify.listeners:
+    transform: log
+    kind: count
+    role: signal
+    platform: spotify
+    allowed_as: [feature, label]   # the default breakout label metric
+    forbidden_as: []
+    noise_p90_pct_day: 1.41
+
+  spotify.followers:
+    transform: log
+    kind: count
+    role: signal
+    platform: spotify
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.26
+
+  spotify.popularity:
+    transform: raw
+    kind: index
+    role: context           # 0-100 integer; ±1 step is a big %, kept as context not signal
+    platform: spotify
+    allowed_as: [feature]
+    forbidden_as: [label]
+    noise_p90_pct_day: 11.0
+
+  instagram.followers:
+    transform: log
+    kind: count
+    role: signal
+    platform: instagram
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.19
+
+  soundcloud.followers:
+    transform: log
+    kind: count
+    role: signal
+    platform: soundcloud
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.12
+
+  deezer.fans:
+    transform: log
+    kind: count
+    role: signal
+    platform: deezer
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.68
+
+  facebook.likes:
+    transform: log
+    kind: count
+    role: signal
+    platform: facebook
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.23
+
+  youtube_channel.subscribers:
+    transform: log
+    kind: count
+    role: signal
+    platform: youtube
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.24
+
+  youtube_channel.views:
+    transform: log
+    kind: count
+    role: signal
+    platform: youtube
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.33
+
+  tiktok.followers:
+    transform: log
+    kind: count
+    role: signal
+    platform: tiktok
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.25
+
+  tiktok.likes:
+    transform: log
+    kind: count
+    role: signal
+    platform: tiktok
+    allowed_as: [feature]
+    forbidden_as: []
+    noise_p90_pct_day: 0.38
+
+  chartmetric.cpp_score:
+    transform: raw
+    kind: index
+    role: signal
+    platform: chartmetric
+    allowed_as: [feature]
+    forbidden_as: [label]     # cpp is a momentum index -> circular as a label
+    noise_p90_pct_day: 3.03
+
+  chartmetric.cpp_rank:
+    transform: neg_log
+    kind: rank
+    role: signal
+    platform: chartmetric
+    allowed_as: [feature]
+    forbidden_as: [label]
+    noise_p90_pct_day: 10.5
+
+  # ── Geo panel: routed to the geo_reach provider, not scalar derivatives ──────
+  spotify.countries_listeners:
+    role: geo
+    platform: spotify_geo
+    allowed_as: [feature]
+    forbidden_as: [label]
+  spotify.cities_listeners:
+    role: geo
+    platform: spotify_geo
+    allowed_as: [feature]
+    forbidden_as: [label]

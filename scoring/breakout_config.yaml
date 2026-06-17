@@ -1,0 +1,118 @@
+# breakout_config.yaml — all knobs for the future predictor (no thresholds in code).
+# Defaults seeded from the Len Faki 1-year multi-platform series. Every number here
+# is a YAML knob to revisit once a real batch of artists lands.
+
+# ── Per-metric admission gate (point-in-time, evaluated on rows with date <= t) ──
+# A metric enters scoring only if it clears ALL three. Among admitted metrics, a
+# soft quality weight q in [0,1] further scales its corroboration vote.
+gate:
+  min_real_points: 30        # non-interpolated points required
+  max_interp_frac: 0.60      # carry-forward fraction ceiling (LOAD-BEARING knob).
+                             #   Measured gap in the seed artist is clean: real series
+                             #   (spotify ~37-41% carry-forward) vs broken ones (youtube
+                             #   73-87%, tiktok 92-94%). 0.60 admits the headline Spotify
+                             #   listeners metric (down-weighted by (1-interp_frac)) and
+                             #   excludes junk. The score is then driven by the real trend
+                             #   rather than blind to it. Re-tune once the batch lands —
+                             #   emerging artists may be MORE interpolated early.
+  min_history_days: 120      # span of real points (first->last)
+
+# ── Robust trend estimation ─────────────────────────────────────────────────────
+slope:
+  method: theil_sen          # median of pairwise slopes — robust to spikes/outliers
+  windows: [30, 90]          # trailing-day windows for slope_log_30 / slope_log_90
+  min_points_30: 4
+  min_points_90: 6
+accel:                       # the PRIMARY signal — 2nd derivative
+  window: 30                 # accel = slope([t-30,t]) - slope([t-60,t-30])
+  min_points_per_window: 4   # else accel = null (NEVER read as 0)
+volatility:
+  window: 90
+consistency:
+  window: 30
+  min_diffs: 8
+drawdown:
+  window: 90
+ewma_alpha: 0.25             # for human-display smoothing only, never the slope input
+
+# ── Cross-platform corroboration (the strongest false-positive killer) ──────────
+corroboration:
+  window_days: 21            # platforms must agree within this window
+  min_platforms: 2           # >=2 distinct platforms rising -> breakout upgrade
+                             # only ADMITTED (q>0) metrics vote; provisional never votes
+
+# ── Scoring (RuleModel) ─────────────────────────────────────────────────────────
+scoring:
+  k_squash: 1.5              # tanh scale: signal saturates around k * noise_p90
+  nl_share_bonus_max: 5.0    # small additive bonus if NL listener-share is rising
+  thin_audience_floor: 500   # listeners below this -> 'thin_audience' tag (context only)
+  # default composite weights live in breakout_model.json (the committed model)
+  source_priors:             # trust per metric source (count metrics)
+    spotify.listeners: 1.00
+    spotify.followers: 0.80
+    instagram.followers: 0.60
+    soundcloud.followers: 0.60
+    deezer.fans: 0.40
+    facebook.likes: 0.20
+    youtube_channel.subscribers: 0.30
+    youtube_channel.views: 0.30
+    tiktok.followers: 0.30
+    tiktok.likes: 0.30
+  verdict_buckets:           # on the final 0-100 score
+    RISING: 70
+    EARLY_MOMENTUM: 60
+    STEADY: 45
+    PLATEAUING: 35
+    # below PLATEAUING -> COOLING
+
+# ── Confidence / N=1 honesty ────────────────────────────────────────────────────
+confidence:
+  full_history_days: 365     # history_factor = min(1, days_real / this)
+  full_breadth_metrics: 4    # breadth_factor = min(1, n_admitted / this)
+  recency_grace_days: 10     # no penalty if last real point within this of computed_date
+  recency_decay_days: 30     # linear decay to 0 over this many days beyond grace
+  cohort_activation_n: 20    # below this many artists -> cohort_factor caps confidence
+  cohort_factor_below: 0.35  # hard cap on confidence while N < cohort_activation_n
+
+# ── Data staleness (a STALE FEED, distinct from a COOLING artist) ────────────────
+# The feature clock (where the trailing windows end) is decoupled from the staleness
+# clock. Live runs build features at each artist's OWN last real observation — so the
+# windows are populated and the score reflects the real trajectory — then measure
+# staleness as reference_date(today) - last_real_date. Beyond this threshold the record
+# is flagged data_stale=true and marked STALE in display. Staleness NEVER corrupts the
+# score (that was the bug — a lagging feed read as artist decline, violating CLAUDE.md
+# invariant 8); the recency factor in `confidence` already penalises the gap continuously.
+staleness:
+  stale_after_days: 21       # today - last_real_date beyond this -> data_stale flag + STALE
+
+# ── Providers (the static-data seam). Flip a toggle on when a source exists. ─────
+providers:
+  timeseries_growth: true
+  geo_reach: true
+  events: false              # tinder.event_lineups (RA/Partyflock) — no source yet
+  reach: false               # event reachability / capacity — no source yet
+  agency: false              # agency-tier moves — no source yet
+
+# ── Forward label (DORMANT — only train_breakout consumes this) ─────────────────
+label:
+  source: spotify
+  metric: listeners          # guard rejects any metric whose vocab forbids it as a label
+  G: 0.50                    # breakout = forward relative growth >= +50%
+  horizon_days: 90
+  base_floor: 1000           # ignore micro-artists where % growth is meaningless
+  base_window: 13            # median over trailing 13d to denoise the base
+  fwd_window: 13             # median over the 13d ending at t+h
+  min_fwd_points: 4          # real points required in the forward window
+  fwd_max_interp: 0.60
+
+# ── Trust gates: train_breakout REFUSES to fit / emit p_breakout until ALL hold ──
+trust_gates:
+  min_distinct_artist_positives: 80
+  min_history_months_per_artist: 18
+  min_corroborating_platforms: 2
+
+# ── Supabase write (OFF by default; v0 prints/ranks only) ───────────────────────
+supabase:
+  enabled: false
+  schema: tinder
+  table: breakout_predictions   # created by supabase/migrations (not auto-applied)

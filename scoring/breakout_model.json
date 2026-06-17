@@ -1,0 +1,16 @@
+{
+  "model_type": "rule",
+  "model_version": "breakout_rule_v0",
+  "created": "2026-06-16",
+  "trained_on": null,
+  "n_train_artists": 0,
+  "n_train_positives": 0,
+  "weights": {
+    "acceleration": 0.40,
+    "growth": 0.20,
+    "cross_platform_breadth": 0.15,
+    "cpp_trajectory": 0.15,
+    "consistency": 0.10
+  },
+  "notes": "Glass-box momentum rule (v0). No forward labels exist at N=1, so this emits a transparent 0-100 momentum index and p_breakout=null. Acceleration (2nd derivative) is the dominant weight per the LOFI route map: 'growth acceleration beats current size'. To upgrade: train_breakout.py writes a model_type='trained' file with learned weights once the trust gates in breakout_config.yaml pass; the scorer loads it through the same ModelProvider interface with no other change."
+}

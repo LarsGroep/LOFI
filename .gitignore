@@ -46,3 +46,6 @@ scraper_data/*.xlsx
 # OS
 .DS_Store
 Thumbs.db
+
+# Regenerable Supabase snapshot for the predictor notebook (run scoring/pull_booked_timeseries.py)
+data/booked_cm_timeseries.json
