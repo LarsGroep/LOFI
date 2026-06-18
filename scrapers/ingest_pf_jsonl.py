@@ -105,7 +105,7 @@ def main() -> None:
 
         artist_id = name_index.get(raw_name.lower())
         if not artist_id:
-            print(f"  [no match] {raw_name}")
+            print(f"  [no match] {raw_name.encode('ascii','replace').decode()}")
             skipped += 1
             continue
 
@@ -128,7 +128,7 @@ def main() -> None:
         pf_row = {k: v for k, v in pf_row.items() if v is not None}
 
         if args.dry_run:
-            print(f"  {raw_name}  fans={row.get('fans')}  past={row.get('past_performances')}  events={len(events_by_artist.get(raw_name.lower()) or [])}")
+            print(f"  {raw_name.encode('ascii','replace').decode()}  fans={row.get('fans')}  past={row.get('past_performances')}  events={len(events_by_artist.get(raw_name.lower()) or [])}")
             ok += 1
             continue
 
