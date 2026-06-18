@@ -351,129 +351,126 @@ def main() -> None:
             if not cm_id:
                 candidates = search_artist(name, limit=3)
                 if candidates:
-                    cm_id = str(candidates[0]["id"])
-                    sb.schema("tinder").table("artists").update(
-                        {"chartmetric_id": cm_id}
-                    ).eq("id", artist_id).execute()
+                    try:
+                        cm_id = str(candidates[0]["id"])
+                        sb.schema("tinder").table("artists").update(
+                            {"chartmetric_id": cm_id}
+                        ).eq("id", artist_id).execute()
+                    except Exception as cm_id_e:
+                        if "duplicate key" in str(cm_id_e):
+                            print(f"    CM: id {cm_id} already mapped to another artist — skipping CM data")
+                            cm_id = None
+                        else:
+                            raise
+
+            # Initialise so RA/LFM/PF/embed work even when CM lookup fails
+            profile = {}
+            genres: list = []
+            ts: dict = {}
 
             if not cm_id:
                 print(f"    CM: not found in search")
-                errors += 1
-                continue
-
-            # ── Chartmetric: comprehensive pull ───────────────────────────────
-            profile  = get_artist(cm_id) or {}
-            sp_stats = get_stat(cm_id, "spotify") or {}
-            ig_stats = get_stat(cm_id, "instagram") or {}
-            tk_stats = get_stat(cm_id, "tiktok") or {}
-            yt_stats = get_stat(cm_id, "youtube_channel") or {}
-
-            raw_genres = profile.get("genres") or []
-            if isinstance(raw_genres, dict):
-                genres = []
-                for v in raw_genres.values():
-                    if not v:
-                        continue
-                    if isinstance(v, str):
-                        genres.append(v)
-                    elif isinstance(v, dict) and v.get("name"):
-                        genres.append(v["name"])
-                    elif isinstance(v, list):
-                        for item in v:
-                            if isinstance(item, dict) and item.get("name"):
-                                genres.append(item["name"])
-                            elif isinstance(item, str):
-                                genres.append(item)
-                genres = genres[:10]
             else:
-                genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
+                # ── Chartmetric: comprehensive pull ───────────────────────────────
+                profile  = get_artist(cm_id) or {}
+                sp_stats = get_stat(cm_id, "spotify") or {}
+                ig_stats = get_stat(cm_id, "instagram") or {}
+                tk_stats = get_stat(cm_id, "tiktok") or {}
+                yt_stats = get_stat(cm_id, "youtube_channel") or {}
 
-            sp_followers = _num(sp_stats.get("followers") or profile.get("sp_followers"))
+                raw_genres = profile.get("genres") or []
+                if isinstance(raw_genres, dict):
+                    genres = []
+                    for v in raw_genres.values():
+                        if not v:
+                            continue
+                        if isinstance(v, str):
+                            genres.append(v)
+                        elif isinstance(v, dict) and v.get("name"):
+                            genres.append(v["name"])
+                        elif isinstance(v, list):
+                            for item in v:
+                                if isinstance(item, dict) and item.get("name"):
+                                    genres.append(item["name"])
+                                elif isinstance(item, str):
+                                    genres.append(item)
+                    genres = genres[:10]
+                else:
+                    genres = [g["name"] if isinstance(g, dict) else str(g) for g in raw_genres][:10]
 
-            # cm_statistics sub-object (CM API returns many fields nested here)
-            cm_stats = profile.get("cm_statistics") or {}
+                sp_followers = _num(sp_stats.get("followers") or profile.get("sp_followers"))
 
-            # career_status may be a string or an object with stage/trend scores
-            career_obj = profile.get("career_status")
-            if isinstance(career_obj, dict):
-                career_status_str  = career_obj.get("stage") or career_obj.get("status")
-                career_stage_score = _num(career_obj.get("stage_score") or career_obj.get("score"))
-                career_trend_score = _num(career_obj.get("trend_score") or career_obj.get("momentum_score"))
-            else:
-                career_status_str  = career_obj
-                career_stage_score = None
-                career_trend_score = None
+                # cm_statistics sub-object (CM API returns many fields nested here)
+                cm_stats = profile.get("cm_statistics") or {}
 
-            # Full timeseries: spotify(3) + instagram + tiktok(2) + yt_channel(2)
-            #                  + yt_artist(2) + soundcloud + shazam + deezer + facebook
-            #                  + wikipedia + cpp(2) = 15 API calls
-            ts = get_full_timeseries(cm_id, since_days=args.days)
-            ml = compute_growth_features(ts, sp_followers=sp_followers)
+                # career_status may be a string or an object with stage/trend scores
+                career_obj = profile.get("career_status")
+                if isinstance(career_obj, dict):
+                    career_status_str  = career_obj.get("stage") or career_obj.get("status")
+                    career_stage_score = _num(career_obj.get("stage_score") or career_obj.get("score"))
+                    career_trend_score = _num(career_obj.get("trend_score") or career_obj.get("momentum_score"))
+                else:
+                    career_status_str  = career_obj
+                    career_stage_score = None
+                    career_trend_score = None
 
-            def _ts_latest(source: str, metric: str) -> int | None:
-                """Latest value for a timeseries metric (for flat snapshot columns)."""
-                pts = (ts.get(source) or {}).get(metric) or []
-                return _num(pts[-1]["value"]) if pts else None
+                # Full timeseries: spotify(3) + instagram + tiktok(2) + yt_channel(2)
+                #                  + yt_artist(2) + soundcloud + shazam + deezer + facebook
+                #                  + wikipedia + cpp(2) = 15 API calls
+                ts = get_full_timeseries(cm_id, since_days=args.days)
+                ml = compute_growth_features(ts, sp_followers=sp_followers)
 
-            cm_row = {
-                "artist_id":               artist_id,
-                # Identity
-                "image_url":               profile.get("image_url"),
-                "cover_url":               profile.get("cover_url"),
-                "description":             profile.get("description"),
-                # Career
-                "career_status":           career_status_str,
-                "career_stage_score":      career_stage_score,
-                "career_trend_score":      career_trend_score,
-                # Industry
-                "record_label":            profile.get("record_label"),
-                "booking_agent":           profile.get("booking_agent"),
-                "press_contact":           profile.get("press_contact"),
-                "general_manager":         profile.get("general_manager"),
-                # Location
-                "hometown_city":           profile.get("hometown_city"),
-                "current_city":            profile.get("current_city"),
-                # Genres
-                "genres":                  genres or None,
-                # CM scores
-                "cm_artist_score":         profile.get("cm_artist_score") or _num(cm_stats.get("cm_artist_score")),
-                "cm_artist_rank":          profile.get("cm_artist_rank") or _num(cm_stats.get("cm_artist_rank")),
-                "fan_base_rank":           _num(profile.get("fan_base_rank") or cm_stats.get("fan_base_rank")),
-                "engagement_rank":         _num(profile.get("engagement_rank") or cm_stats.get("engagement_rank")),
-                # Spotify
-                "sp_monthly_listeners":    _num(sp_stats.get("listeners") or sp_stats.get("sp_monthly_listeners")),
-                "sp_followers":            sp_followers,
-                "sp_popularity":           _num(sp_stats.get("popularity")),
-                # Instagram
-                "ig_followers":            _num(ig_stats.get("followers")),
-                # TikTok
-                "tiktok_followers":        _num(tk_stats.get("followers") or cm_stats.get("tiktok_followers")),
-                "tiktok_likes":            _num(tk_stats.get("likes") or cm_stats.get("tiktok_likes")),
-                "tiktok_top_video_views":  _num(cm_stats.get("tiktok_top_video_views")),
-                "tiktok_track_posts":      _num(cm_stats.get("tiktok_track_posts")),
-                # YouTube
-                "yt_subscribers":          _num(yt_stats.get("subscribers")),
-                "yt_views":                _num(yt_stats.get("views")),
-                # Flat snapshots from timeseries (latest point)
-                "youtube_artist_daily_views":   _ts_latest("youtube_artist", "daily_views"),
-                "youtube_artist_monthly_views":  _ts_latest("youtube_artist", "monthly_views"),
-                "soundcloud_followers":          _ts_latest("soundcloud", "followers"),
-                "wikipedia_views":               _ts_latest("wikipedia", "views"),
-                "deezer_fans":                   _ts_latest("deezer", "fans"),
-                "facebook_likes":                _ts_latest("facebook", "likes"),
-                "cpp_score":                     _ts_latest("cpp", "score"),
-                "cpp_rank":                      _ts_latest("cpp", "rank"),
-                # Full timeseries + ML features
-                "cm_timeseries":           ts if ts else None,
-                "ml_features":             ml if ml else None,
-                "updated_at":              datetime.now(timezone.utc).isoformat(),
-            }
-            sb.schema("tinder").table("artist_chartmetric").upsert(
-                {k: v for k, v in cm_row.items() if v is not None},
-                on_conflict="artist_id",
-            ).execute()
-            ts_sources = list(ts.keys()) if ts else []
-            print(f"    CM: ok  timeseries={ts_sources}")
+                def _ts_latest(source: str, metric: str) -> int | None:
+                    pts = (ts.get(source) or {}).get(metric) or []
+                    return _num(pts[-1]["value"]) if pts else None
+
+                cm_row = {
+                    "artist_id":               artist_id,
+                    "image_url":               profile.get("image_url"),
+                    "cover_url":               profile.get("cover_url"),
+                    "description":             profile.get("description"),
+                    "career_status":           career_status_str,
+                    "career_stage_score":      career_stage_score,
+                    "career_trend_score":      career_trend_score,
+                    "record_label":            profile.get("record_label"),
+                    "booking_agent":           profile.get("booking_agent"),
+                    "press_contact":           profile.get("press_contact"),
+                    "general_manager":         profile.get("general_manager"),
+                    "hometown_city":           profile.get("hometown_city"),
+                    "current_city":            profile.get("current_city"),
+                    "genres":                  genres or None,
+                    "cm_artist_score":         profile.get("cm_artist_score") or _num(cm_stats.get("cm_artist_score")),
+                    "cm_artist_rank":          profile.get("cm_artist_rank") or _num(cm_stats.get("cm_artist_rank")),
+                    "fan_base_rank":           _num(profile.get("fan_base_rank") or cm_stats.get("fan_base_rank")),
+                    "engagement_rank":         _num(profile.get("engagement_rank") or cm_stats.get("engagement_rank")),
+                    "sp_monthly_listeners":    _num(sp_stats.get("listeners") or sp_stats.get("sp_monthly_listeners")),
+                    "sp_followers":            sp_followers,
+                    "sp_popularity":           _num(sp_stats.get("popularity")),
+                    "ig_followers":            _num(ig_stats.get("followers")),
+                    "tiktok_followers":        _num(tk_stats.get("followers") or cm_stats.get("tiktok_followers")),
+                    "tiktok_likes":            _num(tk_stats.get("likes") or cm_stats.get("tiktok_likes")),
+                    "tiktok_top_video_views":  _num(cm_stats.get("tiktok_top_video_views")),
+                    "tiktok_track_posts":      _num(cm_stats.get("tiktok_track_posts")),
+                    "yt_subscribers":          _num(yt_stats.get("subscribers")),
+                    "yt_views":                _num(yt_stats.get("views")),
+                    "youtube_artist_daily_views":   _ts_latest("youtube_artist", "daily_views"),
+                    "youtube_artist_monthly_views":  _ts_latest("youtube_artist", "monthly_views"),
+                    "soundcloud_followers":          _ts_latest("soundcloud", "followers"),
+                    "wikipedia_views":               _ts_latest("wikipedia", "views"),
+                    "deezer_fans":                   _ts_latest("deezer", "fans"),
+                    "facebook_likes":                _ts_latest("facebook", "likes"),
+                    "cpp_score":                     _ts_latest("cpp", "score"),
+                    "cpp_rank":                      _ts_latest("cpp", "rank"),
+                    "cm_timeseries":           ts if ts else None,
+                    "ml_features":             ml if ml else None,
+                    "updated_at":              datetime.now(timezone.utc).isoformat(),
+                }
+                sb.schema("tinder").table("artist_chartmetric").upsert(
+                    {k: v for k, v in cm_row.items() if v is not None},
+                    on_conflict="artist_id",
+                ).execute()
+                ts_sources = list(ts.keys()) if ts else []
+                print(f"    CM: ok  timeseries={ts_sources}")
 
             # ── Resident Advisor ─────────────────────────────────────────────
             ra = _scrape_ra(name)
