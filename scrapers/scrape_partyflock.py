@@ -191,7 +191,7 @@ def main() -> None:
             artist_id = row["id"]
             name      = row["name"]
             safe_name = name.encode("ascii", "replace").decode()
-        print(f"  [{i}/{len(rows)}] {safe_name}")
+            print(f"  [{i}/{len(rows)}] {safe_name}")
 
             profile = _scrape_profile(client, name)
             if not profile:
