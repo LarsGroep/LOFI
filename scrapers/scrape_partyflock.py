@@ -1,14 +1,14 @@
 """
 Scrape Partyflock artist profiles and event archives into tinder.artist_partyflock.
 
+NOTE: Must be run locally — Partyflock blocks GitHub Actions datacenter IPs (403).
+Use Partyflock for historical data only; RA handles ongoing event scraping in CI.
+
 Reads artists from Supabase that have no Partyflock row (or oldest updated_at),
 scrapes partyflock.nl directly via httpx, and upserts results.
 
 Run:
     python scrapers/scrape_partyflock.py [--limit N] [--artist-id UUID] [--dry-run]
-
-Prints "Nothing to scrape -- stopping." when queue is empty, which the GitHub
-Actions batch loop uses as a break signal.
 """
 from __future__ import annotations
 
@@ -190,11 +190,12 @@ def main() -> None:
         for i, row in enumerate(rows, 1):
             artist_id = row["id"]
             name      = row["name"]
-            print(f"  [{i}/{len(rows)}] {name}")
+            safe_name = name.encode("ascii", "replace").decode()
+        print(f"  [{i}/{len(rows)}] {safe_name}")
 
             profile = _scrape_profile(client, name)
             if not profile:
-                print(f"    not found on Partyflock")
+                print(f"    {safe_name}: not found on Partyflock")
                 # Still mark as attempted so it doesn't re-queue forever
                 if not args.dry_run:
                     try:
@@ -211,7 +212,7 @@ def main() -> None:
             if profile.get("pf_artist_id"):
                 events = _scrape_archive(client, profile["pf_artist_id"])
 
-            print(f"    fans={profile.get('pf_fans')}  past={profile.get('pf_past_performances')}  events={len(events)}")
+            print(f"    {safe_name}: fans={profile.get('pf_fans')}  past={profile.get('pf_past_performances')}  events={len(events)}")
 
             if args.dry_run:
                 ok += 1
