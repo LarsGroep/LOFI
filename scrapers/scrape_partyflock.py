@@ -18,6 +18,10 @@ import re
 import sys
 import time
 import unicodedata
+
+# Force UTF-8 output on Windows so artist names with diacritics don't crash
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -190,12 +194,11 @@ def main() -> None:
         for i, row in enumerate(rows, 1):
             artist_id = row["id"]
             name      = row["name"]
-            safe_name = name.encode("ascii", "replace").decode()
-            print(f"  [{i}/{len(rows)}] {safe_name}")
+            print(f"  [{i}/{len(rows)}] {name}")
 
             profile = _scrape_profile(client, name)
             if not profile:
-                print(f"    {safe_name}: not found on Partyflock")
+                print(f"    not found on Partyflock")
                 # Still mark as attempted so it doesn't re-queue forever
                 if not args.dry_run:
                     try:
@@ -212,7 +215,7 @@ def main() -> None:
             if profile.get("pf_artist_id"):
                 events = _scrape_archive(client, profile["pf_artist_id"])
 
-            print(f"    {safe_name}: fans={profile.get('pf_fans')}  past={profile.get('pf_past_performances')}  events={len(events)}")
+            print(f"    fans={profile.get('pf_fans')}  past={profile.get('pf_past_performances')}  events={len(events)}")
 
             if args.dry_run:
                 ok += 1
