@@ -75,42 +75,53 @@ def load_artist_list() -> pd.DataFrame:
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
+def _safe(r) -> dict:
+    """Extract .data from a supabase maybe_single() result, guarding against None response."""
+    return (r.data if r is not None else None) or {}
+
+
 def load_profile(artist_id: str) -> dict:
     """Main flat metrics row — no image_url or lofi_feel here."""
     r = sb.schema("tinder").table("artist_chartmetric_flat").select("*").eq(
         "artist_id", artist_id
     ).maybe_single().execute()
-    return r.data or {}
+    return _safe(r)
 
 
 def load_artist_meta(artist_id: str) -> dict:
     """image_url, cover_url, description from artist_chartmetric + lofi_feel from artists."""
-    cm = sb.schema("tinder").table("artist_chartmetric").select(
-        "image_url, cover_url, description"
-    ).eq("artist_id", artist_id).maybe_single().execute()
-    art = sb.schema("tinder").table("artists").select(
-        "lofi_feel, candidate_status"
-    ).eq("id", artist_id).maybe_single().execute()
-    d = (cm.data or {})
-    d.update(art.data or {})
-    return d
+    try:
+        cm  = sb.schema("tinder").table("artist_chartmetric").select(
+            "image_url, cover_url, description"
+        ).eq("artist_id", artist_id).maybe_single().execute()
+        art = sb.schema("tinder").table("artists").select(
+            "lofi_feel, candidate_status"
+        ).eq("id", artist_id).maybe_single().execute()
+        d = _safe(cm)
+        d.update(_safe(art))
+        return d
+    except Exception:
+        return {}
 
 
 def load_timeseries(artist_id: str) -> dict:
     r = sb.schema("tinder").table("artist_chartmetric").select(
         "cm_timeseries, ml_features"
     ).eq("artist_id", artist_id).maybe_single().execute()
-    return r.data or {}
+    return _safe(r)
 
 
 def load_ext(artist_id: str) -> dict:
-    r = sb.schema("tinder").table("artist_cm_extended").select(
-        "shazam_chart_count, fan_cities, cm_stats, "
-        "milestones, noteworthy_insights, news, related_artists, "
-        "instagram_audience, youtube_audience, tiktok_audience, "
-        "events_external, venues, albums, urls, endpoint_log"
-    ).eq("artist_id", artist_id).maybe_single().execute()
-    return r.data or {}
+    try:
+        r = sb.schema("tinder").table("artist_cm_extended").select(
+            "shazam_chart_count, fan_cities, cm_stats, "
+            "milestones, noteworthy_insights, news, related_artists, "
+            "instagram_audience, youtube_audience, tiktok_audience, "
+            "events_external, venues, albums, urls, endpoint_log"
+        ).eq("artist_id", artist_id).maybe_single().execute()
+        return (r.data if r is not None else None) or {}
+    except Exception:
+        return {}
 
 
 def load_playlists(artist_id: str) -> pd.DataFrame:
@@ -143,7 +154,7 @@ def load_pf_data(artist_id: str) -> dict:
         "pf_fans, pf_total_performances, pf_past_performances, "
         "pf_upcoming_performances, pf_genres, pf_views, events"
     ).eq("artist_id", artist_id).maybe_single().execute()
-    return r.data or {}
+    return _safe(r)
 
 
 def load_validation(artist_id: str) -> pd.DataFrame:
@@ -567,7 +578,7 @@ def render_growth_signals(ts_data: dict) -> None:
                             )
                             .properties(height=200)
                         )
-                        st.altair_chart(chart, use_container_width=True)
+                        st.altair_chart(chart, width='stretch')
                     else:
                         st.info(f"No time-series for {platform.title()}.")
     elif not ml:
@@ -633,7 +644,7 @@ def render_audience_demographics(ext: dict) -> None:
                                 tooltip=["Country","Share %"])
                         .properties(height=260)
                     )
-                    st.altair_chart(bar, use_container_width=True)
+                    st.altair_chart(bar, width='stretch')
                 else:
                     st.info(f"No country data available for {lbl}.")
 
@@ -667,7 +678,7 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
                                      "spotify_streams":"SP Streams","spotify_popularity":"SP Pop.",
                                      "peak_spotify_chart":"SP Chart","peak_beatport_chart":"BP Chart",
                                      "playlist_count":"Playlists"}),
-                use_container_width=True, hide_index=True,
+                width='stretch', hide_index=True,
             )
             if all(disp.get("SP Streams", pd.Series("-")).eq("-")):
                 st.caption("Streaming data not yet available for these tracks (Chartmetric plan).")
@@ -684,7 +695,7 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
             st.dataframe(
                 disp.rename(columns={"platform":"Platform","playlist_name":"Playlist",
                                      "playlist_followers":"Followers","position":"Position","added_at":"Added"}),
-                use_container_width=True, hide_index=True,
+                width='stretch', hide_index=True,
             )
 
 
@@ -733,7 +744,7 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                     "lineup_preview":"Lineup (preview)","event_url":"event_url",
                 }),
                 column_config=col_cfg,
-                use_container_width=True, hide_index=True,
+                width='stretch', hide_index=True,
             )
 
             # Full lineup viewer
@@ -779,12 +790,12 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                 cols_nl = [c for c in ["start_date","event_name","venue","city"] if c in nl_df.columns]
                 st.dataframe(
                     nl_df[cols_nl].rename(columns={"start_date":"Date","event_name":"Event","venue":"Venue","city":"City"}),
-                    use_container_width=True, hide_index=True,
+                    width='stretch', hide_index=True,
                 )
                 with st.expander("All events (incl. international)"):
                     cols_all = [c for c in ["start_date","event_name","venue","city","country"] if c in ev_df.columns]
                     if "start_date" in ev_df.columns: ev_df = ev_df.sort_values("start_date", ascending=False)
-                    st.dataframe(ev_df[cols_all] if cols_all else ev_df, use_container_width=True, hide_index=True)
+                    st.dataframe(ev_df[cols_all] if cols_all else ev_df, width='stretch', hide_index=True)
 
     with t3:
         ext_events = ext.get("events_external") or []
@@ -797,7 +808,7 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                 nc = next((c for c in ["name","event_name","eventName"] if c in ext_df.columns), None)
                 if dc: ext_df = ext_df.sort_values(dc, ascending=False)
                 cols_s = [c for c in [dc, nc, "venue","city","country"] if c and c in ext_df.columns]
-                st.dataframe(ext_df[cols_s] if cols_s else ext_df, use_container_width=True, hide_index=True)
+                st.dataframe(ext_df[cols_s] if cols_s else ext_df, width='stretch', hide_index=True)
             except Exception:
                 st.info("Could not parse external events.")
 
@@ -858,7 +869,7 @@ def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame, pf_data
             })
         if rows:
             df_m = pd.DataFrame(rows).sort_values("Date", ascending=False, na_position="last")
-            st.dataframe(df_m, use_container_width=True, hide_index=True)
+            st.dataframe(df_m, width='stretch', hide_index=True)
         else:
             st.info("No milestones detected yet — will populate as event data grows.")
     tidx += 1
@@ -868,7 +879,7 @@ def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame, pf_data
         with tabs[tidx]:
             st.caption("Benchmark artists who appeared in the same RA lineup (from taxonomy tier list).")
             df_cp = pd.DataFrame(co_performers)
-            st.dataframe(df_cp, use_container_width=True, hide_index=True)
+            st.dataframe(df_cp, width='stretch', hide_index=True)
             tidx += 1
 
     # --- Noteworthy Insights tab ---
@@ -949,7 +960,7 @@ def render_discography(ext: dict) -> None:
         with st.expander("Albums & Releases"):
             st.dataframe(df_a[cols].rename(columns={"name":"Title","release_date":"Released",
                                                      "type":"Type","track_count":"Tracks"}),
-                         use_container_width=True, hide_index=True)
+                         width='stretch', hide_index=True)
     except Exception:
         pass
 
@@ -997,7 +1008,7 @@ def render_feedback_form(artist_id: str, artist_name: str) -> None:
     if not fb_df.empty:
         with st.expander(f"Existing labels ({len(fb_df)})"):
             st.dataframe(fb_df.drop(columns=["id","artist_id"], errors="ignore"),
-                         use_container_width=True, hide_index=True)
+                         width='stretch', hide_index=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1021,7 +1032,7 @@ def render_genre_radar() -> None:
                     tooltip=["tag","artist_count","avg_listeners"])
             .properties(height=380, title="Artists by genre tag")
         )
-        st.altair_chart(bar, use_container_width=True)
+        st.altair_chart(bar, width='stretch')
     with c2:
         scatter = (
             alt.Chart(genre_df).mark_circle(size=80,opacity=0.7)
@@ -1030,11 +1041,11 @@ def render_genre_radar() -> None:
                     tooltip=["tag","artist_count",alt.Tooltip("avg_listeners:Q",format=".0f")])
             .properties(height=380, title="Genre audience depth")
         )
-        st.altair_chart(scatter, use_container_width=True)
+        st.altair_chart(scatter, width='stretch')
 
     st.subheader("All genres")
     st.dataframe(genre_df.rename(columns={"tag":"Genre","artist_count":"Artists","avg_listeners":"Avg Listeners"}),
-                 use_container_width=True, hide_index=True,
+                 width='stretch', hide_index=True,
                  column_config={"Avg Listeners": st.column_config.NumberColumn(format="%.0f")})
     st.caption("Full version with NL-specific demand and genre momentum over time — Phase 5.")
 
@@ -1044,7 +1055,7 @@ def render_genre_radar() -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    page = st.sidebar.radio("", ["Artist Profile","Genre Trend Radar"], label_visibility="collapsed")
+    page = st.sidebar.radio("Navigation", ["Artist Profile","Genre Trend Radar"], label_visibility="collapsed")
     if st.sidebar.button("Refresh data"):
         st.cache_data.clear(); st.rerun()
 
