@@ -84,16 +84,19 @@ def build_features(ts: dict, ml: dict) -> dict:
     """
     feats: dict = {}
 
-    # From ml_features (pre-computed, reliable)
+    # From ml_features (pre-computed, reliable).
+    # Exclude sp_listeners_90d_pct and sp_listeners_180d_pct — they overlap directly
+    # with the target variable (90-day Spotify growth) and cause data leakage.
     for key in [
-        "sp_listeners_30d_pct", "sp_listeners_90d_pct", "sp_listeners_180d_pct",
+        "sp_listeners_30d_pct",
         "sp_listeners_accel", "cross_platform_momentum_30d", "platforms_growing_30d",
         "cpp_score_30d_pct", "cpp_score_90d_pct", "cpp_score_current",
         "sp_listeners_to_followers",
     ]:
         feats[key] = ml.get(key)
 
-    # From timeseries: compute indexed growth per platform
+    # From timeseries: compute indexed growth per platform.
+    # For Spotify specifically, exclude 90d/180d pct — same period as the target.
     for source, metric in METRICS:
         pts = (ts.get(source) or {}).get(metric) or []
         vals = [p["value"] for p in pts if p.get("value") is not None]
@@ -107,9 +110,12 @@ def build_features(ts: dict, ml: dict) -> dict:
         feats[f"{key}_indexed"] = (latest / base * 100.0) if base else None
 
         n = len(vals)
-        feats[f"{key}_30d_pct"]  = _pct(vals[max(0, n - 31)], latest) if n > 30 else None
-        feats[f"{key}_90d_pct"]  = _pct(vals[max(0, n - 91)], latest) if n > 90 else None
-        feats[f"{key}_180d_pct"] = _pct(vals[max(0, n - 181)], latest) if n > 180 else None
+        feats[f"{key}_30d_pct"] = _pct(vals[max(0, n - 31)], latest) if n > 30 else None
+
+        # 90d and 180d pct for Spotify listeners are the target — skip to prevent leakage
+        if not (source == TARGET_SOURCE and metric == TARGET_METRIC):
+            feats[f"{key}_90d_pct"]  = _pct(vals[max(0, n - 91)],  latest) if n > 90  else None
+            feats[f"{key}_180d_pct"] = _pct(vals[max(0, n - 181)], latest) if n > 180 else None
 
     return feats
 
