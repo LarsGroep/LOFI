@@ -20,14 +20,24 @@ def main():
 
     historical_path = ROOT / "data" / "processed" / "artist_historical_performance_scores.csv"
     cooccurrence_path = ROOT / "data" / "processed" / "lofi_artist_cooccurrence.csv"
+    external_cooccurrence_path = ROOT / "data" / "processed" / "external_artist_cooccurrence.csv"
 
     historical_scores = pd.read_csv(historical_path)
     cooccurrence = pd.read_csv(cooccurrence_path)
+
+    external_cooccurrence = None
+
+    if external_cooccurrence_path.exists():
+        external_cooccurrence = pd.read_csv(external_cooccurrence_path)
+        print(f"Loaded external co-occurrence: {external_cooccurrence.shape}")
+    else:
+        print("No external co-occurrence file found. Running LOFI-only recommender.")
 
     recommendations = recommend_artists_for_artist(
         selected_artist_name=args.artist_name,
         historical_scores_df=historical_scores,
         cooccurrence_df=cooccurrence,
+        external_cooccurrence_df=external_cooccurrence,
         min_confidence=args.min_confidence,
         top_n=args.top_n,
     )
@@ -57,6 +67,10 @@ def main():
         "has_historical_lofi_score",
         "confidence_score",
         "cooccurrence_strength",
+        "external_cooccur_count",
+        "external_scene_score",
+        "external_scene_bonus",
+        "has_external_scene_evidence",
         "recommendation_score",
     ]
 

@@ -191,6 +191,134 @@ def attach_historical_scores(
     return enriched
 
 
+def attach_external_scene_scores(
+    candidates: pd.DataFrame,
+    selected_artist_name: str,
+    external_cooccurrence_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """
+    Attach public external scene evidence to existing LOFI candidates.
+
+    Important:
+    This does not create external-only candidates.
+    It only enriches candidates already found through LOFI co-occurrence.
+    """
+
+    candidates = candidates.copy()
+
+    default_values = {
+        "external_cooccur_count": 0,
+        "source_count": 0,
+        "sources_together": None,
+        "venues_together": None,
+        "cities_together": None,
+        "countries_together": None,
+        "first_seen_together_external": None,
+        "last_seen_together_external": None,
+        "example_events_external": None,
+        "external_scene_score": 0.0,
+        "has_external_scene_evidence": False,
+    }
+
+    if external_cooccurrence_df is None or external_cooccurrence_df.empty:
+        for column, value in default_values.items():
+            candidates[column] = value
+        return candidates
+
+    required_columns = {
+        "artist_name_clean_a",
+        "artist_name_clean_b",
+        "external_cooccur_count",
+        "sources_together",
+        "external_scene_score",
+    }
+
+    missing_columns = required_columns - set(external_cooccurrence_df.columns)
+
+    if missing_columns:
+        raise ValueError(
+            f"external_cooccurrence_df is missing columns: {missing_columns}"
+        )
+
+    selected_key = normalize_artist_name(selected_artist_name)
+
+    external = external_cooccurrence_df.copy()
+
+    external["artist_key_a"] = external["artist_name_clean_a"].apply(
+        normalize_artist_name
+    )
+    external["artist_key_b"] = external["artist_name_clean_b"].apply(
+        normalize_artist_name
+    )
+
+    mask = (external["artist_key_a"] == selected_key) | (
+        external["artist_key_b"] == selected_key
+    )
+
+    external_pairs = external[mask].copy()
+
+    if external_pairs.empty:
+        for column, value in default_values.items():
+            candidates[column] = value
+        return candidates
+
+    external_pairs["candidate_key"] = np.where(
+        external_pairs["artist_key_a"] == selected_key,
+        external_pairs["artist_key_b"],
+        external_pairs["artist_key_a"],
+    )
+
+    aggregation = {
+        "external_cooccur_count": "sum",
+        "external_scene_score": "max",
+        "sources_together": "first",
+    }
+
+    optional_columns = {
+        "source_count": "max",
+        "venues_together": "first",
+        "cities_together": "first",
+        "countries_together": "first",
+        "first_seen_together": "min",
+        "last_seen_together": "max",
+        "example_events": "first",
+    }
+
+    for column, method in optional_columns.items():
+        if column in external_pairs.columns:
+            aggregation[column] = method
+
+    external_by_candidate = (
+        external_pairs.groupby("candidate_key", as_index=False)
+        .agg(aggregation)
+    )
+
+    rename_columns = {
+        "first_seen_together": "first_seen_together_external",
+        "last_seen_together": "last_seen_together_external",
+        "example_events": "example_events_external",
+    }
+
+    external_by_candidate = external_by_candidate.rename(columns=rename_columns)
+
+    enriched = candidates.merge(
+        external_by_candidate,
+        on="candidate_key",
+        how="left",
+    )
+
+    for column, value in default_values.items():
+        if column not in enriched.columns:
+            enriched[column] = value
+        elif value is not None:
+            enriched[column] = enriched[column].fillna(value)
+
+    enriched["has_external_scene_evidence"] = (
+        pd.to_numeric(enriched["external_cooccur_count"], errors="coerce").fillna(0) > 0
+    )
+
+    return enriched
+
 def make_recommendation_reason(row: pd.Series) -> str:
     reasons = []
 
@@ -225,6 +353,17 @@ def make_recommendation_reason(row: pd.Series) -> str:
             f"shared events had average occupancy rate of {occupancy:.1f}"
         )
 
+    external_count = row.get("external_cooccur_count", 0)
+    external_score = row.get("external_scene_score", 0)
+
+    if pd.notna(external_count) and external_count > 0:
+        reasons.append(
+            f"also has {int(external_count)} public external co-lineup connection(s)"
+        )
+
+    if pd.notna(external_score) and external_score > 0:
+        reasons.append(f"has an external scene score of {external_score:.1f}")
+
     return "Recommended because the artist " + ", ".join(reasons) + "."
 
 
@@ -232,6 +371,7 @@ def recommend_artists_for_artist(
     selected_artist_name: str,
     historical_scores_df: pd.DataFrame,
     cooccurrence_df: pd.DataFrame,
+    external_cooccurrence_df: pd.DataFrame | None = None,
     min_confidence: float = 0,
     top_n: int = 20,
 ) -> pd.DataFrame:
@@ -243,8 +383,10 @@ def recommend_artists_for_artist(
     - historical LOFI score
     - confidence score
 
+    It optionally uses:
+    - external public scene co-occurrence as a small bonus signal
+
     It does not use:
-    - scraper data
     - Chartmetric
     - LLM reasoning
 
@@ -320,6 +462,27 @@ def recommend_artists_for_artist(
         candidates["recommendation_score_raw"] - candidates["missing_score_penalty"]
     ).clip(lower=0)
 
+    candidates = attach_external_scene_scores(
+        candidates=candidates,
+        selected_artist_name=selected_artist_name,
+        external_cooccurrence_df=external_cooccurrence_df,
+    )
+
+    # External evidence is currently used only as a small bonus.
+    # This prevents noisy public scraper data from dominating LOFI-specific evidence.
+    candidates["external_scene_bonus"] = np.where(
+        candidates["has_external_scene_evidence"],
+        10.0 * pd.to_numeric(
+            candidates["external_scene_score"],
+            errors="coerce",
+        ).fillna(0) / 100.0,
+        0.0,
+    )
+
+    candidates["recommendation_score"] = (
+        candidates["recommendation_score"] + candidates["external_scene_bonus"]
+    ).clip(lower=0, upper=100)
+
     candidates["selected_artist"] = selected_artist_name
     candidates["recommendation_reason"] = candidates.apply(
         make_recommendation_reason,
@@ -347,6 +510,18 @@ def recommend_artists_for_artist(
         "first_played_together",
         "last_played_together",
         "score_explanation",
+        "external_cooccur_count",
+        "source_count",
+        "sources_together",
+        "venues_together",
+        "cities_together",
+        "countries_together",
+        "first_seen_together_external",
+        "last_seen_together_external",
+        "example_events_external",
+        "external_scene_score",
+        "external_scene_bonus",
+        "has_external_scene_evidence",
     ]
 
     for column in optional_columns:

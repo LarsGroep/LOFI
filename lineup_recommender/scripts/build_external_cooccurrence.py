@@ -32,7 +32,15 @@ def main():
         external_event_artists["event_date"] = pd.to_datetime(
             external_event_artists["event_date"],
             errors="coerce",
+            utc=True,
         )
+
+    # Convert to timezone-naive UTC timestamps.
+    # This prevents pandas groupby min/max from comparing mixed timezone objects.
+    external_event_artists["event_date"] = (
+        external_event_artists["event_date"]
+        .dt.tz_convert(None)
+    )
 
     print("Building external artist co-occurrence...")
     external_cooccurrence = build_external_cooccurrence(external_event_artists)

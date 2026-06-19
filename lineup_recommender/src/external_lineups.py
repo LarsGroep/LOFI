@@ -1,4 +1,5 @@
 import re
+import numpy as np
 from itertools import combinations
 from pathlib import Path
 
@@ -189,7 +190,7 @@ def parse_partyflock_lineups(df):
 
     table_name = "Partyflock Lineups"
 
-    event_id_col = find_column(df, ["event_id", "id", "event_url", "url"], required=False, table_name=table_name)
+    event_id_col = find_column(df, ["event_url", "url", "event_id", "id"], required=False, table_name=table_name)
     event_name_col = find_column(df, ["event_name", "event", "title", "name"], required=False, table_name=table_name)
     date_col = find_column(df, ["start_date", "event_date", "date", "datetime"], required=False, table_name=table_name)
     venue_col = find_column(df, ["venue", "location", "club"], required=False, table_name=table_name)
@@ -358,9 +359,53 @@ def parse_ra_events_and_lineups(ra_events, ra_lineups):
     return pd.DataFrame(rows)
 
 
+def extract_partyflock_party_id(value):
+    """
+    Extract Partyflock numeric party id from strings like:
+    partyflock_events_https://partyflock.nl/party/482162:Lokerse-Feesten
+    partyflock_lineups_https://partyflock.nl/party/482162:Lokerse-Feesten
+    """
+    if pd.isna(value):
+        return None
+
+    value = str(value)
+    match = re.search(r"party/(\d+)", value)
+
+    if match:
+        return match.group(1)
+
+    return None
+
+
+def make_canonical_external_event_key(row):
+    """
+    Create a source-independent event key for deduplication.
+
+    For Partyflock, both partyflock_events and partyflock_lineups can describe
+    the same party. The numeric party id is the shared identifier.
+
+    For RA, external_event_id is already stable enough.
+    """
+    source = str(row.get("source", ""))
+    external_event_id = str(row.get("external_event_id", ""))
+
+    if source.startswith("partyflock"):
+        party_id = extract_partyflock_party_id(external_event_id)
+
+        if party_id:
+            return f"partyflock_{party_id}"
+
+    return external_event_id
+
+
 def combine_external_event_artists(*frames):
     """
     Combine parsed external event-artist frames.
+
+    Deduplication rule:
+    - For overlapping Partyflock data, prefer partyflock_lineups over
+      partyflock_events, because lineups represent fuller event context.
+    - For the same canonical event + artist, keep the highest-priority source.
     """
     frames = [df for df in frames if df is not None and not df.empty]
 
@@ -382,13 +427,65 @@ def combine_external_event_artists(*frames):
 
     combined = pd.concat(frames, ignore_index=True)
 
-    combined = combined.dropna(subset=["external_event_id", "artist_name_clean"])
+    combined = combined.dropna(subset=["external_event_id", "artist_name_clean"]).copy()
 
-    combined = combined.drop_duplicates(
-        subset=["external_event_id", "source", "artist_name_clean"]
+    combined["canonical_external_event_key"] = combined.apply(
+        make_canonical_external_event_key,
+        axis=1,
     )
 
-    return combined.reset_index(drop=True)
+    source_priority = {
+        "partyflock_lineups": 1,
+        "resident_advisor": 1,
+        "partyflock_events": 2,
+    }
+
+    combined["source_priority"] = (
+        combined["source"]
+        .map(source_priority)
+        .fillna(99)
+        .astype(int)
+    )
+
+    combined = combined.sort_values(
+        by=[
+            "canonical_external_event_key",
+            "artist_name_clean",
+            "source_priority",
+        ],
+        ascending=[True, True, True],
+    )
+
+    before = len(combined)
+
+    combined = combined.drop_duplicates(
+        subset=["canonical_external_event_key", "artist_name_clean"],
+        keep="first",
+    )
+
+    after = len(combined)
+
+    print(f"External dedupe removed rows: {before - after}")
+
+    # Use the canonical event key as the event id for downstream co-occurrence.
+    # This makes rows from partyflock_events and partyflock_lineups for the same
+    # Partyflock party end up in the same event group.
+    combined["external_event_id"] = combined["canonical_external_event_key"]
+
+    output_columns = [
+        "external_event_id",
+        "source",
+        "event_name",
+        "event_date",
+        "venue",
+        "city",
+        "country",
+        "artist_name_raw",
+        "artist_name_clean",
+        "position_in_lineup",
+    ]
+
+    return combined[output_columns].reset_index(drop=True)
 
 
 def build_external_cooccurrence(external_event_artists):
@@ -461,9 +558,40 @@ def build_external_cooccurrence(external_event_artists):
         example_events=("event_name", lambda x: " | ".join(sorted(x.dropna().astype(str).unique())[:10])),
     ).reset_index()
 
+    cooccurrence["source_count"] = (
+        cooccurrence["sources_together"]
+        .fillna("")
+        .apply(lambda value: len([s for s in str(value).split(" | ") if s.strip()]))
+    )
+
+    max_log_cooccur = np.log1p(cooccurrence["external_cooccur_count"].max())
+
+    if max_log_cooccur > 0:
+        cooccurrence["external_cooccur_norm"] = (
+            100
+            * np.log1p(cooccurrence["external_cooccur_count"])
+            / max_log_cooccur
+        )
+    else:
+        cooccurrence["external_cooccur_norm"] = 0.0
+
+    max_source_count = cooccurrence["source_count"].max()
+
+    if max_source_count > 0:
+        cooccurrence["source_count_norm"] = (
+            100 * cooccurrence["source_count"] / max_source_count
+        )
+    else:
+        cooccurrence["source_count_norm"] = 0.0
+
+    cooccurrence["external_scene_score"] = (
+        0.80 * cooccurrence["external_cooccur_norm"]
+        + 0.20 * cooccurrence["source_count_norm"]
+    ).round(2)
+
     cooccurrence = cooccurrence.sort_values(
-        ["external_cooccur_count", "last_seen_together"],
-        ascending=[False, False],
+        ["external_scene_score", "external_cooccur_count", "last_seen_together"],
+        ascending=[False, False, False],
         na_position="last",
     )
 

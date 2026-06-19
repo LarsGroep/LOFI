@@ -53,3 +53,7 @@ lineup_recommender/data/~$allescraperdatatotnutoe.xlsx
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated external recommender outputs
+lineup_recommender/data/interim/external_event_artists.csv
+lineup_recommender/data/processed/external_artist_cooccurrence.csv

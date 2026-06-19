@@ -26,6 +26,66 @@ from external_lineups import (
 )
 
 
+def read_wrapped_semicolon_csv(path):
+    """
+    Reads files where every full row may be wrapped as one quoted string.
+    This is needed for partyflock_lineups.csv, which pandas otherwise reads as 1 column.
+    """
+    import csv
+
+    last_error = None
+
+    for encoding in ["utf-8-sig", "utf-8", "utf-16", "latin1"]:
+        try:
+            rows = []
+
+            with open(path, encoding=encoding) as f:
+                for line in f:
+                    line = line.rstrip("\n").rstrip("\r")
+
+                    if not line:
+                        continue
+
+                    # Some exports wrap the whole row in quotes.
+                    if len(line) >= 2 and line[0] == '"' and line[-1] == '"':
+                        line = line[1:-1]
+
+                    # Restore doubled quotes.
+                    line = line.replace('""', '"')
+
+                    parsed = next(
+                        csv.reader(
+                            [line],
+                            delimiter=";",
+                            quotechar='"',
+                            doublequote=True,
+                        )
+                    )
+
+                    rows.append(parsed)
+
+            if not rows:
+                raise ValueError("No rows found.")
+
+            header = rows[0]
+            data = rows[1:]
+
+            bad_rows = [row for row in data if len(row) != len(header)]
+
+            if bad_rows:
+                raise ValueError(
+                    f"Found {len(bad_rows)} malformed rows. "
+                    f"Expected {len(header)} columns, got examples like: {bad_rows[:2]}"
+                )
+
+            return pd.DataFrame(data, columns=header)
+
+        except Exception as error:
+            last_error = error
+
+    raise ValueError(f"Could not read wrapped semicolon CSV: {path}. Last error: {last_error}")
+
+
 def read_csv_if_exists(path, label):
     print(f"\nChecking {label}:")
     print(f"Path: {path}")
@@ -47,63 +107,58 @@ def read_csv_if_exists(path, label):
                 path,
                 sep=";",
                 engine="python",
-                encoding="utf-8",
+                encoding="utf-8-sig",
                 on_bad_lines="warn",
-                header=None,
-                names=[
-                    "artist",
-                    "event_name",
-                    "start_date",
-                    "venue",
-                    "city",
-                    "country",
-                    "latitude",
-                    "longitude",
-                    "event_url",
-                    "scraped_at",
-                ],
             )
+
         elif label == "Partyflock Lineups":
-            df = pd.read_csv(
-                path,
-                sep=";",
-                engine="python",
-                encoding="utf-8",
-                on_bad_lines="warn",
-            )
+            df = read_wrapped_semicolon_csv(path)
 
         elif label == "RA Events":
             df = pd.read_csv(
                 path,
-                sep=",",
+                sep=";",
                 engine="python",
-                encoding="utf-8",
+                encoding="utf-8-sig",
                 on_bad_lines="warn",
             )
+
+            if "link" in df.columns:
+                df["id"] = (
+                    df["link"]
+                    .astype(str)
+                    .str.extract(r"/events/(\d+)")[0]
+                    .astype("string")
+                )
 
         elif label == "RA Lineups":
             df = pd.read_csv(
                 path,
-                sep=",",
+                sep=";",
                 engine="python",
-                encoding="utf-8",
+                encoding="utf-8-sig",
                 on_bad_lines="warn",
+                dtype={"id": "string"},
             )
+
+            if "id" in df.columns:
+                df["id"] = df["id"].astype("string")
 
         else:
             df = pd.read_csv(
                 path,
                 sep=None,
                 engine="python",
-                encoding="utf-8",
+                encoding="utf-8-sig",
                 on_bad_lines="warn",
             )
 
     except UnicodeDecodeError:
         print("UTF-8 failed, retrying latin1...")
+
         df = pd.read_csv(
             path,
-            sep=";" if "Partyflock" in label else ",",
+            sep=";",
             engine="python",
             encoding="latin1",
             on_bad_lines="warn",
