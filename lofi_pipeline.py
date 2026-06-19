@@ -17,7 +17,7 @@ load_dotenv()
 
 _ROOT = Path(__file__).parent
 
-st.set_page_config(page_title="LOFI Booking Intelligence", layout="wide", page_icon="🎧")
+st.set_page_config(page_title="LOFI Booking Intelligence", layout="wide")
 
 # ---------------------------------------------------------------------------
 # Shared helpers (aligned with lofi_pipeline.py)
@@ -414,14 +414,14 @@ def render_nl_signal(ext: dict, pf_data: dict) -> None:
 # Render: Five Scores
 # ---------------------------------------------------------------------------
 
-def _score_emoji(v: float | None) -> str:
+def _score_color(v: float | None) -> str:
     if v is None:
-        return "⚪"
+        return "gray"
     if v >= 70:
-        return "🟢"
+        return "green"
     if v >= 45:
-        return "🟡"
-    return "🔴"
+        return "orange"
+    return "red"
 
 
 def _score_label(v: float | None) -> str:
@@ -454,7 +454,7 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
     st.subheader("LOFI Intelligence Scores")
     st.caption(
         "Elke score loopt van 0–100. "
-        "🟢 Boven 70 = sterk signaal.  🟡 45–70 = let op.  🔴 Onder 45 = zwak of dalend."
+        "Groen (>70) = sterk signaal.  Oranje (45–70) = let op.  Rood (<45) = zwak of dalend."
     )
 
     score_defs = [
@@ -468,7 +468,8 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
     for col, (key, label, desc) in zip(cols, score_defs):
         v = scores.get(key)
         with col:
-            st.markdown(f"**{_score_emoji(v)} {label}**")
+            color = _score_color(v)
+            st.markdown(f"**:{color}[{label}]**")
             if v is not None:
                 st.progress(v / 100.0)
                 st.markdown(f"**{v:.0f}/100** — {_score_label(v)}")
@@ -650,22 +651,22 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
 
         # Classify the signal in plain language
         if pred >= 30:
-            signal, s_emoji, s_desc = "DOORBRAAK VERWACHT", "🚀", \
+            signal, s_color, s_desc = "DOORBRAAK VERWACHT", "green", \
                 "Sterke signalen voor grote publieksgroei in de komende 3 maanden."
         elif pred >= 12:
-            signal, s_emoji, s_desc = "GOED BIJHOUDEN", "👀", \
+            signal, s_color, s_desc = "GOED BIJHOUDEN", "green", \
                 "Solide stijgende trend — deze artiest is in beweging."
         elif pred >= -5:
-            signal, s_emoji, s_desc = "STABIEL", "➡", \
+            signal, s_color, s_desc = "STABIEL", "orange", \
                 "Stabiel publiek — geen grote groei of daling verwacht."
         elif pred >= -20:
-            signal, s_emoji, s_desc = "DALEND", "📉", \
+            signal, s_color, s_desc = "DALEND", "orange", \
                 "Publiek lijkt te krimpen — monitor voor boeking."
         else:
-            signal, s_emoji, s_desc = "STERKE DALING", "⚠", \
+            signal, s_color, s_desc = "STERKE DALING", "red", \
                 "Significante publieksdaling verwacht — wees voorzichtig."
 
-        st.markdown(f"### {s_emoji} {signal}")
+        st.markdown(f"### :{s_color}[{signal}]")
         st.caption(s_desc)
 
         mc1, mc2 = st.columns(2)
@@ -1110,12 +1111,11 @@ def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame) -> None
                                          if v and k not in ("date","platform","source","stars","timestp"))
                     if not title:
                         continue
-                    icon = "📈" if any(w in title.lower() for w in ("growth","increas","rising","surge")) else "💡"
                     platform = item.get("platform") or item.get("source") or ""
                     date_s = (str(item.get("date") or item.get("timestp") or ""))[:10]
                     parts = [p for p in [platform, date_s] if p]
                     subtitle = " · ".join(parts)
-                    st.markdown(f"{icon} {title}")
+                    st.markdown(f"- {title}")
                     if subtitle: st.caption(subtitle)
                     st.divider()
                 else:
@@ -1514,7 +1514,7 @@ def _page_aanbevelingen() -> None:
             genres_str = " · ".join(genres_raw[:4]) or "—"
             nbr = row.get("booked_neighbor_count") or 0
             sim = row.get("booked_similar_count") or 0
-            network_str = f"  ·  🔗 {nbr}N {sim}S" if (nbr or sim) else ""
+            network_str = f"  ·  Netwerk: {nbr}N {sim}S" if (nbr or sim) else ""
             score_badge = f"**{score}**" if score >= 0 else "–"
             st.markdown(f"**{row['name']}** &nbsp; Score: {score_badge}{network_str}")
             sp_val = cm.get("sp_monthly_listeners") or cm.get("spotify_listeners")
@@ -1753,13 +1753,13 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Navigatie",
-        ["🎵 Artiest Profiel", "🔍 Aanbevelingen", "📊 Genre Trends"],
+        ["Artiest Profiel", "Aanbevelingen", "Genre Trends"],
         label_visibility="collapsed",
     )
 
-    if page == "🎵 Artiest Profiel":
+    if page == "Artiest Profiel":
         _page_artiest_profiel()
-    elif page == "🔍 Aanbevelingen":
+    elif page == "Aanbevelingen":
         _page_aanbevelingen()
     else:
         _page_genre_trends()
