@@ -615,8 +615,13 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
         return
 
     try:
-        import json as _json
         from xgboost import XGBRegressor
+    except ImportError:
+        st.warning("xgboost not installed — run: pip install xgboost")
+        return
+
+    try:
+        import json as _json
         import numpy as np
 
         with open(meta_path) as f:
@@ -630,6 +635,8 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
         ml = ts_data.get("ml_features") or {}
         ts = ts_data.get("cm_timeseries") or {}
 
+        if str(_ROOT) not in sys.path:
+            sys.path.insert(0, str(_ROOT))
         from ml.train_growth_model import build_features
         feats = build_features(ts, ml)
 
@@ -717,8 +724,6 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
             f"Last trained: {trained}"
         )
 
-    except ImportError:
-        st.warning("xgboost not installed — run: pip install xgboost")
     except Exception as e:
         st.warning(f"Forecast unavailable: {e}")
 
