@@ -423,6 +423,30 @@ def render_nl_signal(ext: dict, pf_data: dict) -> None:
 # Render: Five Scores
 # ---------------------------------------------------------------------------
 
+def _score_emoji(v: float | None) -> str:
+    if v is None:
+        return "⚪"
+    if v >= 70:
+        return "🟢"
+    if v >= 45:
+        return "🟡"
+    return "🔴"
+
+
+def _score_label(v: float | None) -> str:
+    if v is None:
+        return "No data"
+    if v >= 75:
+        return "Very strong"
+    if v >= 60:
+        return "Strong"
+    if v >= 45:
+        return "Moderate"
+    if v >= 30:
+        return "Weak"
+    return "Very weak"
+
+
 def render_five_scores(profile: dict, ts_data: dict) -> None:
     try:
         from scoring.five_scores import compute_five_scores
@@ -434,109 +458,269 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
         return
 
     scores = compute_five_scores(profile, ml)
-    st.subheader("LOFI Intelligence Scores")
-
-    c1, c2, c3, c4, c5 = st.columns(5)
-    def _sc(col, label, key, help_txt=""):
-        v = scores.get(key)
-        col.metric(label, f"{v:.0f}" if v is not None else "—", help=help_txt)
-
-    _sc(c1, "Momentum",         "momentum",         "Cross-platform traction right now (30d)")
-    _sc(c2, "Growth",           "growth",            "Acceleration signal — is growth speeding up?")
-    _sc(c3, "Market Relevance", "market_relevance",  "Current standing vs peers (CM rank, CPP)")
-    _sc(c4, "Future Potential", "future_potential",  "Long-term trajectory (180d + acceleration)")
-    _sc(c5, "Confidence",       "confidence",        "Data coverage quality (% fields available)")
-
     bd = scores.get("breakdown") or {}
-    with st.expander("Score breakdown"):
-        st.caption("Momentum components")
-        bc1, bc2, bc3, bc4 = st.columns(4)
-        bc1.metric("SP 30d",       f"{bd.get('m_sp30d', 0):.0f}")
-        bc2.metric("Cross-plat",   f"{bd.get('m_cross_platform', 0):.0f}")
-        bc3.metric("Plats growing",f"{bd.get('m_platforms_pct', 0):.0f}")
-        bc4.metric("CPP 30d",      f"{bd.get('m_cpp30d', 0):.0f}")
 
-        st.caption("Growth components")
-        gc1, gc2, gc3 = st.columns(3)
-        gc1.metric("Acceleration", f"{bd.get('g_acceleration', 0):.0f}")
-        gc2.metric("SP 30d",       f"{bd.get('g_sp30d', 0):.0f}")
-        gc3.metric("Career trend", f"{bd.get('g_career_trend', 0):.0f}")
+    st.subheader("LOFI Intelligence Scores")
+    st.caption(
+        "Each score runs 0–100. "
+        "🟢 Above 70 = strong signal.  🟡 45–70 = watch.  🔴 Below 45 = weak or declining."
+    )
 
-        st.caption("Market Relevance components")
-        rc1, rc2, rc3, rc4 = st.columns(4)
-        rc1.metric("CM Score",  f"{bd.get('r_cm_score', 0):.0f}")
-        rc2.metric("CM Rank",   f"{bd.get('r_cm_rank', 0):.0f}")
-        rc3.metric("Fan Rank",  f"{bd.get('r_fan_rank', 0):.0f}")
-        rc4.metric("CPP score", f"{bd.get('r_cpp_current', 0):.0f}")
+    score_defs = [
+        ("momentum",         "Momentum",         "Is buzz growing RIGHT NOW?"),
+        ("growth",           "Growth",            "Is growth accelerating?"),
+        ("market_relevance", "Market Relevance",  "How big is the artist today?"),
+        ("future_potential", "Future Potential",  "Where is this heading long-term?"),
+        ("confidence",       "Data Confidence",   "How complete is our data?"),
+    ]
+    cols = st.columns(5)
+    for col, (key, label, desc) in zip(cols, score_defs):
+        v = scores.get(key)
+        with col:
+            st.markdown(f"**{_score_emoji(v)} {label}**")
+            if v is not None:
+                st.progress(v / 100.0)
+                st.markdown(f"**{v:.0f}/100** — {_score_label(v)}")
+            else:
+                st.markdown("**—** — No data")
+            st.caption(desc)
 
-        st.caption(f"Data coverage: {bd.get('data_fields_filled', 0)}/{bd.get('data_fields_total', 0)} fields")
+    # Plain-language explanation of what drives the scores
+    with st.expander("What's behind these scores?"):
+        sp30  = ml.get("sp_listeners_30d_pct")
+        sp90  = ml.get("sp_listeners_90d_pct")
+        sp180 = ml.get("sp_listeners_180d_pct")
+        accel = ml.get("sp_listeners_accel")
+        xpm   = ml.get("cross_platform_momentum_30d")
+        plat_g = ml.get("platforms_growing_30d")
+        cpp_cur = ml.get("cpp_score_current")
+
+        def _pct_line(v, label):
+            if v is None:
+                return f"- {label}: *no data yet*"
+            arrow = "up" if v > 0 else "down"
+            return f"- {label}: **{v:+.1f}%** ({arrow})"
+
+        st.markdown("**Momentum — what's happening this month:**")
+        st.markdown(_pct_line(sp30, "Spotify listeners (30 days)"))
+        if xpm is not None:
+            st.markdown(f"- Cross-platform activity: **{xpm:+.1f}%** across all platforms")
+        if plat_g is not None:
+            st.markdown(f"- Growing on **{int(plat_g)} of 5** tracked platforms")
+
+        st.markdown("**Growth — is momentum accelerating?**")
+        if accel is not None:
+            direction = "speeding up" if accel > 0 else "slowing down"
+            st.markdown(f"- Growth is **{direction}** (acceleration: {accel:+.1f}%)")
+        st.markdown(_pct_line(sp30, "30-day Spotify trend"))
+        st.markdown(_pct_line(sp90, "90-day Spotify trend"))
+
+        st.markdown("**Market Relevance — size vs. the broader scene:**")
+        cm_score   = profile.get("cm_artist_score")
+        cm_rank    = profile.get("cm_artist_rank")
+        sp_lst     = profile.get("spotify_listeners")
+        if cm_score is not None:
+            st.markdown(f"- Chartmetric score: **{cm_score:.0f}/100**")
+        if cm_rank and cm_rank > 0:
+            st.markdown(f"- Global artist rank: **#{cm_rank:,}**")
+        if sp_lst and sp_lst > 0:
+            st.markdown(f"- Spotify monthly listeners: **{_fmt(sp_lst)}**")
+        if cpp_cur is not None:
+            st.markdown(f"- Industry presence score: **{cpp_cur:.1f}**")
+
+        st.markdown("**Future Potential — where this is heading:**")
+        st.markdown(_pct_line(sp180, "Spotify listeners (6 months)"))
+        if accel is not None:
+            outlook = "building" if accel > 0 else "fading"
+            st.markdown(f"- Momentum trajectory: **{outlook}**")
+
+        filled = bd.get("data_fields_filled", 0)
+        total  = bd.get("data_fields_total", 1)
+        st.markdown(
+            f"**Data confidence:** {filled}/{total} data points available "
+            f"({'high' if filled/total > 0.7 else 'low'} confidence)"
+        )
 
 
 # ---------------------------------------------------------------------------
-# Render: Growth Forecast (XGBoost — loads pre-trained model if available)
+# Render: Growth Forecast (XGBoost — train with button, results in plain language)
 # ---------------------------------------------------------------------------
+
+_FEATURE_LABELS: dict[str, str] = {
+    "sp_listeners_30d_pct":               "Spotify listeners growth (last 30 days)",
+    "sp_listeners_90d_pct":               "Spotify listeners growth (last 3 months)",
+    "sp_listeners_180d_pct":              "Spotify listeners growth (last 6 months)",
+    "sp_listeners_accel":                 "Growth acceleration (is growth speeding up?)",
+    "cross_platform_momentum_30d":        "Cross-platform buzz (Instagram + TikTok + SC, 30 days)",
+    "platforms_growing_30d":              "Number of platforms currently growing",
+    "cpp_score_30d_pct":                  "Industry presence change (last 30 days)",
+    "cpp_score_90d_pct":                  "Industry presence change (last 3 months)",
+    "cpp_score_current":                  "Current industry presence score",
+    "sp_listeners_to_followers":          "Spotify listener-to-follower conversion ratio",
+    "spotify_listeners_latest":           "Current Spotify monthly listeners",
+    "spotify_listeners_indexed":          "Spotify growth since first tracked",
+    "spotify_followers_latest":           "Current Spotify followers",
+    "instagram_followers_latest":         "Current Instagram followers",
+    "instagram_followers_30d_pct":        "Instagram follower growth (30 days)",
+    "instagram_followers_90d_pct":        "Instagram follower growth (3 months)",
+    "tiktok_followers_latest":            "Current TikTok followers",
+    "tiktok_followers_30d_pct":           "TikTok follower growth (30 days)",
+    "soundcloud_followers_latest":        "Current SoundCloud followers",
+    "soundcloud_followers_30d_pct":       "SoundCloud follower growth (30 days)",
+    "youtube_channel_subscribers_latest": "Current YouTube subscribers",
+    "youtube_channel_subscribers_30d_pct":"YouTube subscriber growth (30 days)",
+    "youtube_channel_views_30d_pct":      "YouTube view growth (30 days)",
+    "cpp_score_indexed":                  "Industry presence growth since first tracked",
+}
+
 
 def render_growth_forecast(profile: dict, ts_data: dict) -> None:
     model_path = _ROOT / "ml" / "models" / "growth_predictor.json"
     meta_path  = _ROOT / "ml" / "models" / "model_meta.json"
     pred_path  = _ROOT / "ml" / "models" / "predictions.csv"
 
+    st.subheader("Growth Prediction")
+
+    # Train button — always shown so the team can refresh the model any time
+    train_col, _ = st.columns([3, 5])
+    with train_col:
+        btn_label = "Retrain prediction model" if model_path.exists() else "Train prediction model"
+        if st.button(btn_label, key="train_xgb",
+                     help="Trains on all artists in the database — takes ~2 minutes"):
+            trainer = str(_ROOT / "ml" / "train_growth_model.py")
+            with st.status("Training prediction model...", expanded=True) as status_box:
+                log_placeholder = st.empty()
+                proc = subprocess.Popen(
+                    [sys.executable, trainer],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, cwd=str(_ROOT),
+                )
+                lines: list[str] = []
+                for line in proc.stdout:
+                    lines.append(line.rstrip())
+                    log_placeholder.code("\n".join(lines[-20:]))
+                proc.wait()
+                if proc.returncode == 0:
+                    status_box.update(label="Model trained successfully!", state="complete")
+                else:
+                    status_box.update(label="Training failed — check log above", state="error")
+            st.cache_data.clear()
+            st.rerun()
+
     if not model_path.exists():
         st.info(
-            "Growth forecast not available — run `python ml/train_growth_model.py` "
-            "to train the XGBoost model."
+            "No prediction model has been trained yet. "
+            "Click **Train prediction model** above to build one from all artists in the database (~2 min)."
         )
         return
 
-    with st.expander("XGBoost Growth Forecast (90d Spotify)", expanded=False):
-        try:
-            import json as _json
-            from xgboost import XGBRegressor
-            import numpy as np
+    try:
+        import json as _json
+        from xgboost import XGBRegressor
+        import numpy as np
 
-            with open(meta_path) as f:
-                meta = _json.load(f)
-            feature_cols = meta["feature_cols"]
+        with open(meta_path) as f:
+            meta = _json.load(f)
+        feature_cols        = meta["feature_cols"]
+        feature_importances = meta.get("feature_importances", {})
 
-            model = XGBRegressor()
-            model.load_model(str(model_path))
+        model = XGBRegressor()
+        model.load_model(str(model_path))
 
-            # Build feature vector for this artist
-            ml = ts_data.get("ml_features") or {}
-            ts = ts_data.get("cm_timeseries") or {}
+        ml = ts_data.get("ml_features") or {}
+        ts = ts_data.get("cm_timeseries") or {}
 
-            sys.path.insert(0, str(_ROOT))
-            from ml.train_growth_model import build_features
-            feats = build_features(ts, ml)
+        from ml.train_growth_model import build_features
+        feats = build_features(ts, ml)
 
-            row = {col: feats.get(col, 0.0) for col in feature_cols}
-            X = np.array([[row[c] for c in feature_cols]])
-            pred = float(model.predict(X)[0])
+        row  = {col: (feats.get(col) or 0.0) for col in feature_cols}
+        X    = np.array([[row[c] for c in feature_cols]])
+        pred = float(model.predict(X)[0])
 
-            direction = "📈 upward" if pred > 5 else ("📉 downward" if pred < -5 else "➡ flat")
-            st.metric(
-                "Predicted Spotify growth (90d)",
-                f"{pred:+.1f}%",
-                help="XGBoost estimate based on current timeseries trajectory",
-            )
-            st.caption(f"Direction: {direction}")
+        # Classify the signal in plain language
+        if pred >= 30:
+            signal, s_emoji, s_desc = "BREAKOUT LIKELY", "🚀", \
+                "Strong signals of major audience growth in the next 3 months."
+        elif pred >= 12:
+            signal, s_emoji, s_desc = "WATCH CLOSELY", "👀", \
+                "Solid upward trend — this artist is on the move."
+        elif pred >= -5:
+            signal, s_emoji, s_desc = "STABLE", "➡", \
+                "Steady audience — no major growth or decline expected."
+        elif pred >= -20:
+            signal, s_emoji, s_desc = "DECLINING", "📉", \
+                "Audience appears to be contracting — monitor before booking."
+        else:
+            signal, s_emoji, s_desc = "SHARP DECLINE", "⚠", \
+                "Significant audience loss predicted — approach with caution."
 
-            # Also show this artist's rank in the predictions CSV if available
-            if pred_path.exists():
-                preds_df = pd.read_csv(pred_path)
-                aid = profile.get("artist_id") or ""
-                if aid and "artist_id" in preds_df.columns:
-                    rank_row = preds_df[preds_df["artist_id"] == aid]
-                    if not rank_row.empty:
-                        rank = preds_df["predicted_growth_90d"].rank(ascending=False).loc[
-                            rank_row.index[0]
-                        ]
-                        st.caption(f"Rank in roster: #{int(rank)} of {len(preds_df)} artists")
+        st.markdown(f"### {s_emoji} {signal}")
+        st.caption(s_desc)
 
-        except ImportError:
-            st.warning("xgboost not installed — run: pip install xgboost")
-        except Exception as e:
-            st.warning(f"Forecast unavailable: {e}")
+        mc1, mc2 = st.columns(2)
+        mc1.metric(
+            "Predicted Spotify growth (next 3 months)",
+            f"{pred:+.0f}%",
+            help="XGBoost estimate based on the artist's current growth trajectory. "
+                 "Positive = expected audience growth.",
+        )
+        # Uncertainty band: ±15pp reflects typical model MAE at this scale
+        mc2.metric(
+            "Likely range",
+            f"{pred - 15:+.0f}% to {pred + 15:+.0f}%",
+            help="Approximate range accounting for prediction uncertainty.",
+        )
+
+        # What's driving this — top 5 features by importance, with plain-language values
+        if feature_importances:
+            ranked = sorted(feature_importances.items(), key=lambda x: -x[1])
+            top5   = [(k, v, row.get(k, 0.0)) for k, v in ranked[:5]]
+            st.markdown("**Key signals driving this prediction:**")
+            for feat_key, _imp, value in top5:
+                label = _FEATURE_LABELS.get(feat_key, feat_key.replace("_", " ").title())
+                if value == 0.0 and feats.get(feat_key) is None:
+                    val_str = "*no data*"
+                elif any(t in feat_key for t in ("pct", "accel", "momentum", "indexed", "ratio")):
+                    val_str = f"**{value:+.1f}%**"
+                elif any(t in feat_key for t in ("latest", "followers", "subscribers", "listeners", "views")):
+                    val_str = f"**{_fmt(int(value))}**" if value else "*no data*"
+                else:
+                    val_str = f"**{value:.1f}**"
+                st.markdown(f"- {label}: {val_str}")
+
+        # Roster context — rank as a percentile
+        if pred_path.exists():
+            preds_df = pd.read_csv(pred_path)
+            aid = profile.get("artist_id") or ""
+            if aid and "artist_id" in preds_df.columns:
+                rank_row = preds_df[preds_df["artist_id"] == aid]
+                if not rank_row.empty:
+                    rank = int(
+                        preds_df["predicted_growth_90d"]
+                        .rank(ascending=False)
+                        .loc[rank_row.index[0]]
+                    )
+                    total = len(preds_df)
+                    pct   = round((1 - rank / total) * 100)
+                    st.caption(
+                        f"Roster rank: #{rank} of {total} artists "
+                        f"(top {pct}% for predicted growth)"
+                    )
+
+        # Model quality footnote
+        mae = meta.get("test_mae", "?")
+        r2  = meta.get("test_r2", "?")
+        n   = meta.get("n_training_artists", "?")
+        trained = meta.get("trained_at", "unknown")
+        st.caption(
+            f"Model trained on {n} artists | Accuracy: {mae}% avg error, R²={r2} | "
+            f"Last trained: {trained}"
+        )
+
+    except ImportError:
+        st.warning("xgboost not installed — run: pip install xgboost")
+    except Exception as e:
+        st.warning(f"Forecast unavailable: {e}")
 
 
 # ---------------------------------------------------------------------------
