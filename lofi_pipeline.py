@@ -674,32 +674,12 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
             help="Typische modelfout is ~12%. Marge dekt ruwweg 1,5 standaardafwijkingen.",
         )
 
-        # Top signals by feature importance, with actual metric values from ml_features
         if feature_importances:
-            ml = ts_data.get("ml_features") or {}
-            ts_raw = ts_data.get("cm_timeseries") or {}
-            if str(_ROOT) not in sys.path:
-                sys.path.insert(0, str(_ROOT))
-            try:
-                from ml.train_growth_model import build_features
-                feats = build_features(ts_raw, ml)
-            except Exception:
-                feats = {}
-
             ranked = sorted(feature_importances.items(), key=lambda x: -x[1])
             st.markdown("**Wat drijft deze voorspelling:**")
             for feat_key, _imp in ranked[:5]:
                 label = _FEATURE_LABELS.get(feat_key, feat_key.replace("_", " ").title())
-                value = feats.get(feat_key)
-                if value is None:
-                    val_str = "*geen data*"
-                elif any(t in feat_key for t in ("pct", "accel", "momentum", "indexed")):
-                    val_str = f"**{value:+.1f}%**"
-                elif any(t in feat_key for t in ("latest", "followers", "subscribers", "listeners", "views")):
-                    val_str = f"**{_fmt(int(value))}**"
-                else:
-                    val_str = f"**{value:.1f}**"
-                st.markdown(f"- {label}: {val_str}")
+                st.markdown(f"- {label}")
 
         # Roster rank
         rank = int(preds_df["predicted_growth_90d"].rank(ascending=False).loc[rank_row.index[0]])
@@ -795,7 +775,7 @@ def render_growth_signals(ts_data: dict) -> None:
                             )
                             .properties(height=200)
                         )
-                        st.altair_chart(chart, width='stretch')
+                        st.altair_chart(chart, use_container_width=True)
                     else:
                         st.info(f"Geen tijdreeks voor {platform.title()}.")
     elif not ml:
@@ -861,7 +841,7 @@ def render_audience_demographics(ext: dict) -> None:
                                 tooltip=["Country","Share %"])
                         .properties(height=260)
                     )
-                    st.altair_chart(bar, width='stretch')
+                    st.altair_chart(bar, use_container_width=True)
                 else:
                     st.info(f"Geen landendata beschikbaar voor {lbl}.")
 
@@ -895,9 +875,9 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
                                      "spotify_streams":"SP Streams","spotify_popularity":"SP Pop.",
                                      "peak_spotify_chart":"SP Chart","peak_beatport_chart":"BP Chart",
                                      "playlist_count":"Afspeellijsten"}),
-                width='stretch', hide_index=True,
+                use_container_width=True, hide_index=True,
             )
-            if all(disp.get("SP Streams", pd.Series("-")).eq("-")):
+            if "spotify_streams" not in disp.columns or disp["spotify_streams"].eq("-").all():
                 st.caption("Streamingdata niet beschikbaar (Chartmetric plan).")
 
     with t2:
@@ -912,7 +892,7 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
             st.dataframe(
                 disp.rename(columns={"platform":"Platform","playlist_name":"Playlist",
                                      "playlist_followers":"Followers","position":"Position","added_at":"Added"}),
-                width='stretch', hide_index=True,
+                use_container_width=True, hide_index=True,
             )
 
 
@@ -961,7 +941,7 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                     "lineup_preview":"Lineup (preview)","event_url":"event_url",
                 }),
                 column_config=col_cfg,
-                width='stretch', hide_index=True,
+                use_container_width=True, hide_index=True,
             )
 
             # Full lineup viewer
@@ -1007,12 +987,12 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                 cols_nl = [c for c in ["start_date","event_name","venue","city"] if c in nl_df.columns]
                 st.dataframe(
                     nl_df[cols_nl].rename(columns={"start_date":"Date","event_name":"Event","venue":"Venue","city":"City"}),
-                    width='stretch', hide_index=True,
+                    use_container_width=True, hide_index=True,
                 )
                 with st.expander("Alle events (incl. internationaal)"):
                     cols_all = [c for c in ["start_date","event_name","venue","city","country"] if c in ev_df.columns]
                     if "start_date" in ev_df.columns: ev_df = ev_df.sort_values("start_date", ascending=False)
-                    st.dataframe(ev_df[cols_all] if cols_all else ev_df, width='stretch', hide_index=True)
+                    st.dataframe(ev_df[cols_all] if cols_all else ev_df, use_container_width=True, hide_index=True)
 
     with t3:
         ext_events = ext.get("events_external") or []
@@ -1025,7 +1005,7 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                 nc = next((c for c in ["name","event_name","eventName"] if c in ext_df.columns), None)
                 if dc: ext_df = ext_df.sort_values(dc, ascending=False)
                 cols_s = [c for c in [dc, nc, "venue","city","country"] if c and c in ext_df.columns]
-                st.dataframe(ext_df[cols_s] if cols_s else ext_df, width='stretch', hide_index=True)
+                st.dataframe(ext_df[cols_s] if cols_s else ext_df, use_container_width=True, hide_index=True)
             except Exception:
                 st.info("Kon externe events niet verwerken.")
 
@@ -1074,7 +1054,7 @@ def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame) -> None
             })
         if rows:
             df_m = pd.DataFrame(rows).sort_values("Date", ascending=False, na_position="last")
-            st.dataframe(df_m, width='stretch', hide_index=True)
+            st.dataframe(df_m, use_container_width=True, hide_index=True)
         else:
             st.info("Nog geen mijlpalen.")
     tidx += 1
@@ -1084,7 +1064,7 @@ def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame) -> None
         with tabs[tidx]:
             st.caption("Benchmark artiesten die in dezelfde RA lineup stonden.")
             df_cp = pd.DataFrame(co_performers)
-            st.dataframe(df_cp, width='stretch', hide_index=True)
+            st.dataframe(df_cp, use_container_width=True, hide_index=True)
             tidx += 1
 
     # --- Noteworthy Insights tab ---
@@ -1164,7 +1144,7 @@ def render_discography(ext: dict) -> None:
         with st.expander("Albums & Releases"):
             st.dataframe(df_a[cols].rename(columns={"name":"Titel","release_date":"Uitgebracht",
                                                      "type":"Type","track_count":"Nummers"}),
-                         width='stretch', hide_index=True)
+                         use_container_width=True, hide_index=True)
     except Exception:
         pass
 
@@ -1211,7 +1191,7 @@ def render_feedback_form(artist_id: str, artist_name: str) -> None:
     if not fb_df.empty:
         with st.expander(f"Bestaande labels ({len(fb_df)})"):
             st.dataframe(fb_df.drop(columns=["id","artist_id"], errors="ignore"),
-                         width='stretch', hide_index=True)
+                         use_container_width=True, hide_index=True)
 
 
 # ---------------------------------------------------------------------------
@@ -1235,7 +1215,7 @@ def render_genre_radar() -> None:
                     tooltip=["tag","artist_count","avg_listeners"])
             .properties(height=380, title="Artiesten per genre-tag")
         )
-        st.altair_chart(bar, width='stretch')
+        st.altair_chart(bar, use_container_width=True)
     with c2:
         scatter = (
             alt.Chart(genre_df).mark_circle(size=80,opacity=0.7)
@@ -1244,11 +1224,11 @@ def render_genre_radar() -> None:
                     tooltip=["tag","artist_count",alt.Tooltip("avg_listeners:Q",format=".0f")])
             .properties(height=380, title="Genre publieksdiepte")
         )
-        st.altair_chart(scatter, width='stretch')
+        st.altair_chart(scatter, use_container_width=True)
 
     st.subheader("Alle genres")
     st.dataframe(genre_df.rename(columns={"tag":"Genre","artist_count":"Artiesten","avg_listeners":"Gem. Luisteraars"}),
-                 width='stretch', hide_index=True,
+                 use_container_width=True, hide_index=True,
                  column_config={"Gem. Luisteraars": st.column_config.NumberColumn(format="%.0f")})
     st.caption("Volledige versie met NL-specifieke vraag en genre-momentum over tijd — Fase 5.")
 
@@ -1497,6 +1477,7 @@ def _page_genre_trends() -> None:
         .reset_index()
     )
     agg = agg[agg["artist_count"] >= 3].copy()
+    agg["avg_predicted_growth"] = agg["avg_predicted_growth"].fillna(0)
     agg["Trend"] = agg["avg_predicted_growth"].apply(
         lambda x: "Stijgend" if x >= 5 else ("Stabiel" if x >= -5 else "Dalend")
     )
@@ -1588,21 +1569,26 @@ def _page_genre_trends() -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+def _count(table: str, schema: str = "tinder", **filters) -> int:
+    """Return exact row count without fetching row data."""
+    q = sb.schema(schema).table(table).select("*", count="exact").limit(0)
+    for k, v in filters.items():
+        q = q.eq(k, v)
+    r = q.execute()
+    return r.count or 0
+
+
 @st.cache_data(ttl=300)
 def _load_scraper_status() -> dict:
     """Fetch coverage counts across all data tables — cached 5 min."""
     try:
-        total      = len(sb.schema("tinder").table("artists").select("id").execute().data or [])
-        has_cm     = len(sb.schema("tinder").table("artist_chartmetric").select("artist_id").execute().data or [])
-        has_ext    = len(sb.schema("tinder").table("artist_cm_extended").select("artist_id").execute().data or [])
-        has_ra     = len(sb.schema("tinder").table("artist_ra").select("artist_id").execute().data or [])
-        has_pf     = len(sb.schema("tinder").table("artist_partyflock").select("artist_id").execute().data or [])
-        has_lfm    = len(sb.schema("tinder").table("artist_lastfm").select("artist_id").execute().data or [])
-        needs_scrape = len(
-            sb.schema("tinder").table("artists").select("id")
-            .eq("needs_scraping", True).execute().data or []
-        )
-        # Latest updated_at across chartmetric rows
+        total        = _count("artists")
+        has_cm       = _count("artist_chartmetric")
+        has_ext      = _count("artist_cm_extended")
+        has_ra       = _count("artist_ra")
+        has_pf       = _count("artist_partyflock")
+        has_lfm      = _count("artist_lastfm")
+        needs_scrape = _count("artists", needs_scraping=True)
         latest_rows = (
             sb.schema("tinder").table("artist_chartmetric")
             .select("updated_at").order("updated_at", desc=True).limit(1).execute().data or []
