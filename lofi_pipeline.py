@@ -665,15 +665,16 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
 
         mc1, mc2 = st.columns(2)
         mc1.metric(
-            "Predicted Spotify growth (next 3 months)",
+            "Spotify momentum score (next 90 days)",
             f"{pred:+.0f}%",
-            help="XGBoost estimate based on the artist's current growth trajectory. "
-                 "Positive = expected audience growth.",
+            help="XGBoost estimate using 30-day trends, growth acceleration, and "
+                 "cross-platform signals. Does not use the 90-day Spotify figure directly "
+                 "— it is predicting continuation, not echoing recent history.",
         )
         mc2.metric(
             "Likely range",
-            f"{pred - 15:+.0f}% to {pred + 15:+.0f}%",
-            help="Approximate range accounting for prediction uncertainty.",
+            f"{pred - 20:+.0f}% to {pred + 20:+.0f}%",
+            help="Typical model error is ~12%. Range covers roughly 1.5 standard deviations.",
         )
 
         # Top signals by feature importance, with actual metric values from ml_features
