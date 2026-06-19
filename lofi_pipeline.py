@@ -614,35 +614,34 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
         )
         return
 
-    try:
-        from xgboost import XGBRegressor
-    except ImportError:
-        st.warning("xgboost not installed — run: pip install xgboost")
-        return
-
+    # Read pre-computed predictions from CSV — no xgboost import needed in the dashboard.
+    # Training runs in a subprocess; inference results are read from predictions.csv.
     try:
         import json as _json
-        import numpy as np
 
         with open(meta_path) as f:
             meta = _json.load(f)
-        feature_cols        = meta["feature_cols"]
         feature_importances = meta.get("feature_importances", {})
 
-        model = XGBRegressor()
-        model.load_model(str(model_path))
+        if not pred_path.exists():
+            st.info("Predictions file not found — click the train button above to generate it.")
+            return
 
-        ml = ts_data.get("ml_features") or {}
-        ts = ts_data.get("cm_timeseries") or {}
+        preds_df = pd.read_csv(pred_path)
+        aid = profile.get("artist_id") or ""
 
-        if str(_ROOT) not in sys.path:
-            sys.path.insert(0, str(_ROOT))
-        from ml.train_growth_model import build_features
-        feats = build_features(ts, ml)
+        pred: float | None = None
+        if aid and "artist_id" in preds_df.columns:
+            rank_row = preds_df[preds_df["artist_id"] == aid]
+            if not rank_row.empty:
+                pred = float(rank_row["predicted_growth_90d"].iloc[0])
 
-        row  = {col: (feats.get(col) or 0.0) for col in feature_cols}
-        X    = np.array([[row[c] for c in feature_cols]])
-        pred = float(model.predict(X)[0])
+        if pred is None:
+            st.info(
+                "This artist was not in the training set — retrain the model after "
+                "their data has been scraped to get a prediction."
+            )
+            return
 
         # Classify the signal in plain language
         if pred >= 30:
@@ -671,58 +670,51 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
             help="XGBoost estimate based on the artist's current growth trajectory. "
                  "Positive = expected audience growth.",
         )
-        # Uncertainty band: ±15pp reflects typical model MAE at this scale
         mc2.metric(
             "Likely range",
             f"{pred - 15:+.0f}% to {pred + 15:+.0f}%",
             help="Approximate range accounting for prediction uncertainty.",
         )
 
-        # What's driving this — top 5 features by importance, with plain-language values
+        # Top signals by feature importance, with actual metric values from ml_features
         if feature_importances:
+            ml = ts_data.get("ml_features") or {}
+            ts_raw = ts_data.get("cm_timeseries") or {}
+            if str(_ROOT) not in sys.path:
+                sys.path.insert(0, str(_ROOT))
+            try:
+                from ml.train_growth_model import build_features
+                feats = build_features(ts_raw, ml)
+            except Exception:
+                feats = {}
+
             ranked = sorted(feature_importances.items(), key=lambda x: -x[1])
-            top5   = [(k, v, row.get(k, 0.0)) for k, v in ranked[:5]]
             st.markdown("**Key signals driving this prediction:**")
-            for feat_key, _imp, value in top5:
+            for feat_key, _imp in ranked[:5]:
                 label = _FEATURE_LABELS.get(feat_key, feat_key.replace("_", " ").title())
-                if value == 0.0 and feats.get(feat_key) is None:
+                value = feats.get(feat_key)
+                if value is None:
                     val_str = "*no data*"
-                elif any(t in feat_key for t in ("pct", "accel", "momentum", "indexed", "ratio")):
+                elif any(t in feat_key for t in ("pct", "accel", "momentum", "indexed")):
                     val_str = f"**{value:+.1f}%**"
                 elif any(t in feat_key for t in ("latest", "followers", "subscribers", "listeners", "views")):
-                    val_str = f"**{_fmt(int(value))}**" if value else "*no data*"
+                    val_str = f"**{_fmt(int(value))}**"
                 else:
                     val_str = f"**{value:.1f}**"
                 st.markdown(f"- {label}: {val_str}")
 
-        # Roster context — rank as a percentile
-        if pred_path.exists():
-            preds_df = pd.read_csv(pred_path)
-            aid = profile.get("artist_id") or ""
-            if aid and "artist_id" in preds_df.columns:
-                rank_row = preds_df[preds_df["artist_id"] == aid]
-                if not rank_row.empty:
-                    rank = int(
-                        preds_df["predicted_growth_90d"]
-                        .rank(ascending=False)
-                        .loc[rank_row.index[0]]
-                    )
-                    total = len(preds_df)
-                    pct   = round((1 - rank / total) * 100)
-                    st.caption(
-                        f"Roster rank: #{rank} of {total} artists "
-                        f"(top {pct}% for predicted growth)"
-                    )
+        # Roster rank
+        rank = int(preds_df["predicted_growth_90d"].rank(ascending=False).loc[rank_row.index[0]])
+        total = len(preds_df)
+        pct   = round((1 - rank / total) * 100)
+        st.caption(f"Roster rank: #{rank} of {total} artists (top {pct}% for predicted growth)")
 
         # Model quality footnote
-        mae = meta.get("test_mae", "?")
-        r2  = meta.get("test_r2", "?")
-        n   = meta.get("n_training_artists", "?")
+        mae     = meta.get("test_mae", "?")
+        r2      = meta.get("test_r2", "?")
+        n       = meta.get("n_training_artists", "?")
         trained = meta.get("trained_at", "unknown")
-        st.caption(
-            f"Model trained on {n} artists | Accuracy: {mae}% avg error, R²={r2} | "
-            f"Last trained: {trained}"
-        )
+        st.caption(f"Model trained on {n} artists | Avg error: {mae}% | R²={r2} | Last trained: {trained}")
 
     except Exception as e:
         st.warning(f"Forecast unavailable: {e}")
