@@ -1623,18 +1623,23 @@ def _sidebar_add_artist() -> None:
             return
 
         scraper = str(_ROOT / "scrapers" / "scrape_flagged.py")
-        with st.sidebar.status("Scrapen…", expanded=False) as sb_status:
+        with st.sidebar.status("Scrapen…", expanded=True) as sb_status:
+            log_area = st.sidebar.empty()
             try:
                 proc = subprocess.Popen(
                     [sys.executable, scraper, "--artist-id", artist_id],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, cwd=str(_ROOT),
                 )
+                lines: list[str] = []
+                for line in proc.stdout:
+                    lines.append(line.rstrip())
+                    log_area.code("\n".join(lines[-10:]))
                 proc.wait()
                 if proc.returncode == 0:
                     sb_status.update(label="Klaar!", state="complete")
                 else:
-                    sb_status.update(label="Scrape errors — check logs", state="error")
+                    sb_status.update(label="Scrape errors — zie log", state="error")
             except Exception as e:
                 sb_status.update(label=f"Mislukt: {e}", state="error")
                 return
