@@ -2,8 +2,8 @@
 import os
 import re
 import json
+import subprocess
 import sys
-import unicodedata
 from pathlib import Path
 
 import pandas as pd
@@ -37,10 +37,12 @@ def _fmt(n) -> str:
         n = float(n)
     except (ValueError, TypeError):
         return str(n)
-    if n >= 1_000_000:
+    if n >= 999_500:  # anything that rounds to 1000K goes to M instead
         return f"{n / 1_000_000:.1f}M"
-    if n >= 1_000:
+    if n >= 10_000:
         return f"{n / 1_000:.0f}K"
+    if n >= 1_000:
+        return f"{n / 1_000:.1f}K"
     return str(int(n))
 
 
@@ -243,96 +245,6 @@ def _extract_city_entry(audience_data, city_name: str) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Milestone detection (inline — uses same logic as detect_milestones.py)
-# ---------------------------------------------------------------------------
-
-def _slug_m(name: str) -> str:
-    n = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    return re.sub(r"[^a-z0-9]+", "_", n.lower()).strip("_")
-
-
-def _ibiza_check(city: str, venue: str = "", event_name: str = "") -> bool:
-    c = (city or "").lower(); v = (venue or "").lower(); e = (event_name or "").lower()
-    ibiza_v = {"pacha ibiza","dc-10","dc10","ushuaia","amnesia ibiza","privilege",
-               "hi ibiza","eden ibiza","hï ibiza","space ibiza"}
-    return c == "ibiza" or any(iv in v for iv in ibiza_v) or "ibiza" in e
-
-
-def detect_live_milestones(ra_df: pd.DataFrame, pf_events: list[dict]) -> dict[str, str]:
-    """Derive milestone dates from loaded event data."""
-    found: dict[str, list[str]] = {}
-
-    def _rec(key, date):
-        if date:
-            found.setdefault(key, []).append(str(date))
-
-    for _, ev in ra_df.iterrows():
-        date  = str(ev.get("date") or "")[:10]
-        title = str(ev.get("title") or "").lower()
-        venue = str(ev.get("venue") or "").lower()
-        city  = str(ev.get("city") or "").lower()
-        cap   = ev.get("venue_capacity")
-        lsize = ev.get("lineup_size") or 99
-        lineup = ev.get("lineup") or []
-
-        if _ibiza_check(city, venue, title):
-            _rec("first_ibiza", date)
-        if "circoloco" in title or "dc-10" in venue or "dc10" in venue:
-            _rec("first_circoloco", date)
-        if "music on" in title:
-            _rec("first_music_on", date)
-        if re.search(r"\bants\b", title) or ("ushuaia" in venue and city == "ibiza"):
-            _rec("first_ants", date)
-        if "possession in vitro" in title or re.search(r"\bpiv\b", title) or "p.i.v" in title:
-            _rec("first_piv", date)
-        if "boiler room" in title:
-            _rec("first_boiler_room", date)
-        if "ra podcast" in title or "ra.co podcast" in title:
-            _rec("first_ra_podcast", date)
-        if re.search(r"(extended|sunrise|closing|all[ -]night|anl)\b", title):
-            if "all night" in title or "anl" in title:
-                _rec("first_all_night_long", date)
-            else:
-                _rec("first_extended_set", date)
-        if "all day" in title or "adl" in title:
-            _rec("first_all_day_long", date)
-        if " b2b " in f" {title} " or " b2b " in f" {venue} ":
-            _rec("first_b2b", date)
-        if cap and lsize and lsize <= 2:
-            try:
-                c = int(float(cap))
-                for threshold, key in [(5000,"first_headline_5k"),(2000,"first_headline_2k"),
-                                       (1000,"first_headline_1k"),(500,"first_headline_500")]:
-                    if c >= threshold:
-                        _rec(key, date)
-                        break
-            except (TypeError, ValueError):
-                pass
-
-    for ev in pf_events:
-        date  = str(ev.get("start_date") or "")[:10]
-        ename = str(ev.get("event_name") or "").lower()
-        venue = str(ev.get("venue") or "").lower()
-        city  = str(ev.get("city") or "").lower()
-        country = str(ev.get("country") or "")
-
-        if _ibiza_check(city, venue, ename) or (country in ("ES",) and city == "ibiza"):
-            _rec("first_ibiza", date)
-        if "circoloco" in ename or "dc-10" in venue or "dc10" in venue:
-            _rec("first_circoloco", date)
-        if "music on" in ename:
-            _rec("first_music_on", date)
-        if re.search(r"\bants\b", ename):
-            _rec("first_ants", date)
-        if "possession in vitro" in ename or re.search(r"\bpiv\b", ename):
-            _rec("first_piv", date)
-        if "boiler room" in ename:
-            _rec("first_boiler_room", date)
-
-    return {k: min(dates) for k, dates in found.items() if dates}
-
-
-# ---------------------------------------------------------------------------
 # Co-performer tier detection
 # ---------------------------------------------------------------------------
 
@@ -505,6 +417,126 @@ def render_nl_signal(ext: dict, pf_data: dict) -> None:
     if nl_venues:
         with st.expander(f"NL venues ({len(nl_venues)})"):
             st.write(", ".join(nl_venues))
+
+
+# ---------------------------------------------------------------------------
+# Render: Five Scores
+# ---------------------------------------------------------------------------
+
+def render_five_scores(profile: dict, ts_data: dict) -> None:
+    try:
+        from scoring.five_scores import compute_five_scores
+    except ImportError:
+        return
+
+    ml = ts_data.get("ml_features") or {}
+    if not ml and not profile:
+        return
+
+    scores = compute_five_scores(profile, ml)
+    st.subheader("LOFI Intelligence Scores")
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    def _sc(col, label, key, help_txt=""):
+        v = scores.get(key)
+        col.metric(label, f"{v:.0f}" if v is not None else "—", help=help_txt)
+
+    _sc(c1, "Momentum",         "momentum",         "Cross-platform traction right now (30d)")
+    _sc(c2, "Growth",           "growth",            "Acceleration signal — is growth speeding up?")
+    _sc(c3, "Market Relevance", "market_relevance",  "Current standing vs peers (CM rank, CPP)")
+    _sc(c4, "Future Potential", "future_potential",  "Long-term trajectory (180d + acceleration)")
+    _sc(c5, "Confidence",       "confidence",        "Data coverage quality (% fields available)")
+
+    bd = scores.get("breakdown") or {}
+    with st.expander("Score breakdown"):
+        st.caption("Momentum components")
+        bc1, bc2, bc3, bc4 = st.columns(4)
+        bc1.metric("SP 30d",       f"{bd.get('m_sp30d', 0):.0f}")
+        bc2.metric("Cross-plat",   f"{bd.get('m_cross_platform', 0):.0f}")
+        bc3.metric("Plats growing",f"{bd.get('m_platforms_pct', 0):.0f}")
+        bc4.metric("CPP 30d",      f"{bd.get('m_cpp30d', 0):.0f}")
+
+        st.caption("Growth components")
+        gc1, gc2, gc3 = st.columns(3)
+        gc1.metric("Acceleration", f"{bd.get('g_acceleration', 0):.0f}")
+        gc2.metric("SP 30d",       f"{bd.get('g_sp30d', 0):.0f}")
+        gc3.metric("Career trend", f"{bd.get('g_career_trend', 0):.0f}")
+
+        st.caption("Market Relevance components")
+        rc1, rc2, rc3, rc4 = st.columns(4)
+        rc1.metric("CM Score",  f"{bd.get('r_cm_score', 0):.0f}")
+        rc2.metric("CM Rank",   f"{bd.get('r_cm_rank', 0):.0f}")
+        rc3.metric("Fan Rank",  f"{bd.get('r_fan_rank', 0):.0f}")
+        rc4.metric("CPP score", f"{bd.get('r_cpp_current', 0):.0f}")
+
+        st.caption(f"Data coverage: {bd.get('data_fields_filled', 0)}/{bd.get('data_fields_total', 0)} fields")
+
+
+# ---------------------------------------------------------------------------
+# Render: Growth Forecast (XGBoost — loads pre-trained model if available)
+# ---------------------------------------------------------------------------
+
+def render_growth_forecast(profile: dict, ts_data: dict) -> None:
+    model_path = _ROOT / "ml" / "models" / "growth_predictor.json"
+    meta_path  = _ROOT / "ml" / "models" / "model_meta.json"
+    pred_path  = _ROOT / "ml" / "models" / "predictions.csv"
+
+    if not model_path.exists():
+        st.info(
+            "Growth forecast not available — run `python ml/train_growth_model.py` "
+            "to train the XGBoost model."
+        )
+        return
+
+    with st.expander("XGBoost Growth Forecast (90d Spotify)", expanded=False):
+        try:
+            import json as _json
+            from xgboost import XGBRegressor
+            import numpy as np
+
+            with open(meta_path) as f:
+                meta = _json.load(f)
+            feature_cols = meta["feature_cols"]
+
+            model = XGBRegressor()
+            model.load_model(str(model_path))
+
+            # Build feature vector for this artist
+            ml = ts_data.get("ml_features") or {}
+            ts = ts_data.get("cm_timeseries") or {}
+
+            sys.path.insert(0, str(_ROOT))
+            from ml.train_growth_model import build_features
+            feats = build_features(ts, ml)
+
+            row = {col: feats.get(col, 0.0) for col in feature_cols}
+            X = np.array([[row[c] for c in feature_cols]])
+            pred = float(model.predict(X)[0])
+
+            direction = "📈 upward" if pred > 5 else ("📉 downward" if pred < -5 else "➡ flat")
+            st.metric(
+                "Predicted Spotify growth (90d)",
+                f"{pred:+.1f}%",
+                help="XGBoost estimate based on current timeseries trajectory",
+            )
+            st.caption(f"Direction: {direction}")
+
+            # Also show this artist's rank in the predictions CSV if available
+            if pred_path.exists():
+                preds_df = pd.read_csv(pred_path)
+                aid = profile.get("artist_id") or ""
+                if aid and "artist_id" in preds_df.columns:
+                    rank_row = preds_df[preds_df["artist_id"] == aid]
+                    if not rank_row.empty:
+                        rank = preds_df["predicted_growth_90d"].rank(ascending=False).loc[
+                            rank_row.index[0]
+                        ]
+                        st.caption(f"Rank in roster: #{int(rank)} of {len(preds_df)} artists")
+
+        except ImportError:
+            st.warning("xgboost not installed — run: pip install xgboost")
+        except Exception as e:
+            st.warning(f"Forecast unavailable: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -817,12 +849,11 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
 # Render: Milestones & Co-performers
 # ---------------------------------------------------------------------------
 
-def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame, pf_data: dict) -> None:
+def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame) -> None:
     st.subheader("Milestones & Peers")
 
     cm_milestones = ext.get("milestones") or []
     noteworthy    = ext.get("noteworthy_insights") or []
-    live_ms       = detect_live_milestones(ra_df, pf_data.get("events") or [])
     co_performers = get_co_performers(ra_df)
 
     tab_labels = ["Milestones"]
@@ -845,17 +876,6 @@ def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame, pf_data
                 "Stars":    "",
                 "Confirmed": "✓" if r.get("confirmed") else "",
             })
-        # From live detection (not already in DB)
-        db_types = set(vdf["event_type"].tolist()) if not vdf.empty else set()
-        for key, date in live_ms.items():
-            if key not in db_types:
-                rows.append({
-                    "Type":     _MILESTONE_LABELS.get(key, key),
-                    "Date":     date,
-                    "Source":   "Live detect",
-                    "Stars":    "",
-                    "Confirmed": "",
-                })
         # From CM milestones
         for m in cm_milestones:
             if not isinstance(m, dict): continue
@@ -1051,6 +1071,114 @@ def render_genre_radar() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Add artist + live scrape
+# ---------------------------------------------------------------------------
+
+_SLUG_CHAR_MAP = str.maketrans({
+    "ø": "o", "Ø": "o",
+    "å": "a", "Å": "a",
+    "æ": "ae", "Æ": "ae",
+    "ð": "d", "Ð": "d",
+    "þ": "th", "Þ": "th",
+    "ß": "ss",
+    "ł": "l", "Ł": "l",
+    "œ": "oe", "Œ": "oe",
+})
+
+
+def _make_slug(name: str) -> str:
+    import unicodedata
+    # First replace chars that NFKD cannot decompose (e.g. ø -> o)
+    mapped = name.translate(_SLUG_CHAR_MAP)
+    n = unicodedata.normalize("NFKD", mapped).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", n.lower()).strip("-") or "artist"
+
+
+def _unique_slug(base: str) -> str:
+    slug = base
+    for suffix in [""] + [f"-{i}" for i in range(2, 20)]:
+        candidate = slug + suffix
+        existing = sb.schema("tinder").table("artists").select("id").eq(
+            "slug", candidate
+        ).execute().data
+        if not existing:
+            return candidate
+    import uuid as _uuid
+    return f"{base}-{_uuid.uuid4().hex[:6]}"
+
+
+def render_add_artist(query: str) -> None:
+    """Show the 'Add artist' panel when search has no results."""
+    st.info(f"No artist named **{query}** found in the database.")
+
+    with st.expander("➕ Add this artist and scrape now", expanded=True):
+        st.caption(
+            "Creates the artist record and runs the full Chartmetric + RA + "
+            "Partyflock + Last.fm scrape immediately (~60–90 s). "
+            "The profile will be displayed once complete."
+        )
+        status_choice = st.radio(
+            "Set candidate status",
+            ["candidate", "booked", "rejected"],
+            horizontal=True,
+            key="add_artist_status",
+        )
+
+        if st.button(f"Add & scrape  →  {query}", type="primary", key="add_artist_btn"):
+            _run_add_and_scrape(query, status_choice)
+
+
+def _run_add_and_scrape(name: str, candidate_status: str) -> None:
+    # 1. Insert artist row
+    slug = _unique_slug(_make_slug(name))
+    try:
+        result = sb.schema("tinder").table("artists").insert({
+            "name":             name,
+            "slug":             slug,
+            "candidate_status": candidate_status,
+            "needs_scraping":   True,
+        }).execute()
+        artist_id = result.data[0]["id"]
+    except Exception as e:
+        st.error(f"Could not create artist record: {e}")
+        return
+
+    st.success(f"Artist created — `{artist_id}`")
+
+    # 2. Run scrape_flagged.py --artist-id <uuid> as subprocess, stream output
+    scraper = str(_ROOT / "scrapers" / "scrape_flagged.py")
+    cmd = [sys.executable, scraper, "--artist-id", artist_id]
+
+    with st.status("Scraping artist data…", expanded=True) as status_box:
+        log_placeholder = st.empty()
+        lines: list[str] = []
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                cwd=str(_ROOT),
+            )
+            for line in proc.stdout:
+                lines.append(line.rstrip())
+                log_placeholder.code("\n".join(lines[-30:]))
+            proc.wait()
+            if proc.returncode == 0:
+                status_box.update(label="Scrape complete!", state="complete")
+            else:
+                status_box.update(label="Scrape finished with errors", state="error")
+        except Exception as e:
+            status_box.update(label=f"Scrape failed: {e}", state="error")
+            return
+
+    # 3. Clear cache and reload so the new artist appears
+    st.cache_data.clear()
+    st.session_state["pending_artist"] = name
+    st.rerun()
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1068,16 +1196,29 @@ def main() -> None:
     if not query:
         st.info("Type an artist name above to begin."); return
 
+    # Auto-select a just-scraped artist (after rerun following add flow)
+    pending = st.session_state.pop("pending_artist", None)
+
     filtered_names = [n for n in names if query.lower() in n.lower()][:20]
     if not filtered_names:
-        st.warning("No artists found."); return
+        render_add_artist(query)
+        return
 
-    # Auto-select when only one match
-    if len(filtered_names) == 1:
-        selected = filtered_names[0]
+    # Auto-select when only one match or freshly added
+    if len(filtered_names) == 1 or (pending and pending in filtered_names):
+        selected = pending if (pending and pending in filtered_names) else filtered_names[0]
         st.caption(f"Showing: {selected}")
     else:
         selected = st.selectbox("Select", filtered_names, label_visibility="collapsed")
+
+    # Offer "add as new" if no exact match even though partial results exist
+    if query.lower() not in [n.lower() for n in filtered_names]:
+        with st.expander(f"Not seeing the right artist? Add '{query}' as new"):
+            st.caption("Runs a live scrape and creates the profile immediately.")
+            status_choice = st.radio("Candidate status", ["candidate","booked","rejected"],
+                                     horizontal=True, key="add_partial_status")
+            if st.button(f"Add & scrape  →  {query}", key="add_partial_btn"):
+                _run_add_and_scrape(query, status_choice)
 
     artist_row = artist_list[artist_list["artist_name"] == selected].iloc[0]
     artist_id  = str(artist_row["artist_id"])
@@ -1097,6 +1238,8 @@ def main() -> None:
     # Render
     render_header(profile, meta, ext)
     st.divider()
+    render_five_scores(profile, ts_data)
+    st.divider()
     render_nl_signal(ext, pf_data)
     st.divider()
     render_growth_signals(ts_data)
@@ -1106,10 +1249,11 @@ def main() -> None:
     st.divider()
     render_show_history(ra_df, pf_data, ext)
     st.divider()
-    render_milestones(vdf, ext, ra_df, pf_data)
+    render_milestones(vdf, ext, ra_df)
     render_discography(ext)
     render_similar_artists(profile, ext)
     st.divider()
+    render_growth_forecast(profile, ts_data)
     render_feedback_form(artist_id, selected)
 
 
