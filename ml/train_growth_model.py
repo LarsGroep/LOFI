@@ -130,15 +130,35 @@ def compute_target(ts: dict) -> float | None:
     return _pct(before, after)
 
 
+def _paginate(table, select: str, page_size: int = 100) -> list[dict]:
+    """Fetch all rows from a Supabase table in pages to avoid statement timeout."""
+    rows: list[dict] = []
+    offset = 0
+    while True:
+        page = (
+            sb.schema("tinder").table(table)
+            .select(select)
+            .range(offset, offset + page_size - 1)
+            .execute().data or []
+        )
+        rows.extend(page)
+        if len(page) < page_size:
+            break
+        offset += page_size
+    return rows
+
+
 def load_data() -> tuple[pd.DataFrame, list[str]]:
     """Fetch all artists with timeseries + ml_features. Returns (df, feature_cols)."""
-    print("Loading data from Supabase...")
-    rows = sb.schema("tinder").table("artist_chartmetric").select(
-        "artist_id, cm_timeseries, ml_features"
-    ).not_.is_("cm_timeseries", "null").execute().data or []
+    print("Loading data from Supabase (paginated)...")
+
+    # Paginate the heavy JSONB query to avoid statement timeout
+    all_cm = _paginate("artist_chartmetric", "artist_id, cm_timeseries, ml_features", page_size=50)
+    rows = [r for r in all_cm if r.get("cm_timeseries")]
+    print(f"  Fetched {len(rows)} rows with timeseries data")
 
     # Also need artist names for group splitting
-    name_rows = sb.schema("tinder").table("artists").select("id, name").execute().data or []
+    name_rows = _paginate("artists", "id, name", page_size=500)
     id_to_name = {r["id"]: r["name"] for r in name_rows}
 
     records = []
