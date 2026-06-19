@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 import altair as alt
@@ -660,6 +661,9 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
         st.markdown(f"### :{s_color}[{signal}]")
         st.caption(s_desc)
 
+        _COLOR_HEX = {"green": "#1DB954", "orange": "#FF9900", "red": "#e05252"}
+        s_hex = _COLOR_HEX.get(s_color, "#888888")
+
         mc1, mc2 = st.columns(2)
         mc1.metric(
             "Verwachte groei (komende 90 dagen)",
@@ -674,18 +678,170 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
             help="Typische modelfout is ~12%. Marge dekt ruwweg 1,5 standaardafwijkingen.",
         )
 
+        # ── Chart 1: Trendline + 90-day XGBoost projection ──────────────────
+        ts_raw = ts_data.get("cm_timeseries") or {}
+        cpp_pts = (ts_raw.get("cpp") or {}).get("score") or []
+        sp_pts  = (ts_raw.get("spotify") or {}).get("listeners") or []
+
+        # prefer CPP score (direct prediction target); fall back to Spotify listeners
+        use_cpp = len(cpp_pts) >= 14
+        pts_raw = cpp_pts if use_cpp else sp_pts
+        metric_lbl = "CPP Score (industry index)" if use_cpp else "Spotify Luisteraars"
+
+        if len(pts_raw) >= 14:
+            df_ts = pd.DataFrame(pts_raw)
+            df_ts["date"]  = pd.to_datetime(df_ts["date"])
+            df_ts["value"] = pd.to_numeric(df_ts["value"], errors="coerce")
+            df_ts = df_ts.dropna(subset=["value"]).sort_values("date").tail(180).copy()
+
+            if len(df_ts) >= 14:
+                # Linear regression over historical window
+                df_ts["day_num"] = (df_ts["date"] - df_ts["date"].iloc[0]).dt.days.astype(float)
+                coeffs = np.polyfit(df_ts["day_num"], df_ts["value"].values, 1)
+                df_ts["trend"] = np.polyval(coeffs, df_ts["day_num"])
+
+                last_date = df_ts["date"].iloc[-1]
+                last_val  = float(df_ts["value"].iloc[-1])
+
+                # XGBoost prediction endpoint — only meaningful for CPP score
+                if use_cpp:
+                    pred_val = last_val * (1 + pred / 100)
+                    pred_label = f"XGBoost: {pred:+.0f}% → {pred_val:.1f}"
+                else:
+                    # Show linear extrapolation as the 90-day projection
+                    last_day_num = float(df_ts["day_num"].iloc[-1])
+                    pred_val = float(np.polyval(coeffs, last_day_num + 90))
+                    pred_label = f"Trendlijn t+90: {pred_val:,.0f}"
+
+                pred_date = last_date + pd.Timedelta(days=90)
+
+                # Projection line from last actual point to predicted endpoint
+                df_proj = pd.DataFrame({
+                    "date":  [last_date, pred_date],
+                    "value": [last_val,  pred_val],
+                })
+                # Confidence band around projection (±20% of pred magnitude for CPP, else ±trendline error)
+                half_band = abs(pred_val - last_val) * 0.4 + 0.01
+                df_band = pd.DataFrame({
+                    "date":   [last_date, pred_date],
+                    "lo":     [last_val,  pred_val - half_band],
+                    "hi":     [last_val,  pred_val + half_band],
+                })
+                df_pred_pt = pd.DataFrame({
+                    "date":  [pred_date],
+                    "value": [pred_val],
+                    "label": [pred_label],
+                })
+
+                base = alt.Chart(df_ts)
+
+                line_actual = base.mark_line(strokeWidth=2, color="#1DB954").encode(
+                    x=alt.X("date:T", title=""),
+                    y=alt.Y("value:Q", title=metric_lbl),
+                    tooltip=[alt.Tooltip("date:T", title="Datum"),
+                             alt.Tooltip("value:Q", title=metric_lbl, format=",.1f")],
+                )
+                line_trend = base.mark_line(
+                    strokeDash=[6, 3], strokeWidth=1.5, color="#888888"
+                ).encode(
+                    x=alt.X("date:T"),
+                    y=alt.Y("trend:Q"),
+                )
+                band = alt.Chart(df_band).mark_area(opacity=0.15, color=s_hex).encode(
+                    x=alt.X("date:T"),
+                    y=alt.Y("lo:Q"),
+                    y2=alt.Y2("hi:Q"),
+                )
+                line_proj = alt.Chart(df_proj).mark_line(
+                    strokeDash=[4, 4], strokeWidth=2, color=s_hex
+                ).encode(
+                    x=alt.X("date:T"),
+                    y=alt.Y("value:Q"),
+                )
+                point_pred = alt.Chart(df_pred_pt).mark_point(
+                    size=160, filled=True, color=s_hex, shape="diamond"
+                ).encode(
+                    x=alt.X("date:T"),
+                    y=alt.Y("value:Q"),
+                    tooltip=[alt.Tooltip("label:N", title="Voorspelling")],
+                )
+                text_pred = alt.Chart(df_pred_pt).mark_text(
+                    dx=8, dy=-12, align="left", fontSize=11, color=s_hex
+                ).encode(
+                    x=alt.X("date:T"),
+                    y=alt.Y("value:Q"),
+                    text=alt.Text("label:N"),
+                )
+
+                trendline_chart = (
+                    line_actual + line_trend + band + line_proj + point_pred + text_pred
+                ).resolve_scale(y="shared").properties(
+                    height=260,
+                    title=alt.TitleParams(
+                        f"{metric_lbl} — laatste 180 dagen + 90-daagse voorspelling",
+                        fontSize=13,
+                    ),
+                )
+
+                st.altair_chart(trendline_chart, use_container_width=True)
+
+                st.caption(
+                    "Groene lijn = actuele data  ·  Grijze stippellijn = lineaire trend  ·  "
+                    f"Gekleurde ruit = XGBoost {metric_lbl} t+90"
+                    if use_cpp else
+                    "Groene lijn = actuele data  ·  Grijze stippellijn = lineaire trend  ·  "
+                    "Gekleurde ruit = trendlijn t+90 (CPP timeseries niet beschikbaar)"
+                )
+
+        # ── Chart 2: Roster distribution — where does this artist land? ──────
+        if not preds_df.empty:
+            col_hist, col_rank = st.columns([3, 2])
+            with col_hist:
+                hist = (
+                    alt.Chart(preds_df)
+                    .mark_bar(opacity=0.6, color="#555555")
+                    .encode(
+                        x=alt.X("predicted_growth_90d:Q",
+                                bin=alt.Bin(maxbins=30),
+                                title="Verwachte groei 90d (%)"),
+                        y=alt.Y("count()", title="Artiesten"),
+                        tooltip=[
+                            alt.Tooltip("predicted_growth_90d:Q", bin=True, title="Groei %"),
+                            alt.Tooltip("count()", title="Artiesten"),
+                        ],
+                    )
+                )
+                rule = (
+                    alt.Chart(pd.DataFrame({"x": [pred]}))
+                    .mark_rule(color=s_hex, strokeWidth=2.5)
+                    .encode(x="x:Q")
+                )
+                label_df = pd.DataFrame({"x": [pred], "y": [0], "t": [profile.get("artist_name","")]})
+                rule_label = (
+                    alt.Chart(label_df)
+                    .mark_text(angle=90, dx=6, dy=-4, align="left", fontSize=10, color=s_hex)
+                    .encode(x="x:Q", y=alt.Y("y:Q"), text="t:N")
+                )
+                dist_chart = (hist + rule + rule_label).properties(
+                    height=180,
+                    title=alt.TitleParams("Positie in de database", fontSize=13),
+                )
+                st.altair_chart(dist_chart, use_container_width=True)
+            with col_rank:
+                rank = int(preds_df["predicted_growth_90d"].rank(ascending=False).loc[rank_row.index[0]])
+                total_artists = len(preds_df)
+                pct_rank = round((1 - rank / total_artists) * 100)
+                above = total_artists - rank
+                st.metric("Positie in database", f"#{rank} / {total_artists}")
+                st.metric("Beter dan", f"{pct_rank}% van artiesten")
+                st.caption(f"{above} artiesten met lagere voorspelde groei.")
+
         if feature_importances:
             ranked = sorted(feature_importances.items(), key=lambda x: -x[1])
             st.markdown("**Wat drijft deze voorspelling:**")
             for feat_key, _imp in ranked[:5]:
                 label = _FEATURE_LABELS.get(feat_key, feat_key.replace("_", " ").title())
                 st.markdown(f"- {label}")
-
-        # Roster rank
-        rank = int(preds_df["predicted_growth_90d"].rank(ascending=False).loc[rank_row.index[0]])
-        total = len(preds_df)
-        pct   = round((1 - rank / total) * 100)
-        st.caption(f"#{rank} van {total} artiesten in de database (top {pct}%)")
 
         # Model quality footnote
         mae     = meta.get("test_mae", "?")
