@@ -26,6 +26,7 @@ import json
 import math
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent
@@ -241,10 +242,21 @@ def train(output_dir: Path) -> None:
     pred_df.to_csv(pred_path, index=False)
     print(f"Predictions saved to {pred_path}")
 
-    # Save feature column order for inference
+    # Save feature column order, importances, and training stats for inference
+    feat_imp = {col: float(v) for col, v in zip(feature_cols, model.feature_importances_)}
     meta_path = output_dir / "model_meta.json"
     with open(meta_path, "w") as f:
-        json.dump({"feature_cols": feature_cols, "target": "sp_listeners_90d_pct"}, f, indent=2)
+        json.dump({
+            "feature_cols": feature_cols,
+            "target": "sp_listeners_90d_pct",
+            "feature_importances": feat_imp,
+            "n_training_artists": len(df),
+            "trained_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "test_mae": round(float(mae), 1),
+            "test_r2": round(float(r2), 3),
+            "test_spearman": round(float(sp), 3),
+            "test_dir_acc": round(float(dir_acc), 3),
+        }, f, indent=2)
     print(f"Metadata saved to {meta_path}")
 
 
