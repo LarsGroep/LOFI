@@ -148,8 +148,13 @@ def _paginate(table, select: str, page_size: int = 100) -> list[dict]:
     return rows
 
 
-def load_data() -> tuple[pd.DataFrame, list[str]]:
-    """Fetch all artists with timeseries + ml_features. Returns (df, feature_cols)."""
+def load_data() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
+    """Fetch all artists with timeseries + ml_features.
+
+    Returns (train_df, all_df, feature_cols).
+    train_df — outlier-clipped, used for model fitting.
+    all_df   — full set with valid features; used for generating predictions.
+    """
     print("Loading data from Supabase (paginated)...")
 
     # Paginate the heavy JSONB query to avoid statement timeout
@@ -181,21 +186,20 @@ def load_data() -> tuple[pd.DataFrame, list[str]]:
 
     if not records:
         print("No usable training rows found.")
-        return pd.DataFrame(), []
+        return pd.DataFrame(), pd.DataFrame(), []
 
-    df = pd.DataFrame(records)
-    feature_cols = [c for c in df.columns if not c.startswith("_")]
+    df_all = pd.DataFrame(records)
+    feature_cols = [c for c in df_all.columns if not c.startswith("_")]
+    df_all[feature_cols] = df_all[feature_cols].fillna(0)
 
-    # Fill NaN with 0 (missing = no signal)
-    df[feature_cols] = df[feature_cols].fillna(0)
+    # Clip extreme target outliers for training only — keeps model stable without
+    # hiding artists from predictions
+    p98 = df_all["_target"].quantile(0.98)
+    p02 = df_all["_target"].quantile(0.02)
+    df_train = df_all[(df_all["_target"] <= p98) & (df_all["_target"] >= p02)].copy()
 
-    # Clip extreme target outliers at 98th percentile
-    p98 = df["_target"].quantile(0.98)
-    p02 = df["_target"].quantile(0.02)
-    df = df[(df["_target"] <= p98) & (df["_target"] >= p02)].copy()
-
-    print(f"Training rows: {len(df)}  features: {len(feature_cols)}")
-    return df, feature_cols
+    print(f"Training rows: {len(df_train)} (clipped from {len(df_all)})  features: {len(feature_cols)}")
+    return df_train, df_all, feature_cols
 
 
 def train(output_dir: Path) -> None:
@@ -206,7 +210,7 @@ def train(output_dir: Path) -> None:
         print("scikit-learn or scipy not installed — run: pip install scikit-learn scipy")
         sys.exit(1)
 
-    df, feature_cols = load_data()
+    df, df_all, feature_cols = load_data()
     if df.empty:
         sys.exit(1)
 
@@ -251,12 +255,13 @@ def train(output_dir: Path) -> None:
     model.save_model(str(model_path))
     print(f"\nModel saved to {model_path}")
 
-    # Predictions for all artists (latest snapshot)
-    X_all = df[feature_cols].values
-    df["predicted_growth_90d"] = model.predict(X_all)
-    pred_df = df[["_artist_name", "_artist_id", "_target", "predicted_growth_90d"]].copy()
+    # Predictions for ALL artists with valid features (including outliers clipped from training)
+    X_all = df_all[feature_cols].values
+    df_all["predicted_growth_90d"] = model.predict(X_all)
+    pred_df = df_all[["_artist_name", "_artist_id", "_target", "predicted_growth_90d"]].copy()
     pred_df.columns = ["artist_name", "artist_id", "actual_growth_90d", "predicted_growth_90d"]
     pred_df = pred_df.sort_values("predicted_growth_90d", ascending=False).reset_index(drop=True)
+    print(f"Predictions generated for {len(pred_df)} artists (all with valid features)")
 
     pred_path = output_dir / "predictions.csv"
     pred_df.to_csv(pred_path, index=False)

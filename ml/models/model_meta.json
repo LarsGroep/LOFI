@@ -101,7 +101,7 @@
     "soundcloud_followers_180d_pct": 0.0005750906420871615
   },
   "n_training_artists": 685,
-  "trained_at": "2026-06-19 18:58",
+  "trained_at": "2026-06-19 19:26",
   "test_mae": 0.6,
   "test_r2": 0.997,
   "test_spearman": 1.0,
