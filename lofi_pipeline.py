@@ -1588,6 +1588,106 @@ def _page_genre_trends() -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+@st.cache_data(ttl=300)
+def _load_scraper_status() -> dict:
+    """Fetch coverage counts across all data tables — cached 5 min."""
+    try:
+        total      = len(sb.schema("tinder").table("artists").select("id").execute().data or [])
+        has_cm     = len(sb.schema("tinder").table("artist_chartmetric").select("artist_id").execute().data or [])
+        has_ext    = len(sb.schema("tinder").table("artist_cm_extended").select("artist_id").execute().data or [])
+        has_ra     = len(sb.schema("tinder").table("artist_ra").select("artist_id").execute().data or [])
+        has_pf     = len(sb.schema("tinder").table("artist_partyflock").select("artist_id").execute().data or [])
+        has_lfm    = len(sb.schema("tinder").table("artist_lastfm").select("artist_id").execute().data or [])
+        needs_scrape = len(
+            sb.schema("tinder").table("artists").select("id")
+            .eq("needs_scraping", True).execute().data or []
+        )
+        # Latest updated_at across chartmetric rows
+        latest_rows = (
+            sb.schema("tinder").table("artist_chartmetric")
+            .select("updated_at").order("updated_at", desc=True).limit(1).execute().data or []
+        )
+        last_scrape = latest_rows[0]["updated_at"][:16].replace("T", " ") if latest_rows else "—"
+        return {
+            "total": total, "has_cm": has_cm, "has_ext": has_ext,
+            "has_ra": has_ra, "has_pf": has_pf, "has_lfm": has_lfm,
+            "needs_scrape": needs_scrape, "last_scrape": last_scrape,
+        }
+    except Exception:
+        return {}
+
+
+def _sidebar_add_artist() -> None:
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Artiest toevoegen**")
+    name = st.sidebar.text_input("Naam", key="sidebar_add_name", label_visibility="collapsed",
+                                 placeholder="Artiestnaam…")
+    if name and st.sidebar.button("Toevoegen & scrapen", key="sidebar_add_btn", type="primary"):
+        slug = _unique_slug(_make_slug(name))
+        try:
+            result = sb.schema("tinder").table("artists").insert({
+                "name":             name,
+                "slug":             slug,
+                "candidate_status": "candidate",
+                "needs_scraping":   True,
+            }).execute()
+            artist_id = result.data[0]["id"]
+        except Exception as e:
+            st.sidebar.error(f"Fout: {e}")
+            return
+
+        scraper = str(_ROOT / "scrapers" / "scrape_flagged.py")
+        with st.sidebar.status("Scrapen…", expanded=False) as sb_status:
+            try:
+                proc = subprocess.Popen(
+                    [sys.executable, scraper, "--artist-id", artist_id],
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, cwd=str(_ROOT),
+                )
+                proc.wait()
+                if proc.returncode == 0:
+                    sb_status.update(label="Klaar!", state="complete")
+                else:
+                    sb_status.update(label="Scrape errors — check logs", state="error")
+            except Exception as e:
+                sb_status.update(label=f"Mislukt: {e}", state="error")
+                return
+        st.cache_data.clear()
+        st.session_state["pending_artist"] = name
+        st.rerun()
+
+
+def _sidebar_scraper_status() -> None:
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Scraper status**")
+    s = _load_scraper_status()
+    if not s:
+        st.sidebar.caption("Kon status niet laden.")
+        return
+
+    total = s.get("total") or 1
+
+    def _bar(n: int) -> str:
+        pct = n / total
+        filled = int(pct * 10)
+        return f"{'█' * filled}{'░' * (10 - filled)} {n}/{total}"
+
+    st.sidebar.caption(f"Laatste scrape: {s.get('last_scrape', '—')}")
+    if s.get("needs_scrape"):
+        st.sidebar.caption(f"In wachtrij: {s['needs_scrape']} artiesten")
+
+    for label, key in [
+        ("Chartmetric", "has_cm"),
+        ("Uitgebreid",  "has_ext"),
+        ("RA events",   "has_ra"),
+        ("Partyflock",  "has_pf"),
+        ("Last.fm",     "has_lfm"),
+    ]:
+        n = s.get(key, 0)
+        pct = int(n / total * 100)
+        st.sidebar.caption(f"{label}: {_bar(n)} {pct}%")
+
+
 def main() -> None:
     if st.sidebar.button("Vernieuwen"):
         st.cache_data.clear(); st.rerun()
@@ -1597,6 +1697,9 @@ def main() -> None:
         ["Artiest Profiel", "Genre Trends"],
         label_visibility="collapsed",
     )
+
+    _sidebar_add_artist()
+    _sidebar_scraper_status()
 
     if page == "Artiest Profiel":
         _page_artiest_profiel()
