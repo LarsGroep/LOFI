@@ -43,6 +43,12 @@ scraper_data/mixcloud_artists.jsonl
 # Generated Excel exports
 scraper_data/*.xlsx
 allescraperdatatotnutoe.xlsx
+*.xlsx
+
+# One-off export/debug output files
+*_output.txt
+estella_boersma_*.csv
+parse_lineup.py
 
 # OS
 .DS_Store
