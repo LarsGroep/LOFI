@@ -1055,12 +1055,8 @@ def render_genre_radar() -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    page = st.sidebar.radio("Navigation", ["Artist Profile","Genre Trend Radar"], label_visibility="collapsed")
     if st.sidebar.button("Refresh data"):
         st.cache_data.clear(); st.rerun()
-
-    if page == "Genre Trend Radar":
-        render_genre_radar(); return
 
     st.title("Artist Profile")
     artist_list = load_artist_list()
