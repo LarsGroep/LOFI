@@ -1,29 +1,29 @@
 """
-Train XGBoost growth-prediction model on all artist timeseries data.
+Train XGBoost growth-prediction model — aligned with future_predictor_v1 notebook.
 
-Adapted from future_predictor_v1.ipynb to work with the tinder Supabase schema.
+Target  : 90-day forward % change of Chartmetric CPP score (audience_index),
+          computed via shift(-FORECAST_DAYS) on each artist's full timeseries.
+          This is a genuine forward-looking prediction, not a retrospective echo.
 
-Features: per-platform indexed growth values + 30/90/180d pct changes
-          + growth acceleration from ml_features in artist_chartmetric.
+Features: 12 engineered features per metric (7d/30d/90d growth, acceleration,
+          rolling mean/std, coefficient of variation) + 4 cross-platform ratios
+          = ~100 features total.
 
-Target: Spotify listeners growth over the next ~90 days (inferred from
-        the last 90 days of the held-out portion of the timeseries).
+Training: ALL historical rows where the 90-day future is known (each artist
+          contributes ~275 training rows, not just one snapshot).
 
 Saves:
-  - ml/models/growth_predictor.json  (XGBoost model, loadable at inference time)
-  - ml/models/predictions.csv        (latest prediction per artist)
+  ml/models/growth_predictor.json
+  ml/models/predictions.csv
+  ml/models/model_meta.json
 
 Run:
     python ml/train_growth_model.py [--output-dir ml/models]
-
-Requirements (add to requirements.txt if missing):
-    xgboost scikit-learn
 """
 from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import sys
 from datetime import datetime
@@ -35,8 +35,8 @@ sys.path.insert(0, str(_ROOT))
 from dotenv import load_dotenv
 load_dotenv(_ROOT / ".env")
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 try:
     from xgboost import XGBRegressor
@@ -56,88 +56,38 @@ from supabase import create_client
 
 sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
-METRICS = [
-    ("spotify",          "listeners"),
-    ("spotify",          "followers"),
-    ("instagram",        "followers"),
-    ("tiktok",           "followers"),
-    ("youtube_channel",  "subscribers"),
-    ("youtube_channel",  "views"),
-    ("soundcloud",       "followers"),
-    ("cpp",              "score"),
+# ── Constants matching the notebook ──────────────────────────────────────────
+METRIC_MAP: dict[tuple[str, str], str] = {
+    ("spotify",         "followers"):    "spotify_followers",
+    ("spotify",         "listeners"):    "spotify_listeners",
+    ("instagram",       "followers"):    "instagram_followers",
+    ("youtube_channel", "views"):        "youtube_channel_views",
+    ("youtube_channel", "subscribers"):  "youtube_channel_subscribers",
+    ("soundcloud",      "followers"):    "soundcloud_followers",
+    ("facebook",        "likes"):        "facebook_likes",
+    ("cpp",             "score"):        "chartmetric_cpp_score",
+    ("cpp",             "rank"):         "chartmetric_cpp_rank",
+}
+
+TRAINED_METRICS = [
+    "spotify_followers",
+    "spotify_listeners",
+    "youtube_channel_subscribers",
+    "youtube_channel_views",
+    "instagram_followers",
+    "chartmetric_cpp_score",
+    "chartmetric_cpp_rank",
+    "soundcloud_followers",
 ]
-TARGET_SOURCE  = "spotify"
-TARGET_METRIC  = "listeners"
-TARGET_DAYS    = 90   # predict growth over next 90 days
+
+TARGET_COL    = "chartmetric_cpp_score"   # "audience_index" in notebook
+FORECAST_DAYS = 90
+EPS           = 1e-9
 
 
-def _pct(a: float, b: float) -> float | None:
-    if a is None or b is None or a == 0:
-        return None
-    return (b - a) / abs(a) * 100.0
+# ── Data loading ─────────────────────────────────────────────────────────────
 
-
-def build_features(ts: dict, ml: dict) -> dict:
-    """
-    Build a flat feature dict for one artist from cm_timeseries + ml_features.
-    Returns {} if insufficient data.
-    """
-    feats: dict = {}
-
-    # From ml_features (pre-computed, reliable).
-    # Exclude sp_listeners_90d_pct and sp_listeners_180d_pct — they overlap directly
-    # with the target variable (90-day Spotify growth) and cause data leakage.
-    for key in [
-        "sp_listeners_30d_pct",
-        "sp_listeners_accel", "cross_platform_momentum_30d", "platforms_growing_30d",
-        "cpp_score_30d_pct", "cpp_score_90d_pct", "cpp_score_current",
-        "sp_listeners_to_followers",
-    ]:
-        feats[key] = ml.get(key)
-
-    # From timeseries: compute indexed growth per platform.
-    # For Spotify specifically, exclude 90d/180d pct — same period as the target.
-    for source, metric in METRICS:
-        pts = (ts.get(source) or {}).get(metric) or []
-        vals = [p["value"] for p in pts if p.get("value") is not None]
-        if not vals:
-            continue
-        base = vals[0] if vals[0] else None
-        latest = vals[-1]
-
-        key = f"{source}_{metric}"
-        feats[f"{key}_latest"]  = latest
-        feats[f"{key}_indexed"] = (latest / base * 100.0) if base else None
-
-        n = len(vals)
-        feats[f"{key}_30d_pct"] = _pct(vals[max(0, n - 31)], latest) if n > 30 else None
-
-        # 90d and 180d pct for Spotify listeners are the target — skip to prevent leakage
-        if not (source == TARGET_SOURCE and metric == TARGET_METRIC):
-            feats[f"{key}_90d_pct"]  = _pct(vals[max(0, n - 91)],  latest) if n > 90  else None
-            feats[f"{key}_180d_pct"] = _pct(vals[max(0, n - 181)], latest) if n > 180 else None
-
-    return feats
-
-
-def compute_target(ts: dict) -> float | None:
-    """
-    Use the 90-day forward growth of Spotify listeners as the training target.
-    Since we only have historical data, we use the most recent 90-day window
-    as a proxy for 'recent growth momentum' (same approach as notebook).
-    """
-    pts = (ts.get(TARGET_SOURCE) or {}).get(TARGET_METRIC) or []
-    vals = [p["value"] for p in pts if p.get("value") is not None]
-    if len(vals) < TARGET_DAYS + 10:
-        return None
-    n = len(vals)
-    before = vals[n - TARGET_DAYS - 1]
-    after  = vals[-1]
-    return _pct(before, after)
-
-
-def _paginate(table, select: str, page_size: int = 100) -> list[dict]:
-    """Fetch all rows from a Supabase table in pages to avoid statement timeout."""
+def _paginate(table: str, select: str, page_size: int = 50) -> list[dict]:
     rows: list[dict] = []
     offset = 0
     while True:
@@ -154,59 +104,151 @@ def _paginate(table, select: str, page_size: int = 100) -> list[dict]:
     return rows
 
 
+def _expand_timeseries(all_cm: list[dict], name_map: dict[str, str]) -> pd.DataFrame:
+    """Expand JSONB cm_timeseries into wide DataFrame (one row per artist x date)."""
+    store: dict[str, dict[str, dict[str, float]]] = {}
+    for row in all_cm:
+        aid = row["artist_id"]
+        ts  = row.get("cm_timeseries") or {}
+        if not ts:
+            continue
+        for (platform, metric), col_name in METRIC_MAP.items():
+            pts = (ts.get(platform) or {}).get(metric) or []
+            for pt in pts:
+                d = pt.get("date")
+                v = pt.get("value")
+                if d is None or v is None:
+                    continue
+                store.setdefault(aid, {}).setdefault(col_name, {})[d] = float(v)
+
+    all_cols = list(METRIC_MAP.values())
+    rows_out = []
+    for aid, col_data in store.items():
+        all_dates = sorted({d for col_vals in col_data.values() for d in col_vals})
+        for date in all_dates:
+            row = {"artist_id": aid, "artist_name": name_map.get(aid, aid), "date": date}
+            for col in all_cols:
+                row[col] = col_data.get(col, {}).get(date)
+            rows_out.append(row)
+
+    if not rows_out:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows_out)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values(["artist_name", "date"]).reset_index(drop=True)
+
+    # Forward-fill gaps within each artist
+    df[all_cols] = df.groupby("artist_name")[all_cols].transform("ffill")
+    df[all_cols] = df[all_cols].fillna(0)
+    return df
+
+
+# ── Feature engineering ──────────────────────────────────────────────────────
+
+def _normalize(df: pd.DataFrame) -> pd.DataFrame:
+    """Index each metric to 100 at first observation per artist."""
+    df = df.copy()
+    for col in list(METRIC_MAP.values()):
+        first = df.groupby("artist_name")[col].transform("first")
+        df[col] = np.where(first != 0, df[col] / first * 100, df[col])
+    return df
+
+
+def _build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """Add 12 features per metric + 4 cross-metric ratios (matches notebook exactly)."""
+    new_cols: dict[str, pd.Series] = {}
+
+    for col in TRAINED_METRICS:
+        if col not in df.columns:
+            continue
+        g = df.groupby("artist_name")[col]
+
+        # Growth rates
+        new_cols[f"{col}_7d_growth"]  = g.pct_change(7,  fill_method=None) * 100
+        new_cols[f"{col}_30d_growth"] = g.pct_change(30, fill_method=None) * 100
+        new_cols[f"{col}_90d_growth"] = g.pct_change(90, fill_method=None) * 100
+
+        # Acceleration — second derivative of growth
+        new_cols[f"{col}_accel_7v30"]  = new_cols[f"{col}_7d_growth"]  - new_cols[f"{col}_30d_growth"]
+        new_cols[f"{col}_accel_30v90"] = new_cols[f"{col}_30d_growth"] - new_cols[f"{col}_90d_growth"]
+
+        # Rolling means
+        new_cols[f"{col}_7d_mean"]  = g.transform(lambda x: x.rolling(7,  min_periods=7 ).mean())
+        new_cols[f"{col}_30d_mean"] = g.transform(lambda x: x.rolling(30, min_periods=30).mean())
+        new_cols[f"{col}_90d_mean"] = g.transform(lambda x: x.rolling(90, min_periods=90).mean())
+
+        # Rolling standard deviation (volatility)
+        new_cols[f"{col}_30d_std"] = g.transform(lambda x: x.rolling(30, min_periods=30).std())
+        new_cols[f"{col}_90d_std"] = g.transform(lambda x: x.rolling(90, min_periods=90).std())
+
+        # Coefficient of variation (relative volatility)
+        new_cols[f"{col}_30d_cv"] = new_cols[f"{col}_30d_std"] / (new_cols[f"{col}_30d_mean"].abs() + EPS)
+        new_cols[f"{col}_90d_cv"] = new_cols[f"{col}_90d_std"] / (new_cols[f"{col}_90d_mean"].abs() + EPS)
+
+    # Cross-metric ratios
+    new_cols["listeners_per_follower"]   = df["spotify_listeners"]           / (df["spotify_followers"]           + EPS)
+    new_cols["instagram_per_spotify"]    = df["instagram_followers"]         / (df["spotify_followers"]           + EPS)
+    new_cols["youtube_subs_per_spotify"] = df["youtube_channel_subscribers"] / (df["spotify_followers"]           + EPS)
+    new_cols["youtube_views_per_sub"]    = df["youtube_channel_views"]       / (df["youtube_channel_subscribers"] + EPS)
+
+    # Join all new columns at once to avoid DataFrame fragmentation
+    df = pd.concat([df, pd.DataFrame(new_cols, index=df.index)], axis=1)
+
+    meta = {"artist_id", "artist_name", "date", "audience_index", "target_growth"}
+    base = set(METRIC_MAP.values())
+    feature_cols = [c for c in df.columns if c not in meta and c not in base]
+    return df, feature_cols
+
+
+# ── Main data pipeline ───────────────────────────────────────────────────────
+
 def load_data() -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
-    """Fetch all artists with timeseries + ml_features.
-
-    Returns (train_df, all_df, feature_cols).
-    train_df — outlier-clipped, used for model fitting.
-    all_df   — full set with valid features; used for generating predictions.
     """
-    print("Loading data from Supabase (paginated)...")
+    Returns (df_train, df_full, feature_cols).
 
-    # Paginate the heavy JSONB query to avoid statement timeout
-    all_cm = _paginate("artist_chartmetric", "artist_id, cm_timeseries, ml_features", page_size=50)
-    rows = [r for r in all_cm if r.get("cm_timeseries")]
-    print(f"  Fetched {len(rows)} rows with timeseries data")
-
-    # Also need artist names for group splitting
+    df_train — rows with a known 90-day future target, NaN->0 filled, upper outliers clipped.
+    df_full  — all rows including latest (NaN preserved for missing_pct at inference time).
+    """
+    print("Loading timeseries from Supabase (paginated)...")
+    all_cm    = _paginate("artist_chartmetric", "artist_id, cm_timeseries", page_size=50)
     name_rows = _paginate("artists", "id, name", page_size=500)
-    id_to_name = {r["id"]: r["name"] for r in name_rows}
+    name_map  = {r["id"]: r["name"] for r in name_rows}
+    print(f"  Fetched {len(all_cm)} artist rows")
 
-    records = []
-    for r in rows:
-        ts = r.get("cm_timeseries") or {}
-        ml = r.get("ml_features") or {}
-        aid = r["artist_id"]
-
-        feats = build_features(ts, ml)
-        target = compute_target(ts)
-        if target is None or not feats or all(v is None for v in feats.values()):
-            continue
-        if not math.isfinite(target):
-            continue
-
-        feats["_artist_id"] = aid
-        feats["_artist_name"] = id_to_name.get(aid, aid)
-        feats["_target"] = target
-        records.append(feats)
-
-    if not records:
-        print("No usable training rows found.")
+    df = _expand_timeseries(all_cm, name_map)
+    if df.empty:
         return pd.DataFrame(), pd.DataFrame(), []
 
-    df_all = pd.DataFrame(records)
-    feature_cols = [c for c in df_all.columns if not c.startswith("_")]
-    df_all[feature_cols] = df_all[feature_cols].fillna(0)
+    print(f"  Expanded to {len(df):,} rows across {df['artist_name'].nunique()} artists")
 
-    # Clip extreme target outliers for training only — keeps model stable without
-    # hiding artists from predictions
-    p98 = df_all["_target"].quantile(0.98)
-    p02 = df_all["_target"].quantile(0.02)
-    df_train = df_all[(df_all["_target"] <= p98) & (df_all["_target"] >= p02)].copy()
+    df = _normalize(df)
 
-    print(f"Training rows: {len(df_train)} (clipped from {len(df_all)})  features: {len(feature_cols)}")
-    return df_train, df_all, feature_cols
+    # Target: genuine 90-day forward growth of CPP score
+    df["audience_index"] = df[TARGET_COL]
+    df["target_growth"]  = (
+        df.groupby("artist_name")["audience_index"].shift(-FORECAST_DAYS)
+        / (df["audience_index"] + EPS)
+        - 1
+    ) * 100
 
+    df, feature_cols = _build_features(df)
+    df = df.replace([np.inf, -np.inf], np.nan)
+
+    df_full = df.copy()   # preserve NaN for inference missing_pct
+
+    # Training rows: only where future is known
+    df_train = df.dropna(subset=["target_growth"]).copy()
+    # Clip upper tail only (same as notebook — preserves declining artists)
+    upper = df_train["target_growth"].quantile(0.98)
+    df_train = df_train[df_train["target_growth"] <= upper].copy()
+    df_train[feature_cols] = df_train[feature_cols].fillna(0)
+
+    print(f"  Training rows: {len(df_train):,}  features: {len(feature_cols)}")
+    return df_train, df_full, feature_cols
+
+
+# ── Training ─────────────────────────────────────────────────────────────────
 
 def train(output_dir: Path) -> None:
     if not _HAS_XGB:
@@ -216,20 +258,18 @@ def train(output_dir: Path) -> None:
         print("scikit-learn or scipy not installed — run: pip install scikit-learn scipy")
         sys.exit(1)
 
-    df, df_all, feature_cols = load_data()
-    if df.empty:
+    df_train, df_full, feature_cols = load_data()
+    if df_train.empty:
+        print("No usable training data.")
         sys.exit(1)
 
-    X = df[feature_cols].values
-    y = df["_target"].values
-    groups = df["_artist_name"].values
+    X      = df_train[feature_cols].values
+    y      = df_train["target_growth"].values
+    groups = df_train["artist_name"].values
 
-    # Group-aware train/test split (no artist leaks across splits)
-    gss = GroupShuffleSplit(n_splits=1, test_size=0.20, random_state=42)
-    train_idx, test_idx = next(gss.split(X, y, groups))
-
-    X_train, X_test = X[train_idx], X[test_idx]
-    y_train, y_test = y[train_idx], y[test_idx]
+    # Group-aware split — no artist leaks across train/test
+    splitter = GroupShuffleSplit(n_splits=1, test_size=0.20, random_state=42)
+    train_idx, test_idx = next(splitter.split(X, y, groups))
 
     model = XGBRegressor(
         n_estimators=500,
@@ -240,53 +280,72 @@ def train(output_dir: Path) -> None:
         random_state=42,
         n_jobs=-1,
     )
-    model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=50)
+    model.fit(
+        X[train_idx], y[train_idx],
+        eval_set=[(X[test_idx], y[test_idx])],
+        verbose=50,
+    )
 
-    preds = model.predict(X_test)
-    mae = mean_absolute_error(y_test, preds)
-    r2  = r2_score(y_test, preds)
-    sp  = spearmanr(y_test, preds).correlation
-    dir_acc = float(np.mean(np.sign(preds) == np.sign(y_test)))
+    preds   = model.predict(X[test_idx])
+    mae     = mean_absolute_error(y[test_idx], preds)
+    r2      = r2_score(y[test_idx], preds)
+    sp      = spearmanr(y[test_idx], preds).correlation
+    dir_acc = float(np.mean(np.sign(preds) == np.sign(y[test_idx])))
 
-    print(f"\nTest set — MAE: {mae:.1f}%  R²: {r2:.3f}  Spearman: {sp:.3f}  Dir: {dir_acc:.2%}")
+    print(f"\nTest  MAE: {mae:.1f}%  R2: {r2:.3f}  Spearman: {sp:.3f}  Dir: {dir_acc:.2%}")
 
-    # Feature importance
     imp = sorted(zip(feature_cols, model.feature_importances_), key=lambda x: -x[1])
-    print("\nTop-10 features by gain:")
+    print("\nTop-10 features:")
     for name, score in imp[:10]:
-        print(f"  {name:<40} {score:.4f}")
+        print(f"  {name:<50} {score:.4f}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     model_path = output_dir / "growth_predictor.json"
     model.save_model(str(model_path))
     print(f"\nModel saved to {model_path}")
 
-    # Predictions for ALL artists with valid features (including outliers clipped from training)
-    X_all = df_all[feature_cols].values
-    df_all["predicted_growth_90d"] = model.predict(X_all)
-    pred_df = df_all[["_artist_name", "_artist_id", "_target", "predicted_growth_90d"]].copy()
-    pred_df.columns = ["artist_name", "artist_id", "actual_growth_90d", "predicted_growth_90d"]
-    pred_df = pred_df.sort_values("predicted_growth_90d", ascending=False).reset_index(drop=True)
-    print(f"Predictions generated for {len(pred_df)} artists (all with valid features)")
+    # Predictions: latest row per artist from full timeseries
+    latest_raw = (
+        df_full.sort_values(["artist_name", "date"])
+        .groupby("artist_name").tail(1)
+        .copy()
+    )
+    missing_pct        = (latest_raw[feature_cols].isna().mean(axis=1) * 100).values
+    available_features = (~latest_raw[feature_cols].isna()).sum(axis=1).values
 
+    latest = latest_raw.copy()
+    latest[feature_cols] = latest[feature_cols].fillna(0).replace([np.inf, -np.inf], 0)
+
+    latest["predicted_growth_90d"] = model.predict(latest[feature_cols].values)
+    latest["missing_pct"]          = missing_pct
+    latest["available_features"]   = available_features
+    latest["total_features"]       = len(feature_cols)
+
+    pred_df = (
+        latest[["artist_name", "artist_id", "date",
+                "predicted_growth_90d", "missing_pct",
+                "available_features", "total_features"]]
+        .sort_values("predicted_growth_90d", ascending=False)
+        .reset_index(drop=True)
+    )
     pred_path = output_dir / "predictions.csv"
     pred_df.to_csv(pred_path, index=False)
-    print(f"Predictions saved to {pred_path}")
+    print(f"Predictions saved to {pred_path} ({len(pred_df)} artists)")
 
-    # Save feature column order, importances, and training stats for inference
-    feat_imp = {col: float(v) for col, v in zip(feature_cols, model.feature_importances_)}
+    feat_imp  = {col: float(v) for col, v in zip(feature_cols, model.feature_importances_)}
     meta_path = output_dir / "model_meta.json"
     with open(meta_path, "w") as f:
         json.dump({
-            "feature_cols": feature_cols,
-            "target": "sp_listeners_90d_pct",
+            "feature_cols":        feature_cols,
+            "target":              "chartmetric_cpp_score_90d_forward_pct",
             "feature_importances": feat_imp,
-            "n_training_artists": len(df),
-            "trained_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "test_mae": round(float(mae), 1),
-            "test_r2": round(float(r2), 3),
-            "test_spearman": round(float(sp), 3),
-            "test_dir_acc": round(float(dir_acc), 3),
+            "n_training_rows":     len(df_train),
+            "n_training_artists":  int(df_train["artist_name"].nunique()),
+            "trained_at":          datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "test_mae":            round(float(mae), 1),
+            "test_r2":             round(float(r2), 3),
+            "test_spearman":       round(float(sp), 3),
+            "test_dir_acc":        round(float(dir_acc), 3),
         }, f, indent=2)
     print(f"Metadata saved to {meta_path}")
 

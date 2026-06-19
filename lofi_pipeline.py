@@ -547,30 +547,44 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
 # ---------------------------------------------------------------------------
 
 _FEATURE_LABELS: dict[str, str] = {
-    "sp_listeners_30d_pct":               "Spotify listeners growth (last 30 days)",
-    "sp_listeners_90d_pct":               "Spotify listeners growth (last 3 months)",
-    "sp_listeners_180d_pct":              "Spotify listeners growth (last 6 months)",
-    "sp_listeners_accel":                 "Growth acceleration (is growth speeding up?)",
-    "cross_platform_momentum_30d":        "Cross-platform buzz (Instagram + TikTok + SC, 30 days)",
-    "platforms_growing_30d":              "Number of platforms currently growing",
-    "cpp_score_30d_pct":                  "Industry presence change (last 30 days)",
-    "cpp_score_90d_pct":                  "Industry presence change (last 3 months)",
-    "cpp_score_current":                  "Current industry presence score",
-    "sp_listeners_to_followers":          "Spotify listener-to-follower conversion ratio",
-    "spotify_listeners_latest":           "Current Spotify monthly listeners",
-    "spotify_listeners_indexed":          "Spotify growth since first tracked",
-    "spotify_followers_latest":           "Current Spotify followers",
-    "instagram_followers_latest":         "Current Instagram followers",
-    "instagram_followers_30d_pct":        "Instagram follower growth (30 days)",
-    "instagram_followers_90d_pct":        "Instagram follower growth (3 months)",
-    "tiktok_followers_latest":            "Current TikTok followers",
-    "tiktok_followers_30d_pct":           "TikTok follower growth (30 days)",
-    "soundcloud_followers_latest":        "Current SoundCloud followers",
-    "soundcloud_followers_30d_pct":       "SoundCloud follower growth (30 days)",
-    "youtube_channel_subscribers_latest": "Current YouTube subscribers",
-    "youtube_channel_subscribers_30d_pct":"YouTube subscriber growth (30 days)",
-    "youtube_channel_views_30d_pct":      "YouTube view growth (30 days)",
-    "cpp_score_indexed":                  "Industry presence growth since first tracked",
+    # CPP score (industry presence index — strongest predictor)
+    "chartmetric_cpp_score_7d_mean":      "Industry presence score (7-day avg)",
+    "chartmetric_cpp_score_30d_growth":   "Industry presence growth (30 days)",
+    "chartmetric_cpp_score_90d_growth":   "Industry presence growth (90 days)",
+    "chartmetric_cpp_score_30d_cv":       "Industry presence volatility (30 days)",
+    "chartmetric_cpp_score_30d_std":      "Industry presence stability (30 days)",
+    # CPP rank
+    "chartmetric_cpp_rank_30d_cv":        "Industry rank volatility (30 days)",
+    "chartmetric_cpp_rank_30d_growth":    "Industry rank change (30 days)",
+    "chartmetric_cpp_rank_7d_mean":       "Industry rank (7-day avg)",
+    "chartmetric_cpp_rank_90d_growth":    "Industry rank change (90 days)",
+    "chartmetric_cpp_rank_90d_mean":      "Industry rank (90-day avg)",
+    # Spotify listeners
+    "spotify_listeners_7d_growth":        "Spotify listeners growth (7 days)",
+    "spotify_listeners_30d_growth":       "Spotify listeners growth (30 days)",
+    "spotify_listeners_90d_growth":       "Spotify listeners growth (90 days)",
+    "spotify_listeners_accel_7v30":       "Spotify momentum acceleration (7d vs 30d)",
+    "spotify_listeners_accel_30v90":      "Spotify momentum acceleration (30d vs 90d)",
+    "spotify_listeners_7d_mean":          "Spotify listeners (7-day avg)",
+    "spotify_listeners_90d_mean":         "Spotify listeners (90-day avg)",
+    "spotify_listeners_90d_cv":           "Spotify listeners volatility (90 days)",
+    # Spotify followers
+    "spotify_followers_7d_growth":        "Spotify followers growth (7 days)",
+    "spotify_followers_7d_mean":          "Spotify followers (7-day avg)",
+    "spotify_followers_90d_mean":         "Spotify followers (90-day avg)",
+    # Instagram
+    "instagram_followers_90d_mean":       "Instagram followers (90-day avg)",
+    "instagram_followers_90d_cv":         "Instagram engagement volatility (90 days)",
+    # YouTube
+    "youtube_channel_views_90d_mean":     "YouTube views (90-day avg)",
+    "youtube_channel_subscribers_30d_growth": "YouTube subscriber growth (30 days)",
+    # SoundCloud
+    "soundcloud_followers_30d_std":       "SoundCloud follower momentum stability",
+    # Cross-platform ratios
+    "listeners_per_follower":             "Spotify listeners-to-followers ratio",
+    "instagram_per_spotify":              "Instagram vs Spotify audience ratio",
+    "youtube_subs_per_spotify":           "YouTube vs Spotify audience ratio",
+    "youtube_views_per_sub":              "YouTube engagement per subscriber",
 }
 
 
@@ -665,11 +679,11 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
 
         mc1, mc2 = st.columns(2)
         mc1.metric(
-            "Spotify momentum score (next 90 days)",
+            "Predicted industry growth (next 90 days)",
             f"{pred:+.0f}%",
-            help="XGBoost estimate using 30-day trends, growth acceleration, and "
-                 "cross-platform signals. Does not use the 90-day Spotify figure directly "
-                 "— it is predicting continuation, not echoing recent history.",
+            help="XGBoost prediction of Chartmetric CPP score growth over the next 90 days. "
+                 "Trained on 200K+ historical data points across 760 artists using 100 features "
+                 "(rolling growth rates, acceleration, volatility, cross-platform ratios).",
         )
         mc2.metric(
             "Likely range",
@@ -713,9 +727,15 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
         # Model quality footnote
         mae     = meta.get("test_mae", "?")
         r2      = meta.get("test_r2", "?")
-        n       = meta.get("n_training_artists", "?")
+        n_rows  = meta.get("n_training_rows", "?")
+        n_art   = meta.get("n_training_artists", "?")
         trained = meta.get("trained_at", "unknown")
-        st.caption(f"Model trained on {n} artists | Avg error: {mae}% | R²={r2} | Last trained: {trained}")
+        st.caption(
+            f"Trained on {n_rows:,} historical snapshots from {n_art} artists | "
+            f"Avg error: {mae}% | R²={r2} | Last trained: {trained}"
+            if isinstance(n_rows, int) else
+            f"Model: MAE={mae}% R²={r2} | {n_art} artists | Last trained: {trained}"
+        )
 
     except Exception as e:
         st.warning(f"Forecast unavailable: {e}")
