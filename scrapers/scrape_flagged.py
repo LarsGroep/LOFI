@@ -71,8 +71,23 @@ query GET_ARTIST_EVENTS($slug: String!, $limit: Int) {
 """
 
 
+_CHAR_MAP = str.maketrans({
+    "ø": "o", "Ø": "o",
+    "å": "a", "Å": "a",
+    "æ": "ae", "Æ": "ae",
+    "ð": "d", "Ð": "d",
+    "þ": "th", "Þ": "th",
+    "ß": "ss",
+    "ł": "l", "Ł": "l",
+    "œ": "oe", "Œ": "oe",
+})
+
+
 def _ra_slug(name: str) -> str:
-    normalized = unicodedata.normalize("NFD", name)
+    # First replace chars that NFD cannot decompose (e.g. ø -> o)
+    mapped = name.translate(_CHAR_MAP)
+    # Then strip remaining diacritics via NFD + ascii encode
+    normalized = unicodedata.normalize("NFD", mapped)
     ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
     return re.sub(r"[^a-z0-9]", "", ascii_name.lower())
 
@@ -419,6 +434,21 @@ def main() -> None:
                 #                  + wikipedia + cpp(2) = 15 API calls
                 ts = get_full_timeseries(cm_id, since_days=args.days)
                 ml = compute_growth_features(ts, sp_followers=sp_followers)
+
+                # Store raw API responses before parsing (CLAUDE.md principle 3)
+                _now = datetime.now(timezone.utc).isoformat()
+                _raw_rows = [
+                    {"artist_id": artist_id, "source": "chartmetric_artist",   "scraped_at": _now, "payload": profile},
+                    {"artist_id": artist_id, "source": "chartmetric_stat_spotify",  "scraped_at": _now, "payload": sp_stats},
+                    {"artist_id": artist_id, "source": "chartmetric_stat_instagram", "scraped_at": _now, "payload": ig_stats},
+                    {"artist_id": artist_id, "source": "chartmetric_stat_tiktok",   "scraped_at": _now, "payload": tk_stats},
+                    {"artist_id": artist_id, "source": "chartmetric_stat_youtube",  "scraped_at": _now, "payload": yt_stats},
+                    {"artist_id": artist_id, "source": "chartmetric_timeseries",     "scraped_at": _now, "payload": ts},
+                ]
+                try:
+                    sb.schema("tinder").table("raw_scrape_log").insert(_raw_rows).execute()
+                except Exception as raw_e:
+                    print(f"    raw_log warning: {raw_e}")
 
                 def _ts_latest(source: str, metric: str) -> int | None:
                     pts = (ts.get(source) or {}).get(metric) or []
