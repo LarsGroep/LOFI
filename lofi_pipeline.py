@@ -1365,11 +1365,6 @@ def _run_add_and_scrape(name: str, candidate_status: str) -> None:
 # Page helpers
 # ---------------------------------------------------------------------------
 
-def _set_status(artist_id: str, status: str, needs_scraping: bool = False) -> None:
-    sb.schema("tinder").table("artists").update({
-        "candidate_status": status,
-        "needs_scraping": needs_scraping,
-    }).eq("id", artist_id).execute()
 
 
 def _page_artiest_profiel() -> None:
@@ -1442,182 +1437,6 @@ def _page_artiest_profiel() -> None:
     st.divider()
     render_growth_forecast(profile, ts_data)
     render_feedback_form(artist_id, selected)
-
-
-def _rec_score_badge(score: int) -> str:
-    if score < 0:
-        return ":grey[not scored]"
-    if score >= 80:
-        return f":green[**{score}/100**]"
-    if score >= 60:
-        return f":orange[**{score}/100**]"
-    if score >= 40:
-        return f":grey[**{score}/100**]"
-    return f":red[**{score}/100**]"
-
-
-def _page_aanbevelingen() -> None:
-    st.title("Lineup Aanbevelingen")
-    st.caption(
-        "Artiesten die lijken op wie LOFI al boekt — gevonden via Chartmetric similar & neighboring. "
-        "Gesorteerd op LOFI fit score."
-    )
-
-    def _feel_score(row: dict) -> int:
-        f = row.get("lofi_feel") or {}
-        if isinstance(f, str):
-            try: f = json.loads(f)
-            except: f = {}
-        s = f.get("score", -1)
-        try: return int(float(s))
-        except: return -1
-
-    def _feel_data(row: dict) -> dict:
-        f = row.get("lofi_feel") or {}
-        if isinstance(f, str):
-            try: f = json.loads(f)
-            except: f = {}
-        return f
-
-    def _cm_data(row: dict) -> dict:
-        raw = row.get("artist_chartmetric") or {}
-        return raw[0] if isinstance(raw, list) else raw
-
-    # Load XGBoost predictions once for the whole page
-    pred_path = _ROOT / "ml" / "models" / "predictions.csv"
-    growth_by_id: dict[str, float] = {}
-    if pred_path.exists():
-        try:
-            preds_df = pd.read_csv(pred_path)
-            if "artist_id" in preds_df.columns:
-                growth_by_id = dict(zip(
-                    preds_df["artist_id"].astype(str),
-                    preds_df["predicted_growth_90d"].round(0).astype(int),
-                ))
-        except Exception:
-            pass
-
-    col_filter, _ = st.columns([1, 3])
-    with col_filter:
-        min_score = st.slider("Min score", 0, 100, 0, step=5)
-
-    rows = (
-        sb.schema("tinder").table("artists")
-        .select("id, name, slug, booked_similar_count, booked_neighbor_count, lofi_feel, artist_chartmetric(*)")
-        .eq("candidate_status", "pending")
-        .not_.is_("chartmetric_id", "null")
-        .limit(200)
-        .execute().data or []
-    )
-    rows.sort(key=_feel_score, reverse=True)
-    visible = [r for r in rows if _feel_score(r) >= min_score or _feel_score(r) == -1]
-
-    if not visible:
-        st.info("Geen kandidaten in de wachtrij.")
-        return
-
-    st.caption(f"{len(visible)} kandidaten")
-    st.markdown("---")
-
-    for row in visible:
-        cm    = _cm_data(row)
-        feel  = _feel_data(row)
-        score = _feel_score(row)
-        nbr   = (row.get("booked_neighbor_count") or 0) + (row.get("booked_similar_count") or 0)
-        growth = growth_by_id.get(str(row.get("id") or ""))
-
-        col_img, col_main, col_remove = st.columns([1, 8, 1])
-
-        with col_img:
-            if img := (cm.get("image_url") or cm.get("cover_url")):
-                st.image(img, width=64)
-            else:
-                st.markdown(" ")
-
-        with col_main:
-            genres_raw = cm.get("genres") or []
-            if isinstance(genres_raw, str):
-                try: genres_raw = json.loads(genres_raw)
-                except: genres_raw = []
-            genres_str = " · ".join(genres_raw[:4]) or "—"
-
-            # Header line: name + fit score + growth forecast
-            header_parts = [f"**{row['name']}**", _rec_score_badge(score)]
-            if growth is not None:
-                g_color = "green" if growth >= 12 else ("orange" if growth >= -5 else "red")
-                header_parts.append(f":{g_color}[{growth:+d}% groei verwacht]")
-            st.markdown("  &nbsp;  ".join(header_parts))
-
-            # Caption: genres + platform stats + network strength
-            sp_val = cm.get("sp_monthly_listeners") or cm.get("spotify_listeners")
-            ig_val = cm.get("ig_followers") or cm.get("instagram_followers")
-            net_str = f"  ·  Verbonden met **{nbr}** LOFI artiesten" if nbr else ""
-            st.caption(f"{genres_str}  ·  SP {_fmt(sp_val)}  ·  IG {_fmt(ig_val)}{net_str}")
-
-            # Taxonomy match reasons
-            hits = [m for m in (feel.get("matched") or []) if not str(m).startswith("DISQ")][:4]
-            if hits:
-                st.caption("Waarom: " + "  ·  ".join(hits))
-
-        with col_remove:
-            if st.button("Overslaan", key=f"rm_{row['id']}"):
-                _set_status(row["id"], "skipped")
-                st.rerun()
-
-        with st.expander(f"Volledig profiel — {row['name']}", expanded=False):
-            c1, c2 = st.columns([1, 2])
-            with c1:
-                if img := (cm.get("image_url") or cm.get("cover_url")):
-                    st.image(img, width=160)
-            with c2:
-                for label, val in [
-                    ("Status",   cm.get("career_status")),
-                    ("Label",    cm.get("record_label")),
-                    ("Booking",  cm.get("booking_agent")),
-                ]:
-                    if val:
-                        st.write(f"**{label}:** {val}")
-                if nbr:
-                    st.write(f"**Netwerk:** verbonden met {nbr} LOFI artiesten "
-                             f"({row.get('booked_similar_count') or 0} similar, "
-                             f"{row.get('booked_neighbor_count') or 0} neighboring)")
-                if growth is not None:
-                    st.write(f"**Groeiprognose (90d):** {growth:+d}%")
-
-            r1c1, r1c2, r1c3 = st.columns(3)
-            r1c1.metric("SP Luisteraars", _fmt(cm.get("sp_monthly_listeners") or cm.get("spotify_listeners")))
-            r1c2.metric("SP Volgers",     _fmt(cm.get("sp_followers") or cm.get("spotify_followers")))
-            r1c3.metric("SP Populariteit", _fmt(cm.get("sp_popularity") or cm.get("spotify_popularity")))
-
-            r2c1, r2c2, r2c3, r2c4 = st.columns(4)
-            r2c1.metric("Instagram", _fmt(cm.get("ig_followers") or cm.get("instagram_followers")))
-            r2c2.metric("TikTok",    _fmt(cm.get("tiktok_followers")))
-            r2c3.metric("YouTube",   _fmt(cm.get("yt_subscribers") or cm.get("youtube_channel_subscribers")))
-            cms_val = cm.get("cm_artist_score")
-            r2c4.metric("CM Score",  f"{float(cms_val):.1f}" if cms_val is not None else "—")
-            if cm.get("cm_artist_rank"):
-                st.caption(f"CM rang #{int(cm['cm_artist_rank']):,}")
-            if desc := cm.get("description"):
-                st.write(str(desc)[:600])
-
-            if feel.get("scored_at"):
-                st.markdown("**Score breakdown**")
-                bc1, bc2, bc3 = st.columns(3)
-                bc1.metric("Taxonomy",  feel.get("taxonomy_score", "—"))
-                bc2.metric("Embedding", feel.get("embedding_score", "—"))
-                bc3.metric("Netwerk",   feel.get("neighboring_score", "—"))
-                if feel.get("disqualified"):
-                    st.warning("Disqualifying genre gedetecteerd")
-
-            col_accept, col_remove2 = st.columns(2)
-            if col_accept.button("Toevoegen & scrapen", key=f"acc_{row['id']}", type="primary"):
-                _set_status(row["id"], "accepted", needs_scraping=True)
-                st.rerun()
-            if col_remove2.button("Overslaan", key=f"rm2_{row['id']}"):
-                _set_status(row["id"], "skipped")
-                st.rerun()
-
-        st.markdown("---")
 
 
 @st.cache_data(ttl=1800)
@@ -1775,14 +1594,12 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Navigatie",
-        ["Artiest Profiel", "Aanbevelingen", "Genre Trends"],
+        ["Artiest Profiel", "Genre Trends"],
         label_visibility="collapsed",
     )
 
     if page == "Artiest Profiel":
         _page_artiest_profiel()
-    elif page == "Aanbevelingen":
-        _page_aanbevelingen()
     else:
         _page_genre_trends()
 
