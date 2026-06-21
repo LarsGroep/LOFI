@@ -1841,7 +1841,7 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Navigatie",
-        ["Artiest Profiel", "Genre Trends"],
+        ["Artiest Profiel", "Scout", "Genre Trends"],
         label_visibility="collapsed",
     )
 
@@ -1850,6 +1850,9 @@ def main() -> None:
 
     if page == "Artiest Profiel":
         _page_artiest_profiel()
+    elif page == "Scout":
+        from scout.page import render_scout_page
+        render_scout_page()
     else:
         _page_genre_trends()
 
