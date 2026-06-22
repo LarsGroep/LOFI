@@ -3695,7 +3695,7 @@ def _load_yt_sets(platform: str | None = None, trending_only: bool = False, limi
 
 def _render_yt_card(row: dict) -> None:
     video_id    = row.get("video_id") or ""
-    title       = (row.get("title") or "—").replace("'", "&#39;")
+    title_raw   = row.get("title") or "—"
     platform    = row.get("platform") or ""
     thumbnail   = row.get("thumbnail_url") or f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
     views       = int(row.get("view_count") or 0)
@@ -3706,65 +3706,56 @@ def _render_yt_card(row: dict) -> None:
     unknown     = row.get("unknown_artist_names") or []
     yt_url      = f"https://www.youtube.com/watch?v={video_id}"
 
+    # Truncate title in Python — avoids needing -webkit-line-clamp
+    title = title_raw[:72] + ("…" if len(title_raw) > 72 else "")
+    title = title.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&#39;")
+
     channel_label = _YT_PLATFORM_LABELS.get(platform, platform)
     channel_color = _YT_PLATFORM_COLORS.get(platform, "#6366F1")
 
     if views >= 1_000_000:
-        views_fmt = f"{views/1_000_000:.1f}M"
+        views_fmt = f"{views/1_000_000:.1f}M views"
     elif views >= 1_000:
-        views_fmt = f"{views/1_000:.1f}K"
+        views_fmt = f"{views/1_000:.0f}K views"
     else:
-        views_fmt = str(views) if views else "—"
+        views_fmt = f"{views} views" if views else ""
 
-    vel_txt = f"🔥 {velocity:,.0f} v/u" if is_trending and velocity > 0 else (
-              f"{velocity:,.0f} v/u" if velocity > 0 else "")
+    vel_txt = f"· 🔥 {velocity:,.0f} v/u" if is_trending and velocity > 0 else (
+              f"· {velocity:,.0f} v/u" if velocity > 0 else "")
 
-    trending_badge = (
+    trending_html = (
         "<span style='background:#dc2626;color:#fff;font-size:0.6rem;"
-        "padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:700;'>TRENDING</span>"
+        "padding:1px 5px;border-radius:3px;font-weight:700;margin-left:5px;'>TRENDING</span>"
         if is_trending else ""
     )
 
-    artist_tags = ""
+    artist_html = ""
     for name in matched[:3]:
-        artist_tags += (
-            f"<span style='background:#1e3a5f;color:#60a5fa;font-size:0.65rem;"
-            f"padding:1px 6px;border-radius:3px;margin-right:3px;white-space:nowrap;'>{name}</span>"
+        safe = name.replace("&", "&amp;").replace("<", "&lt;")
+        artist_html += (
+            f"<span style='background:#1e3a5f;color:#60a5fa;font-size:0.62rem;"
+            f"padding:1px 6px;border-radius:3px;margin-right:3px;'>{safe}</span>"
         )
     if not matched and unknown:
-        unk = (unknown[0] or "")[:28]
-        artist_tags += (
-            f"<span style='background:#292524;color:#a8a29e;font-size:0.65rem;"
-            f"padding:1px 6px;border-radius:3px;'>{unk}</span>"
+        safe = (unknown[0] or "")[:28].replace("&", "&amp;").replace("<", "&lt;")
+        artist_html += (
+            f"<span style='background:#292524;color:#a8a29e;font-size:0.62rem;"
+            f"padding:1px 6px;border-radius:3px;'>{safe}</span>"
         )
 
-    st.markdown(f"""
-<div style='margin-bottom:1.4rem;'>
-  <a href='{yt_url}' target='_blank' style='text-decoration:none;display:block;'>
-    <div style='position:relative;width:100%;padding-top:56.25%;overflow:hidden;
-                border-radius:8px;background:#111;'>
-      <img src='{thumbnail}'
-           style='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;'
-           loading='lazy'/>
-      <div style='position:absolute;bottom:4px;right:6px;background:rgba(0,0,0,0.82);
-                  color:#fff;font-size:0.68rem;padding:1px 5px;border-radius:3px;
-                  font-weight:600;'>{views_fmt}</div>
-    </div>
-  </a>
-  <div style='margin-top:0.45rem;'>
-    <div style='font-size:0.78rem;font-weight:600;color:#f3f4f6;line-height:1.3;
-                overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
-                -webkit-box-orient:vertical;' title='{title}'>{title}</div>
-    <div style='margin-top:0.2rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.3rem;'>
-      <span style='font-size:0.67rem;color:{channel_color};font-weight:700;'>{channel_label}</span>
-      {trending_badge}
-    </div>
-    <div style='font-size:0.65rem;color:#6b7280;margin-top:0.1rem;'>
-      {pub_date}{("&nbsp;&nbsp;·&nbsp;&nbsp;" + vel_txt) if vel_txt else ""}
-    </div>
-    <div style='margin-top:0.3rem;line-height:1.8;'>{artist_tags}</div>
-  </div>
-</div>""", unsafe_allow_html=True)
+    st.markdown(
+        f"<a href='{yt_url}' target='_blank' style='text-decoration:none;'>"
+        f"<img src='{thumbnail}' style='width:100%;border-radius:8px;display:block;'/>"
+        f"</a>"
+        f"<div style='margin-top:0.4rem;margin-bottom:1.2rem;'>"
+        f"<div style='font-size:0.78rem;font-weight:600;color:#f3f4f6;line-height:1.35;'>{title}</div>"
+        f"<div style='font-size:0.67rem;color:{channel_color};font-weight:700;margin-top:0.2rem;'>"
+        f"{channel_label}{trending_html}</div>"
+        f"<div style='font-size:0.64rem;color:#6b7280;margin-top:0.1rem;'>{views_fmt} {vel_txt} {pub_date}</div>"
+        f"<div style='margin-top:0.25rem;'>{artist_html}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def _page_youtube_sets() -> None:
