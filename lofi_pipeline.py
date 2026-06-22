@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """LOFI Booking Intelligence — artist profile dashboard."""
 import os
 import sys
@@ -1110,7 +1112,7 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
 
 # ── Recommender ────────────────────────────────────────────────────────────────
 
-elif page == "Recommender":
+if page == "Recommender":
     st.title("Artist Recommender")
     st.caption(
         "Find artists connected through LOFI history and external public scene lineups."
