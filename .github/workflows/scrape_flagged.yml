@@ -12,7 +12,7 @@ name: Scrape Flagged Artists
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # 12:00 AM UTC — after score_artists promotes candidates
+    - cron: '0 20 * * *'  # 20:00 UTC (22:00 CEST) — after score_artists promotes candidates
   workflow_dispatch:
     inputs:
       limit:

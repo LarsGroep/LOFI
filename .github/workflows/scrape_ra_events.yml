@@ -5,7 +5,7 @@ name: Scrape RA Events
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # 02:00 UTC
+    - cron: '0 22 * * *'  # 22:00 UTC (00:00 CEST)
   workflow_dispatch:
     inputs:
       artist_id:

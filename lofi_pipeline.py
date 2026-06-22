@@ -1491,10 +1491,60 @@ def _run_add_and_scrape(name: str, candidate_status: str) -> None:
             status_box.update(label=f"Scrape failed: {e}", state="error")
             return
 
-    # 3. Clear cache and reload so the new artist appears
+    # 3. Verify what actually landed in the DB
+    _verify_scrape(artist_id, name)
+
+    # 4. Clear cache and reload so the new artist appears
     st.cache_data.clear()
     st.session_state["pending_artist"] = name
     st.rerun()
+
+
+def _verify_scrape(artist_id: str, name: str) -> None:
+    """Query DB to confirm which tables were populated by the scrape."""
+    checks = [
+        ("Chartmetric profiel",  "artist_chartmetric",      "artist_id"),
+        ("Tijdreeksdata",        "artist_chartmetric",      "cm_timeseries"),
+        ("ML groeicijfers",      "artist_chartmetric",      "ml_features"),
+        ("Uitgebreide data",     "artist_cm_extended",      "artist_id"),
+        ("RA events",            "artist_ra",               "artist_id"),
+        ("Partyflock",           "artist_partyflock",       "artist_id"),
+        ("Last.fm",              "artist_lastfm",           "artist_id"),
+    ]
+    rows: list[dict] = []
+    try:
+        cm_row = sb.schema("tinder").table("artist_chartmetric").select(
+            "artist_id, cm_timeseries, ml_features, updated_at"
+        ).eq("artist_id", artist_id).maybe_single().execute()
+        cm = cm_row.data or {} if cm_row else {}
+
+        def _has(table: str) -> bool:
+            r = sb.schema("tinder").table(table).select("artist_id").eq(
+                "artist_id", artist_id
+            ).maybe_single().execute()
+            return bool(r and r.data)
+
+        rows = [
+            {"Check": "Chartmetric profiel", "Status": "OK" if cm else "Ontbreekt"},
+            {"Check": "Tijdreeksdata",       "Status": "OK" if cm.get("cm_timeseries") else "Leeg"},
+            {"Check": "ML groeicijfers",     "Status": "OK" if cm.get("ml_features") else "Leeg"},
+            {"Check": "Uitgebreide data",    "Status": "OK" if _has("artist_cm_extended") else "Ontbreekt"},
+            {"Check": "RA events",           "Status": "OK" if _has("artist_ra") else "Ontbreekt"},
+            {"Check": "Partyflock",          "Status": "OK" if _has("artist_partyflock") else "Ontbreekt"},
+            {"Check": "Last.fm",             "Status": "OK" if _has("artist_lastfm") else "Ontbreekt"},
+        ]
+        ok_count = sum(1 for r in rows if r["Status"] == "OK")
+        import pandas as _pd
+        df = _pd.DataFrame(rows)
+        df["Status"] = df["Status"].apply(
+            lambda s: f":green[{s}]" if s == "OK" else f":orange[{s}]"
+        )
+        st.markdown(f"**Database verificatie — {ok_count}/{len(rows)} tabellen gevuld:**")
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        if cm.get("updated_at"):
+            st.caption(f"Laatste update: {cm['updated_at'][:19].replace('T',' ')} UTC")
+    except Exception as e:
+        st.warning(f"Verificatie niet gelukt: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -1799,6 +1849,7 @@ def _sidebar_add_artist() -> None:
             except Exception as e:
                 sb_status.update(label=f"Mislukt: {e}", state="error")
                 return
+        _verify_scrape(artist_id, name)
         st.cache_data.clear()
         st.session_state["pending_artist"] = name
         st.rerun()
