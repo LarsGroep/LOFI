@@ -1,13 +1,30 @@
 """LOFI Artist Discovery — score-sorted queue with selective removal."""
 import json
 import os
+import sys
+
+import pandas as pd
+from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 from supabase import create_client
 
-load_dotenv()
+#load_dotenv()
+
+APP_DIR = Path(__file__).resolve().parent
+load_dotenv(APP_DIR / ".env")
 
 st.set_page_config(page_title="LOFI Discovery", layout="wide")
+
+# Pathing for lineup_recommender/src
+APP_DIR = Path(__file__).resolve().parent
+RECOMMENDER_DIR = APP_DIR / "lineup_recommender"
+RECOMMENDER_SRC_DIR = RECOMMENDER_DIR / "src"
+RECOMMENDER_DATA_DIR = RECOMMENDER_DIR / "data" / "processed"
+
+sys.path.append(str(RECOMMENDER_SRC_DIR))
+
+from recommendation import recommend_artists_for_artist
 
 
 @st.cache_resource
@@ -66,10 +83,40 @@ def _score_badge(score: int) -> str:
         return f":grey[**{score}/100**]"
     return f":red[**{score}/100**]"
 
+@st.cache_data
+def load_recommender_data():
+    historical_path = RECOMMENDER_DATA_DIR / "artist_historical_performance_scores.csv"
+    cooccurrence_path = RECOMMENDER_DATA_DIR / "lofi_artist_cooccurrence.csv"
+    external_path = RECOMMENDER_DATA_DIR / "external_artist_cooccurrence.csv"
+
+    missing = [
+        str(path)
+        for path in [historical_path, cooccurrence_path]
+        if not path.exists()
+    ]
+
+    if missing:
+        raise FileNotFoundError(
+            "Missing recommender data files:\n" + "\n".join(missing)
+        )
+
+    historical_scores = pd.read_csv(historical_path)
+    cooccurrence = pd.read_csv(cooccurrence_path)
+
+    external_cooccurrence = None
+    if external_path.exists():
+        external_cooccurrence = pd.read_csv(external_path)
+
+    return historical_scores, cooccurrence, external_cooccurrence
+
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 
-page = st.sidebar.radio("Navigation", ["Queue", "Artists"], label_visibility="collapsed")
+page = st.sidebar.radio(
+    "Navigation",
+    ["Queue", "Artists", "Recommender"],
+    label_visibility="collapsed",
+)
 
 _counts = sb.schema("tinder").table("artists").select("candidate_status").execute().data or []
 pending_n  = sum(1 for r in _counts if r["candidate_status"] == "pending")
@@ -241,3 +288,159 @@ elif page == "Artists":
             if parts:
                 st.caption("  ·  ".join(parts))
         st.divider()
+
+# ── Recommender ────────────────────────────────────────────────────────────────
+
+elif page == "Recommender":
+    st.title("Artist Recommender")
+    st.caption(
+        "Find artists connected through LOFI history and external public scene lineups."
+    )
+
+    try:
+        historical_scores, cooccurrence, external_cooccurrence = load_recommender_data()
+    except Exception as error:
+        st.error("Could not load recommender data.")
+        st.code(str(error))
+        st.stop()
+
+    artist_names = set()
+
+    if "artist_name" in historical_scores.columns:
+        artist_names.update(
+            historical_scores["artist_name"].dropna().astype(str).tolist()
+        )
+
+    for col in ["artist_name_a", "artist_name_b"]:
+        if col in cooccurrence.columns:
+            artist_names.update(cooccurrence[col].dropna().astype(str).tolist())
+
+    if external_cooccurrence is not None:
+        for col in ["artist_name_a", "artist_name_b"]:
+            if col in external_cooccurrence.columns:
+                artist_names.update(
+                    external_cooccurrence[col].dropna().astype(str).tolist()
+                )
+
+    artist_names = sorted(artist_names, key=lambda name: name.lower())
+
+    c1, c2, c3 = st.columns([3, 1, 1])
+
+    with c1:
+        default_index = artist_names.index("PAWSA") if "PAWSA" in artist_names else 0
+
+        selected_artist = st.selectbox(
+            "Select artist",
+            artist_names,
+            index=default_index,
+        )
+
+    with c2:
+        top_n = st.number_input(
+            "Top N",
+            min_value=5,
+            max_value=50,
+            value=10,
+            step=5,
+        )
+
+    with c3:
+        min_confidence = st.number_input(
+            "Min confidence",
+            min_value=0.0,
+            max_value=100.0,
+            value=0.0,
+            step=5.0,
+        )
+
+    if st.button("Get recommendations", type="primary"):
+        recommendations = recommend_artists_for_artist(
+            selected_artist_name=selected_artist,
+            historical_scores_df=historical_scores,
+            cooccurrence_df=cooccurrence,
+            external_cooccurrence_df=external_cooccurrence,
+            min_confidence=min_confidence,
+            top_n=int(top_n),
+        )
+
+        if recommendations.empty:
+            st.warning(f"No recommendations found for {selected_artist}.")
+            st.stop()
+
+        st.subheader(f"Top recommendations for {selected_artist}")
+
+        display_columns = [
+            "candidate_artist",
+            "recommendation_score",
+            "cooccur_count",
+            "external_cooccur_count",
+            "historical_lofi_score",
+            "confidence_score",
+            "has_historical_lofi_score",
+            "has_external_scene_evidence",
+            "is_external_only_candidate",
+        ]
+
+        existing_columns = [
+            column for column in display_columns
+            if column in recommendations.columns
+        ]
+
+        st.dataframe(
+            recommendations[existing_columns],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.markdown("---")
+        st.subheader("Recommendation reasons")
+
+        for index, row in recommendations.iterrows():
+            evidence_label = "Hybrid / LOFI-backed"
+
+            if row.get("is_external_only_candidate", False):
+                evidence_label = "External scene-backed"
+
+            with st.expander(
+                f"{index + 1}. {row['candidate_artist']} — {evidence_label}",
+                expanded=index < 3,
+            ):
+                m1, m2, m3, m4 = st.columns(4)
+
+                m1.metric(
+                    "Score",
+                    f"{row.get('recommendation_score', 0):.1f}",
+                )
+
+                m2.metric(
+                    "LOFI co-lineups",
+                    int(row.get("cooccur_count", 0) or 0),
+                )
+
+                m3.metric(
+                    "External co-lineups",
+                    int(row.get("external_cooccur_count", 0) or 0),
+                )
+
+                hist_score = row.get("historical_lofi_score")
+
+                m4.metric(
+                    "Historical LOFI score",
+                    "—" if pd.isna(hist_score) else f"{hist_score:.1f}",
+                )
+
+                st.write(row.get("recommendation_reason", "No reason generated."))
+
+                if row.get("sources_together"):
+                    st.markdown(f"**Sources:** {row.get('sources_together')}")
+
+                if row.get("venues_together"):
+                    st.markdown(f"**Venues:** {row.get('venues_together')}")
+
+                if row.get("cities_together"):
+                    st.markdown(f"**Cities:** {row.get('cities_together')}")
+
+                if row.get("example_events_external"):
+                    st.markdown(
+                        f"**Example events:** {row.get('example_events_external')}"
+                    )

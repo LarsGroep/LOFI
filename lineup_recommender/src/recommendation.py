@@ -45,7 +45,6 @@ def minmax_normalize_100(series: pd.Series) -> pd.Series:
 
     return 100 * (values - min_value) / (max_value - min_value)
 
-
 def build_candidates_for_artist(
     selected_artist_name: str,
     cooccurrence_df: pd.DataFrame,
@@ -127,6 +126,100 @@ def build_candidates_for_artist(
         .agg(aggregation)
         .sort_values("cooccur_count", ascending=False)
     )
+
+    return candidates
+
+
+def build_external_candidates_for_artist(
+    selected_artist_name: str,
+    external_cooccurrence_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """
+    Build candidates from external public co-lineup data.
+
+    Unlike attach_external_scene_scores, this can create external-only candidates.
+    """
+    if external_cooccurrence_df is None or external_cooccurrence_df.empty:
+        return pd.DataFrame()
+
+    required_columns = {
+        "artist_name_clean_a",
+        "artist_name_clean_b",
+        "artist_name_a",
+        "artist_name_b",
+        "external_cooccur_count",
+        "external_scene_score",
+    }
+
+    missing_columns = required_columns - set(external_cooccurrence_df.columns)
+
+    if missing_columns:
+        raise ValueError(
+            f"external_cooccurrence_df is missing columns: {missing_columns}"
+        )
+
+    selected_key = normalize_artist_name(selected_artist_name)
+
+    df = external_cooccurrence_df.copy()
+
+    df["artist_key_a"] = df["artist_name_clean_a"].apply(normalize_artist_name)
+    df["artist_key_b"] = df["artist_name_clean_b"].apply(normalize_artist_name)
+
+    mask = (df["artist_key_a"] == selected_key) | (df["artist_key_b"] == selected_key)
+    pairs = df[mask].copy()
+
+    if pairs.empty:
+        return pd.DataFrame()
+
+    pairs["candidate_artist"] = np.where(
+        pairs["artist_key_a"] == selected_key,
+        pairs["artist_name_b"],
+        pairs["artist_name_a"],
+    )
+
+    pairs["candidate_key"] = np.where(
+        pairs["artist_key_a"] == selected_key,
+        pairs["artist_key_b"],
+        pairs["artist_key_a"],
+    )
+
+    aggregation = {
+        "candidate_artist": "first",
+        "external_cooccur_count": "sum",
+        "external_scene_score": "max",
+    }
+
+    optional_columns = {
+        "source_count": "max",
+        "sources_together": "first",
+        "venues_together": "first",
+        "cities_together": "first",
+        "countries_together": "first",
+        "first_seen_together": "min",
+        "last_seen_together": "max",
+        "example_events": "first",
+    }
+
+    for column, method in optional_columns.items():
+        if column in pairs.columns:
+            aggregation[column] = method
+
+    candidates = (
+        pairs.groupby("candidate_key", as_index=False)
+        .agg(aggregation)
+        .sort_values("external_cooccur_count", ascending=False)
+    )
+
+    candidates["cooccur_count"] = 0
+    candidates["is_external_only_candidate"] = True
+
+    rename_columns = {
+        "first_seen_together": "first_seen_together_external",
+        "last_seen_together": "last_seen_together_external",
+        "example_events": "example_events_external",
+    }
+
+    candidates = candidates.rename(columns=rename_columns)
 
     return candidates
 
@@ -394,13 +487,72 @@ def recommend_artists_for_artist(
     Missing historical_lofi_score is not hidden. It is exposed in the output and
     receives a neutral placeholder for scoring, with a small penalty.
     """
-    candidates = build_candidates_for_artist(
+    lofi_candidates = build_candidates_for_artist(
         selected_artist_name=selected_artist_name,
         cooccurrence_df=cooccurrence_df,
     )
 
-    if candidates.empty:
+    if not lofi_candidates.empty:
+        lofi_candidates["is_external_only_candidate"] = False
+
+    external_candidates = build_external_candidates_for_artist(
+        selected_artist_name=selected_artist_name,
+        external_cooccurrence_df=external_cooccurrence_df,
+    )
+
+    candidate_frames = [
+        frame for frame in [lofi_candidates, external_candidates]
+        if frame is not None and not frame.empty
+    ]
+
+    if not candidate_frames:
         return pd.DataFrame()
+
+    candidates = pd.concat(candidate_frames, ignore_index=True)
+
+    # If an artist appears through both LOFI and external data, merge the evidence.
+    aggregation = {
+        "candidate_artist": "first",
+        "cooccur_count": "sum",
+        "is_external_only_candidate": "min",
+    }
+
+    optional_sum_or_max_columns = {
+        "external_cooccur_count": "sum",
+        "external_scene_score": "max",
+        "source_count": "max",
+    }
+
+    for column, method in optional_sum_or_max_columns.items():
+        if column in candidates.columns:
+            aggregation[column] = method
+
+    optional_first_columns = [
+        "sources_together",
+        "venues_together",
+        "cities_together",
+        "countries_together",
+        "first_seen_together_external",
+        "last_seen_together_external",
+        "example_events_external",
+        "avg_total_visitors_together",
+        "avg_actual_tickets_together",
+        "avg_ticketing_revenue_together",
+        "avg_bar_revenue_together",
+        "avg_total_revenue_together",
+        "avg_total_cost_together",
+        "avg_event_result_together",
+        "avg_occupancy_rate_together",
+        "first_played_together",
+        "last_played_together",
+        "events_together",
+    ]
+
+    for column in optional_first_columns:
+        if column in candidates.columns:
+            aggregation[column] = "first"
+
+    candidates = candidates.groupby("candidate_key", as_index=False).agg(aggregation)
 
     candidates = attach_historical_scores(
         candidates=candidates,
@@ -462,20 +614,38 @@ def recommend_artists_for_artist(
         candidates["recommendation_score_raw"] - candidates["missing_score_penalty"]
     ).clip(lower=0)
 
-    candidates = attach_external_scene_scores(
-        candidates=candidates,
-        selected_artist_name=selected_artist_name,
-        external_cooccurrence_df=external_cooccurrence_df,
-    )
+    if "external_cooccur_count" not in candidates.columns:
+        candidates = attach_external_scene_scores(
+            candidates=candidates,
+            selected_artist_name=selected_artist_name,
+            external_cooccurrence_df=external_cooccurrence_df,
+        )
+    else:
+        candidates["external_cooccur_count"] = candidates["external_cooccur_count"].fillna(0)
+        candidates["external_scene_score"] = candidates["external_scene_score"].fillna(0)
+        candidates["has_external_scene_evidence"] = (
+            pd.to_numeric(candidates["external_cooccur_count"], errors="coerce").fillna(0) > 0
+        )
 
     # External evidence is currently used only as a small bonus.
     # This prevents noisy public scraper data from dominating LOFI-specific evidence.
+# External evidence is a small bonus for LOFI-backed candidates,
+# but a stronger signal for external-only candidates.
+    if "is_external_only_candidate" not in candidates.columns:
+        candidates["is_external_only_candidate"] = False
+
+    external_score_numeric = pd.to_numeric(
+        candidates["external_scene_score"],
+        errors="coerce",
+    ).fillna(0)
+
     candidates["external_scene_bonus"] = np.where(
         candidates["has_external_scene_evidence"],
-        10.0 * pd.to_numeric(
-            candidates["external_scene_score"],
-            errors="coerce",
-        ).fillna(0) / 100.0,
+        np.where(
+            candidates["is_external_only_candidate"],
+            35.0 * external_score_numeric / 100.0,
+            10.0 * external_score_numeric / 100.0,
+        ),
         0.0,
     )
 
