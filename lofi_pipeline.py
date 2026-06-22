@@ -2330,6 +2330,12 @@ def _page_overzicht() -> None:
     if artist_list.empty:
         st.warning("Geen artiestdata beschikbaar."); return
 
+    # Apply any pending programmatic search (set before the widget renders to avoid
+    # Streamlit's restriction on setting widget-bound keys after render).
+    pending_search = st.session_state.pop("_pending_search", None)
+    if pending_search:
+        st.session_state["overzicht_search"] = pending_search
+
     names = sorted(artist_list["artist_name"].dropna().unique().tolist())
 
     # Search bar — CSS pins this as a fixed floating bar centered on the page
@@ -3363,7 +3369,7 @@ def _render_discovery_queue(items: list[dict]) -> None:
                 unsafe_allow_html=False,
             )
             if c2.button("Toevoegen →", key=f"dq_{item['id']}"):
-                st.session_state["overzicht_search"] = item["artist_name"]
+                st.session_state["_pending_search"] = item["artist_name"]
                 st.rerun()
 
 
@@ -3451,12 +3457,17 @@ def _render_catalogue_card(row: pd.Series) -> None:
     listeners = row.get("spotify_listeners")
 
     _SC = {
-        "booked":    ("#7c3aed", "Geboekt"),
-        "accepted":  ("#16a34a", "Accepted"),
-        "candidate": ("#d97706", "Kandidaat"),
-        "rejected":  ("#6b7280", "Afgewezen"),
+        "booked":       ("#7c3aed", "Geboekt"),
+        "accepted":     ("#16a34a", "Geaccepteerd"),
+        "candidate":    ("#d97706", "Kandidaat"),
+        "pending":      ("#3b82f6", "Pending"),
+        "watching":     ("#0ea5e9", "Watching"),
+        "hot":          ("#f97316", "Hot"),
+        "emerging":     ("#22d3ee", "Emerging"),
+        "not_relevant": ("#6b7280", "Niet relevant"),
+        "rejected":     ("#6b7280", "Afgewezen"),
     }
-    border_clr, status_lbl = _SC.get(status, ("#374151", "—"))
+    border_clr, status_lbl = _SC.get(status, ("#374151", status.capitalize() if status else "—"))
 
     # 30-day Spotify momentum arrow (top-left overlay)
     if sp30 is not None and sp30 == sp30:
@@ -3541,7 +3552,7 @@ def _render_catalogue_card(row: pd.Series) -> None:
 
     artist_id = str(row.get("artist_id", name))
     if st.button("→", key=f"card_{artist_id}", use_container_width=True, help=f"Open profiel: {name}"):
-        st.session_state["overzicht_search"] = name
+        st.session_state["_pending_search"] = name
         st.rerun()
 
 
