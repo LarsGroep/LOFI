@@ -3417,7 +3417,7 @@ def _load_catalogue_data() -> pd.DataFrame:
 
     def _fetch_ra():
         # Server-side count across both ra_events and artist_ra.events JSONB
-        rows = sb.schema("tinder").rpc("get_ra_event_counts", {}).execute().data or []
+        rows = sb.rpc("get_ra_event_counts", {}).execute().data or []
         return {str(r["artist_id"]): int(r["event_count"]) for r in rows}
 
     with ThreadPoolExecutor(max_workers=4) as _pool:
