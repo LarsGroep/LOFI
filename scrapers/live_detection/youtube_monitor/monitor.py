@@ -133,10 +133,13 @@ def fetch_video_stats(video_ids: list[str]) -> dict[str, dict]:
 def compute_velocity(
     video_id: str,
     current_views: int,
-) -> float:
+) -> float | None:
     """
     Compute views/hour since the last snapshot.
     Returns 0.0 if no prior snapshot exists.
+    Returns None if the last snapshot is too recent (< 3 min) — caller should
+    skip updating view_velocity/is_trending to avoid overwriting a valid value
+    from a previous run that happened just before this one.
     """
     rows = (
         _sb.schema("tinder").table("youtube_snapshots")
@@ -154,8 +157,8 @@ def compute_velocity(
     now          = datetime.now(timezone.utc)
     elapsed_hrs  = (now - prev_time).total_seconds() / 3600
 
-    if elapsed_hrs < 0.05:   # less than 3 minutes — skip to avoid division noise
-        return 0.0
+    if elapsed_hrs < 0.05:   # less than 3 minutes — don't overwrite previous velocity
+        return None
 
     return max(0.0, (current_views - prev_count) / elapsed_hrs)
 
@@ -216,10 +219,9 @@ def poll_once() -> None:
             candidates          = parse_title(title, platform)
             matched, unknown    = match_to_db(candidates, artist_names)
 
-            # Compute velocity
+            # Compute velocity — None means "too soon, keep previous value"
             velocity = compute_velocity(vid, view_count)
-
-            is_trending = velocity >= threshold
+            is_trending = bool(velocity is not None and velocity >= threshold)
 
             if is_trending:
                 log.info(
@@ -228,8 +230,9 @@ def poll_once() -> None:
                     f"matched={matched}  unknown={unknown}"
                 )
 
-            # Upsert into youtube_sets
-            _sb.schema("tinder").table("youtube_sets").upsert({
+            # Upsert into youtube_sets — only overwrite velocity/trending when we
+            # have a real measurement (not a too-soon None)
+            set_payload: dict = {
                 "video_id":              vid,
                 "platform":              platform,
                 "title":                 title,
@@ -241,9 +244,13 @@ def poll_once() -> None:
                 "view_count":            view_count,
                 "like_count":            like_count,
                 "last_checked_at":       now_iso,
-                "view_velocity":         velocity,
-                "is_trending":           is_trending,
-            }, on_conflict="video_id").execute()
+            }
+            if velocity is not None:
+                set_payload["view_velocity"] = velocity
+                set_payload["is_trending"]   = is_trending
+            _sb.schema("tinder").table("youtube_sets").upsert(
+                set_payload, on_conflict="video_id"
+            ).execute()
 
             # Snapshot for velocity history
             _sb.schema("tinder").table("youtube_snapshots").insert({

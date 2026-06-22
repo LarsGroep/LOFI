@@ -74,15 +74,15 @@ CHANNELS = [
 # Views/hour thresholds to flag a video as trending.
 # Calibrated per channel — Boiler Room has much higher baseline than Book Club Radio.
 TRENDING_THRESHOLDS = {
-    "boiler_room":     8_000,   # views/hour in first 48h
-    "hor_berlin":      3_000,
-    "f2f_tv":          1_500,
-    "mixmag":          4_000,
-    "the_lot_radio":   1_000,
-    "rinse_fm":        1_500,
-    "book_club_radio":   800,
-    "be_at_tv":        1_000,
-    "_default":        1_500,
+    "boiler_room":     2_000,   # views/hour in first 48h — calibrated on observed peaks
+    "hor_berlin":        400,
+    "f2f_tv":            400,
+    "mixmag":            800,
+    "the_lot_radio":     150,
+    "rinse_fm":          300,
+    "book_club_radio":   100,
+    "be_at_tv":          200,
+    "_default":          300,
 }
 
 # Separators that split B2B or multi-artist titles

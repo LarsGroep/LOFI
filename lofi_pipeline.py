@@ -3130,7 +3130,12 @@ def _render_milestone_strip(milestones: list[dict]) -> None:
                 f"border:2px solid {color}44;'>{initial}</div>"
             )
 
-        venue_line = f"<div style='font-size:0.6rem;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px'>{venue}</div>" if venue else ""
+        def _h(s: str) -> str:
+            return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&#39;")
+
+        name_h  = _h(name)
+        venue_h = _h(venue) if venue else ""
+        label_h = _h(label)
 
         chips_html.append(f"""
 <div style='
@@ -3145,9 +3150,9 @@ def _render_milestone_strip(milestones: list[dict]) -> None:
 '>
   {avatar}
   <div style='min-width:0;'>
-    <div style='font-weight:700;font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;color:#f3f4f6'>{name}</div>
-    <div style='font-size:0.68rem;color:{color};font-weight:600;white-space:nowrap'>{label}</div>
-    <div style='font-size:0.6rem;color:#6b7280;white-space:nowrap'>{date}{(" · " + venue) if venue else ""}</div>
+    <div style='font-weight:700;font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;color:#f3f4f6'>{name_h}</div>
+    <div style='font-size:0.68rem;color:{color};font-weight:600;white-space:nowrap'>{label_h}</div>
+    <div style='font-size:0.6rem;color:#6b7280;white-space:nowrap'>{date}{(" · " + venue_h) if venue_h else ""}</div>
   </div>
 </div>""")
 
@@ -3540,7 +3545,7 @@ def _render_catalogue_card(row: pd.Series) -> None:
   <!-- Info strip -->
   <div style='padding:0.35rem 0.45rem 0.25rem 0.45rem;'>
     <div style='font-weight:700;font-size:0.78rem;white-space:nowrap;overflow:hidden;
-                text-overflow:ellipsis;color:#f3f4f6;line-height:1.2;' title='{name}'>{name}</div>
+                text-overflow:ellipsis;color:#f3f4f6;line-height:1.2;' title='{name.replace(chr(39), "&#39;")}'>{name.replace("&","&amp;").replace("<","&lt;")}</div>
     <div style='display:grid;grid-template-columns:1fr 1fr;gap:0 0.2rem;margin-top:0.25rem;'>
       <div style='font-size:0.62rem;color:#9ca3af;white-space:nowrap;'>
         <span style='color:#6b7280;'>RA</span> {ra_count}
