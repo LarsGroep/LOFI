@@ -51,6 +51,9 @@ allescraperdatatotnutoe.xlsx
 estella_boersma_*.csv
 parse_lineup.py
 
+# Local planning docs (not for repo)
+project_armadillo.txt
+
 # OS
 .DS_Store
 Thumbs.db
