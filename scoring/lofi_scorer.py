@@ -25,9 +25,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import io
 import re
 import sys
 import time
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -211,20 +213,20 @@ def main() -> None:
     rows = q.execute().data or []
     print(f"Artists to score: {len(rows)}  (status={args.status})")
 
-    # Load centroid-based cosine distances from artist_profiles
+    # Load centroid-based cosine distances from artist_embeddings (keyed by artist_id)
     profile_dist: dict[str, float] = {}
     try:
         offset = 0
         while True:
             batch = (
-                sb.schema("tinder").table("artist_profiles")
-                .select("slug, cosine_dist")
+                sb.schema("tinder").table("artist_embeddings")
+                .select("artist_id, cosine_dist")
                 .range(offset, offset + 999)
                 .execute().data or []
             )
             for r in batch:
                 if r.get("cosine_dist") is not None:
-                    profile_dist[r["slug"]] = r["cosine_dist"]
+                    profile_dist[r["artist_id"]] = r["cosine_dist"]
             if len(batch) < 1000:
                 break
             offset += 1000
@@ -247,7 +249,7 @@ def main() -> None:
 
         try:
             tax = score_taxonomy(cm, taxonomy)
-            emb = score_embedding(profile_dist.get(slug))
+            emb = score_embedding(profile_dist.get(row["id"]))
             nbr = score_neighboring(
                 row.get("booked_neighbor_count") or 0,
                 row.get("booked_similar_count")  or 0,

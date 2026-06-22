@@ -26,7 +26,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 _ROOT = Path(__file__).parent.parent
@@ -164,11 +164,14 @@ def _build_features(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
         if col not in df.columns:
             continue
         g = df.groupby("artist_name")[col]
+        # Replace 0→NaN for growth rate denominator: _expand_timeseries fills missing
+        # values with 0, so pct_change would hit a ZeroDivisionError on sparse artists.
+        g_safe = df[col].where(df[col] != 0).groupby(df["artist_name"])
 
         # Growth rates
-        new_cols[f"{col}_7d_growth"]  = g.pct_change(7,  fill_method=None) * 100
-        new_cols[f"{col}_30d_growth"] = g.pct_change(30, fill_method=None) * 100
-        new_cols[f"{col}_90d_growth"] = g.pct_change(90, fill_method=None) * 100
+        new_cols[f"{col}_7d_growth"]  = g_safe.pct_change(7,  fill_method=None) * 100
+        new_cols[f"{col}_30d_growth"] = g_safe.pct_change(30, fill_method=None) * 100
+        new_cols[f"{col}_90d_growth"] = g_safe.pct_change(90, fill_method=None) * 100
 
         # Acceleration — second derivative of growth
         new_cols[f"{col}_accel_7v30"]  = new_cols[f"{col}_7d_growth"]  - new_cols[f"{col}_30d_growth"]
@@ -333,6 +336,33 @@ def train(output_dir: Path) -> None:
     pred_df.to_csv(pred_path, index=False)
     print(f"Predictions saved to {pred_path} ({len(pred_df)} artists)")
 
+    # Write all predictions to Supabase
+    model_version = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    supabase_rows = []
+    for _, row in pred_df.iterrows():
+        supabase_rows.append({
+            "artist_id":            str(row["artist_id"]),
+            "artist_name":          str(row["artist_name"]),
+            "predicted_growth_90d": float(row["predicted_growth_90d"]),
+            "missing_pct":          float(row["missing_pct"]),
+            "available_features":   int(row["available_features"]),
+            "total_features":       int(row["total_features"]),
+            "prediction_date":      str(row["date"].date() if hasattr(row["date"], "date") else row["date"]),
+            "model_version":        model_version,
+            "predicted_at":         datetime.now(timezone.utc).isoformat(),
+        })
+    try:
+        # Upsert in batches of 100 to avoid request size limits
+        batch_size = 100
+        for i in range(0, len(supabase_rows), batch_size):
+            batch = supabase_rows[i:i + batch_size]
+            sb.schema("tinder").table("xgboost_predictions").upsert(
+                batch, on_conflict="artist_id"
+            ).execute()
+        print(f"Predictions upserted to Supabase ({len(supabase_rows)} artists)")
+    except Exception as _e:
+        print(f"  Supabase write failed (predictions still saved to CSV): {_e}")
+
     feat_imp  = {col: float(v) for col, v in zip(feature_cols, model.feature_importances_)}
     meta_path = output_dir / "model_meta.json"
     with open(meta_path, "w") as f:
@@ -351,9 +381,10 @@ def train(output_dir: Path) -> None:
     print(f"Metadata saved to {meta_path}")
 
 
-def infer_artist(artist_id: str, output_dir: Path) -> float | None:
+def infer_artist(artist_id: str, output_dir: Path, artist_name: str = "") -> float | None:
     """
-    Run inference for a single artist using the saved model and append/update predictions.csv.
+    Run inference for a single artist using the saved model.
+    Updates predictions.csv and upserts the result into tinder.xgboost_predictions.
     Returns the predicted 90d growth %, or None if the model is missing or data insufficient.
     """
     if not _HAS_XGB:
@@ -369,6 +400,7 @@ def infer_artist(artist_id: str, output_dir: Path) -> float | None:
     with open(meta_path) as f:
         meta = json.load(f)
     feature_cols: list[str] = meta["feature_cols"]
+    model_version = meta.get("trained_at", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
     model = XGBRegressor()
     model.load_model(str(model_path))
@@ -380,7 +412,8 @@ def infer_artist(artist_id: str, output_dir: Path) -> float | None:
     )
     if not name_rows:
         return None
-    name_map = {name_rows[0]["id"]: name_rows[0]["name"]}
+    resolved_name = name_rows[0]["name"] or artist_name or artist_id
+    name_map = {name_rows[0]["id"]: resolved_name}
 
     cm_rows = (
         sb.schema("tinder").table("artist_chartmetric")
@@ -403,6 +436,8 @@ def infer_artist(artist_id: str, output_dir: Path) -> float | None:
     latest_raw = df.sort_values("date").tail(1).copy()
     missing_pct = float(latest_raw[feature_cols].isna().mean(axis=1).iloc[0] * 100)
     available   = int((~latest_raw[feature_cols].isna()).sum(axis=1).iloc[0])
+    n_total     = len(feature_cols)
+    latest_date = latest_raw["date"].iloc[0].date()
 
     # Build aligned feature matrix — fill any column gaps with 0
     X = pd.DataFrame(0.0, index=[0], columns=feature_cols)
@@ -410,16 +445,16 @@ def infer_artist(artist_id: str, output_dir: Path) -> float | None:
         if col in latest_raw.columns:
             X[col] = latest_raw[col].fillna(0).values[0]
 
-    pred = float(model.predict(X.values)[0])
+    predicted_growth = float(model.predict(X.values)[0])
 
     new_row = {
-        "artist_name":          name_map[artist_id],
+        "artist_name":          resolved_name,
         "artist_id":            artist_id,
-        "date":                 str(latest_raw["date"].iloc[0].date()),
-        "predicted_growth_90d": round(pred, 4),
+        "date":                 str(latest_date),
+        "predicted_growth_90d": round(predicted_growth, 4),
         "missing_pct":          round(missing_pct, 1),
         "available_features":   available,
-        "total_features":       len(feature_cols),
+        "total_features":       n_total,
     }
 
     if pred_path.exists():
@@ -431,7 +466,24 @@ def infer_artist(artist_id: str, output_dir: Path) -> float | None:
 
     preds_df = preds_df.sort_values("predicted_growth_90d", ascending=False).reset_index(drop=True)
     preds_df.to_csv(pred_path, index=False)
-    return pred
+
+    # Write prediction to Supabase
+    try:
+        sb.schema("tinder").table("xgboost_predictions").upsert({
+            "artist_id":            artist_id,
+            "artist_name":          resolved_name,
+            "predicted_growth_90d": float(predicted_growth),
+            "missing_pct":          float(missing_pct),
+            "available_features":   int(available),
+            "total_features":       int(n_total),
+            "prediction_date":      str(latest_date),
+            "model_version":        model_version,
+            "predicted_at":         datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="artist_id").execute()
+    except Exception as _e:
+        print(f"    XGBoost Supabase write failed: {_e}")
+
+    return predicted_growth
 
 
 def main() -> None:
