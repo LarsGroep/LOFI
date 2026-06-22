@@ -54,6 +54,16 @@ parse_lineup.py
 # Local planning docs (not for repo)
 project_armadillo.txt
 
+#LOFI DATA
+artist_events_clean.csv
+artists_clean.csv
+events_clean.csv
+allescraperdatatotnutoe.xlsx
+lineup_recommender/data/~$allescraperdatatotnutoe.xlsx
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated external recommender outputs
+lineup_recommender/data/interim/external_event_artists.csv
+lineup_recommender/data/processed/external_artist_cooccurrence.csv

@@ -1,20 +1,19 @@
 """LOFI Booking Intelligence — artist profile dashboard."""
 import os
-import re
-import json
-import subprocess
 import sys
-from pathlib import Path
 
-import numpy as np
 import pandas as pd
+from pathlib import Path
 import streamlit as st
 import altair as alt
 import yaml
 from dotenv import load_dotenv
 from supabase import create_client
 
-load_dotenv()
+#load_dotenv()
+
+APP_DIR = Path(__file__).resolve().parent
+load_dotenv(APP_DIR / ".env")
 
 _ROOT = Path(__file__).parent
 
@@ -29,6 +28,16 @@ st.set_page_config(page_title="LOFI Booking Intelligence", layout="wide")
 # ---------------------------------------------------------------------------
 # Shared helpers (aligned with lofi_pipeline.py)
 # ---------------------------------------------------------------------------
+# Pathing for lineup_recommender/src
+APP_DIR = Path(__file__).resolve().parent
+RECOMMENDER_DIR = APP_DIR / "lineup_recommender"
+RECOMMENDER_SRC_DIR = RECOMMENDER_DIR / "src"
+RECOMMENDER_DATA_DIR = RECOMMENDER_DIR / "data" / "processed"
+
+sys.path.append(str(RECOMMENDER_SRC_DIR))
+
+from recommendation import recommend_artists_for_artist
+
 
 @st.cache_resource
 def _sb():
@@ -88,6 +97,32 @@ def _safe(r) -> dict:
     """Extract .data from a supabase maybe_single() result, guarding against None response."""
     return (r.data if r is not None else None) or {}
 
+@st.cache_data
+def load_recommender_data():
+    historical_path = RECOMMENDER_DATA_DIR / "artist_historical_performance_scores.csv"
+    cooccurrence_path = RECOMMENDER_DATA_DIR / "lofi_artist_cooccurrence.csv"
+    external_path = RECOMMENDER_DATA_DIR / "external_artist_cooccurrence.csv"
+
+    missing = [
+        str(path)
+        for path in [historical_path, cooccurrence_path]
+        if not path.exists()
+    ]
+
+    if missing:
+        raise FileNotFoundError(
+            "Missing recommender data files:\n" + "\n".join(missing)
+        )
+
+    historical_scores = pd.read_csv(historical_path)
+    cooccurrence = pd.read_csv(cooccurrence_path)
+
+    external_cooccurrence = None
+    if external_path.exists():
+        external_cooccurrence = pd.read_csv(external_path)
+
+    return historical_scores, cooccurrence, external_cooccurrence
+
 
 def load_profile(artist_id: str) -> dict:
     """Main flat metrics row — no image_url or lofi_feel here."""
@@ -96,6 +131,11 @@ def load_profile(artist_id: str) -> dict:
     ).maybe_single().execute()
     return _safe(r)
 
+page = st.sidebar.radio(
+    "Navigation",
+    ["Queue", "Artists", "Recommender"],
+    label_visibility="collapsed",
+)
 
 def load_artist_meta(artist_id: str) -> dict:
     """image_url, cover_url, description from artist_chartmetric + lofi_feel from artists."""
@@ -1057,988 +1097,169 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
                                      "playlist_count":"Afspeellijsten"}),
                 use_container_width=True, hide_index=True,
             )
-            if "spotify_streams" not in disp.columns or disp["spotify_streams"].eq("-").all():
-                st.caption("Streamingdata niet beschikbaar (Chartmetric plan).")
+            parts = []
+            if v := cm.get("sp_monthly_listeners"):
+                parts.append(f"SP {_fmt(v)}")
+            if v := cm.get("ig_followers"):
+                parts.append(f"IG {_fmt(v)}")
+            if v := cm.get("genres"):
+                parts.append("  ·  ".join(v[:3]))
+            if parts:
+                st.caption("  ·  ".join(parts))
+        st.divider()
 
-    with t2:
-        if playlists_df.empty:
-            st.info("Geen playlist plaatsingen.")
-        else:
-            disp = playlists_df.copy()
-            if "playlist_followers" in disp.columns:
-                disp["playlist_followers"] = disp["playlist_followers"].apply(
-                    lambda x: _fmt(x) if pd.notna(x) else "-"
-                )
-            st.dataframe(
-                disp.rename(columns={"platform":"Platform","playlist_name":"Playlist",
-                                     "playlist_followers":"Followers","position":"Position","added_at":"Added"}),
-                use_container_width=True, hide_index=True,
-            )
+# ── Recommender ────────────────────────────────────────────────────────────────
 
+elif page == "Recommender":
+    st.title("Artist Recommender")
+    st.caption(
+        "Find artists connected through LOFI history and external public scene lineups."
+    )
 
-# ---------------------------------------------------------------------------
-# Render: Show History
-# ---------------------------------------------------------------------------
-
-def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
-    st.subheader("Shows")
-    t1, t2, t3 = st.tabs(["Resident Advisor", "Partyflock NL", "Externe Events"])
-
-    with t1:
-        if ra_df.empty:
-            st.info("Geen RA events gevonden.")
-        else:
-            nl_mask    = ra_df.get("country", pd.Series(dtype=str)).str.lower().isin(["netherlands","nl"])
-            ibiza_mask = ra_df.get("city",    pd.Series(dtype=str)).str.lower().isin(["ibiza","eivissa"])
-            st.caption(f"{len(ra_df)} events totaal  ·  {int(nl_mask.sum())} NL  ·  {int(ibiza_mask.sum())} Ibiza")
-
-            cf1, cf2, *_ = st.columns(4)
-            nl_only    = cf1.checkbox("NL only",    key="ra_nl")
-            ibiza_only = cf2.checkbox("Ibiza only", key="ra_ibiza")
-
-            filtered = ra_df.copy()
-            if nl_only:    filtered = filtered[filtered["country"].str.lower().isin(["netherlands","nl"])]
-            if ibiza_only: filtered = filtered[filtered["city"].str.lower().isin(["ibiza","eivissa"])]
-
-            # Add truncated lineup column for display
-            if "lineup" in filtered.columns:
-                filtered = filtered.copy()
-                filtered["lineup_preview"] = filtered["lineup"].apply(
-                    lambda x: ", ".join((x or [])[:4]) + (" …" if len(x or []) > 4 else "")
-                    if isinstance(x, list) else ""
-                )
-
-            show_cols = ["date","title","venue","city","country","venue_capacity","lineup_size","lineup_preview","event_url"]
-            show_cols = [c for c in show_cols if c in filtered.columns]
-            col_cfg = {}
-            if "event_url" in show_cols:
-                col_cfg["event_url"] = st.column_config.LinkColumn("Link")
-
-            st.dataframe(
-                filtered[show_cols].rename(columns={
-                    "date":"Date","title":"Event","venue":"Venue","city":"City","country":"Country",
-                    "venue_capacity":"Capacity","lineup_size":"# Acts",
-                    "lineup_preview":"Lineup (preview)","event_url":"event_url",
-                }),
-                column_config=col_cfg,
-                use_container_width=True, hide_index=True,
-            )
-
-            # Full lineup viewer
-            with st.expander("Volledige lineup per event"):
-                events_with_lineup = filtered[filtered["lineup"].apply(
-                    lambda x: isinstance(x, list) and len(x) > 0
-                )]
-                if events_with_lineup.empty:
-                    st.info("Geen lineupdata beschikbaar.")
-                else:
-                    sel_opts = [
-                        f"{row['date']} — {row.get('venue','?')} ({row.get('city','')})"
-                        for _, row in events_with_lineup.iterrows()
-                    ]
-                    sel = st.selectbox("Selecteer event", sel_opts, key="ra_lineup_sel")
-                    if sel:
-                        idx = sel_opts.index(sel)
-                        row = events_with_lineup.iloc[idx]
-                        lineup = row.get("lineup") or []
-                        st.write(", ".join(lineup))
-
-    with t2:
-        events_raw = pf_data.get("events") or []
-        mc1, mc2, mc3 = st.columns(3)
-        mc1.metric("PF Fans",           _fmt(pf_data.get("pf_fans")))
-        mc2.metric("Past Performances", _fmt(pf_data.get("pf_past_performances")))
-        if not events_raw:
-            mc3.metric("NL Events", "0")
-            st.info("Geen Partyflock data voor deze artiest.")
-        else:
-            try:
-                ev_df = pd.json_normalize(events_raw)
-            except Exception:
-                mc3.metric("NL Events", "?"); st.info("Kon Partyflock events niet verwerken.")
-            else:
-                nl_df = ev_df[ev_df.get("country","").str.upper().isin(["NL","BE","NETHERLANDS","BELGIUM"])] \
-                    if "country" in ev_df.columns else ev_df
-                mc3.metric("NL Events", str(len(nl_df)))
-                pf_genres = pf_data.get("pf_genres") or []
-                if pf_genres: st.caption("Genres: " + ", ".join(pf_genres))
-                if "start_date" in nl_df.columns:
-                    nl_df = nl_df.sort_values("start_date", ascending=False)
-                cols_nl = [c for c in ["start_date","event_name","venue","city"] if c in nl_df.columns]
-                st.dataframe(
-                    nl_df[cols_nl].rename(columns={"start_date":"Date","event_name":"Event","venue":"Venue","city":"City"}),
-                    use_container_width=True, hide_index=True,
-                )
-                with st.expander("Alle events (incl. internationaal)"):
-                    cols_all = [c for c in ["start_date","event_name","venue","city","country"] if c in ev_df.columns]
-                    if "start_date" in ev_df.columns: ev_df = ev_df.sort_values("start_date", ascending=False)
-                    st.dataframe(ev_df[cols_all] if cols_all else ev_df, use_container_width=True, hide_index=True)
-
-    with t3:
-        ext_events = ext.get("events_external") or []
-        if not ext_events:
-            st.info("Geen externe eventdata (Songkick / Ticketmaster).")
-        else:
-            try:
-                ext_df = pd.json_normalize(ext_events)
-                dc = next((c for c in ["start_date","date","startDate"] if c in ext_df.columns), None)
-                nc = next((c for c in ["name","event_name","eventName"] if c in ext_df.columns), None)
-                if dc: ext_df = ext_df.sort_values(dc, ascending=False)
-                cols_s = [c for c in [dc, nc, "venue","city","country"] if c and c in ext_df.columns]
-                st.dataframe(ext_df[cols_s] if cols_s else ext_df, use_container_width=True, hide_index=True)
-            except Exception:
-                st.info("Kon externe events niet verwerken.")
-
-
-# ---------------------------------------------------------------------------
-# Render: Milestones & Co-performers
-# ---------------------------------------------------------------------------
-
-def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame) -> None:
-    st.subheader("Mijlpalen")
-
-    cm_milestones = ext.get("milestones") or []
-    noteworthy    = ext.get("noteworthy_insights") or []
-    co_performers = get_co_performers(ra_df)
-
-    tab_labels = ["Mijlpalen"]
-    if co_performers:
-        tab_labels.append("Opgetreden Met")
-    if noteworthy:
-        tab_labels.append("Opvallende Inzichten")
-    tabs = st.tabs(tab_labels)
-    tidx = 0
-
-    # --- Milestones tab ---
-    with tabs[tidx]:
-        rows = []
-        # From validation_events (DB)
-        for _, r in vdf.iterrows():
-            rows.append({
-                "Type":     _MILESTONE_LABELS.get(str(r.get("event_type","")), str(r.get("event_type",""))),
-                "Date":     str(r.get("event_date") or ""),
-                "Source":   "RA (detected)",
-                "Stars":    "",
-                "Confirmed": "✓" if r.get("confirmed") else "",
-            })
-        # From CM milestones
-        for m in cm_milestones:
-            if not isinstance(m, dict): continue
-            stars_n = m.get("stars") or 0
-            rows.append({
-                "Type":     m.get("summary") or m.get("type") or "CM Milestone",
-                "Date":     (str(m.get("date") or ""))[:10],
-                "Source":   m.get("platform") or "Chartmetric",
-                "Stars":    "★" * min(int(float(stars_n)), 5) if stars_n else "",
-                "Confirmed": "",
-            })
-        if rows:
-            df_m = pd.DataFrame(rows).sort_values("Date", ascending=False, na_position="last")
-            st.dataframe(df_m, use_container_width=True, hide_index=True)
-        else:
-            st.info("Nog geen mijlpalen.")
-    tidx += 1
-
-    # --- Co-performers tab ---
-    if co_performers:
-        with tabs[tidx]:
-            st.caption("Benchmark artiesten die in dezelfde RA lineup stonden.")
-            df_cp = pd.DataFrame(co_performers)
-            st.dataframe(df_cp, use_container_width=True, hide_index=True)
-            tidx += 1
-
-    # --- Noteworthy Insights tab ---
-    if noteworthy:
-        with tabs[tidx]:
-            for item in noteworthy:
-                if isinstance(item, dict):
-                    title = (
-                        item.get("text") or item.get("summary") or item.get("description")
-                        or item.get("message") or item.get("insight") or ""
-                    ).strip()
-                    if not title:
-                        # flatten dict to readable string if no known text key
-                        title = "; ".join(f"{k}: {v}" for k, v in item.items()
-                                         if v and k not in ("date","platform","source","stars","timestp"))
-                    if not title:
-                        continue
-                    platform = item.get("platform") or item.get("source") or ""
-                    date_s = (str(item.get("date") or item.get("timestp") or ""))[:10]
-                    parts = [p for p in [platform, date_s] if p]
-                    subtitle = " · ".join(parts)
-                    st.markdown(f"- {title}")
-                    if subtitle: st.caption(subtitle)
-                    st.divider()
-                else:
-                    text = str(item).strip()
-                    if text:
-                        st.markdown(f"• {text}")
-
-
-# ---------------------------------------------------------------------------
-# Render: Similar Artists (merged)
-# ---------------------------------------------------------------------------
-
-def render_similar_artists(profile: dict, ext: dict) -> None:
-    lfm = profile.get("lfm_similar_artists") or []
-    cm  = ext.get("related_artists") or []
-
-    lfm_names = [str(n) for n in lfm] if isinstance(lfm, list) else []
-    cm_names: list[str] = []
-    for r in (cm if isinstance(cm, list) else []):
-        if isinstance(r, dict): cm_names.append(r.get("name") or r.get("artist_name") or "")
-        elif isinstance(r, str): cm_names.append(r)
-    cm_names = [n for n in cm_names if n]
-
-    if not lfm_names and not cm_names:
-        return
-
-    st.subheader("Vergelijkbare artiesten")
-    # Merge — show unique names from both sources in one list
-    all_names = list(dict.fromkeys(lfm_names + cm_names))  # preserve order, dedupe
-    shown = all_names[:20]
-    remaining = all_names[20:]
-    st.write(", ".join(shown))
-    if remaining:
-        with st.expander(f"Toon {len(remaining)} meer"):
-            st.write(", ".join(remaining))
-
-    # Source attribution (compact)
-    parts = []
-    if lfm_names: parts.append(f"Last.fm: {', '.join(lfm_names[:5])}")
-    if cm_names:  parts.append(f"Chartmetric: {', '.join(cm_names[:5])}")
-    st.caption("  ·  ".join(parts))
-
-
-# ---------------------------------------------------------------------------
-# Render: Discography
-# ---------------------------------------------------------------------------
-
-def render_discography(ext: dict) -> None:
-    albums = ext.get("albums") or []
-    if not albums: return
     try:
-        df_a = pd.json_normalize(albums)
-        if df_a.empty: return
-        cols = [c for c in ["name","release_date","type","track_count"] if c in df_a.columns]
-        with st.expander("Albums & Releases"):
-            st.dataframe(df_a[cols].rename(columns={"name":"Titel","release_date":"Uitgebracht",
-                                                     "type":"Type","track_count":"Nummers"}),
-                         use_container_width=True, hide_index=True)
-    except Exception:
-        pass
+        historical_scores, cooccurrence, external_cooccurrence = load_recommender_data()
+    except Exception as error:
+        st.error("Could not load recommender data.")
+        st.code(str(error))
+        st.stop()
 
+    artist_names = set()
 
-# ---------------------------------------------------------------------------
-# Render: Feedback / Labeling form
-# ---------------------------------------------------------------------------
-
-def render_feedback_form(artist_id: str, artist_name: str) -> None:
-    with st.expander("Label / Feedback Toevoegen"):
-        st.caption(
-            "Labels worden opgeslagen in `tinder.artist_feedback` en gebruikt om scoring te verbeteren. "
-            "Bevestigde mijlpalen, venue-tiers en agency-data zijn bijzonder waardevol."
+    if "artist_name" in historical_scores.columns:
+        artist_names.update(
+            historical_scores["artist_name"].dropna().astype(str).tolist()
         )
-        fb_type = st.selectbox("Type", [
-            "milestone_confirm", "milestone_date",
-            "event_venue_tier", "agency",
-            "performer_tier", "lofi_fit", "general_note",
-        ], key="fb_type")
-        fb_key   = st.text_input("Field / Key", placeholder="e.g. first_boiler_room, booking_agent", key="fb_key")
-        fb_value = st.text_input("Value",        placeholder="e.g. confirmed, 2024-03-15, tier_1",   key="fb_value")
-        fb_ref   = st.text_input("Event ref (URL or date, optional)", key="fb_ref")
-        fb_notes = st.text_area("Notes (optional)", key="fb_notes", height=60)
 
-        if st.button("Label opslaan", key="fb_submit"):
-            if not fb_key or not fb_value:
-                st.error("Field and Value are required.")
-            else:
-                try:
-                    sb.schema("tinder").table("artist_feedback").insert({
-                        "artist_id":    artist_id,
-                        "feedback_type": fb_type,
-                        "field_key":    fb_key.strip(),
-                        "field_value":  fb_value.strip(),
-                        "event_ref":    fb_ref.strip() or None,
-                        "notes":        fb_notes.strip() or None,
-                        "created_by":   "manual",
-                    }).execute()
-                    st.success("Label saved.")
-                except Exception as e:
-                    st.error(f"Save failed: {e}")
+    for col in ["artist_name_a", "artist_name_b"]:
+        if col in cooccurrence.columns:
+            artist_names.update(cooccurrence[col].dropna().astype(str).tolist())
 
-    fb_df = load_existing_feedback(artist_id)
-    if not fb_df.empty:
-        with st.expander(f"Bestaande labels ({len(fb_df)})"):
-            st.dataframe(fb_df.drop(columns=["id","artist_id"], errors="ignore"),
-                         use_container_width=True, hide_index=True)
+    if external_cooccurrence is not None:
+        for col in ["artist_name_a", "artist_name_b"]:
+            if col in external_cooccurrence.columns:
+                artist_names.update(
+                    external_cooccurrence[col].dropna().astype(str).tolist()
+                )
 
+    artist_names = sorted(artist_names, key=lambda name: name.lower())
 
-# ---------------------------------------------------------------------------
-# Page 2: Genre Trend Radar
-# ---------------------------------------------------------------------------
+    c1, c2, c3 = st.columns([3, 1, 1])
 
-def render_genre_radar() -> None:
-    st.title("Genre Trend Radar")
-    genre_df = load_genre_trend()
-    if genre_df.empty:
-        st.info("Nog geen Last.fm tag data beschikbaar.")
-        return
-
-    top15 = genre_df.head(15).copy()
-    c1, c2 = st.columns(2)
     with c1:
-        bar = (
-            alt.Chart(top15).mark_bar()
-            .encode(x=alt.X("artist_count:Q",title="Artiesten in systeem"),
-                    y=alt.Y("tag:N",sort="-x",title=""),
-                    tooltip=["tag","artist_count","avg_listeners"])
-            .properties(height=380, title="Artiesten per genre-tag")
+        default_index = artist_names.index("PAWSA") if "PAWSA" in artist_names else 0
+
+        selected_artist = st.selectbox(
+            "Select artist",
+            artist_names,
+            index=default_index,
         )
-        st.altair_chart(bar, use_container_width=True)
+
     with c2:
-        scatter = (
-            alt.Chart(genre_df).mark_circle(size=80,opacity=0.7)
-            .encode(x=alt.X("artist_count:Q",title="Aantal artiesten"),
-                    y=alt.Y("avg_listeners:Q",title="Gem. Last.fm luisteraars"),
-                    tooltip=["tag","artist_count",alt.Tooltip("avg_listeners:Q",format=".0f")])
-            .properties(height=380, title="Genre publieksdiepte")
-        )
-        st.altair_chart(scatter, use_container_width=True)
-
-    st.subheader("Alle genres")
-    st.dataframe(genre_df.rename(columns={"tag":"Genre","artist_count":"Artiesten","avg_listeners":"Gem. Luisteraars"}),
-                 use_container_width=True, hide_index=True,
-                 column_config={"Gem. Luisteraars": st.column_config.NumberColumn(format="%.0f")})
-    st.caption("Volledige versie met NL-specifieke vraag en genre-momentum over tijd — Fase 5.")
-
-
-# ---------------------------------------------------------------------------
-# Add artist + live scrape
-# ---------------------------------------------------------------------------
-
-_SLUG_CHAR_MAP = str.maketrans({
-    "ø": "o", "Ø": "o",
-    "å": "a", "Å": "a",
-    "æ": "ae", "Æ": "ae",
-    "ð": "d", "Ð": "d",
-    "þ": "th", "Þ": "th",
-    "ß": "ss",
-    "ł": "l", "Ł": "l",
-    "œ": "oe", "Œ": "oe",
-})
-
-
-def _make_slug(name: str) -> str:
-    import unicodedata
-    # First replace chars that NFKD cannot decompose (e.g. ø -> o)
-    mapped = name.translate(_SLUG_CHAR_MAP)
-    n = unicodedata.normalize("NFKD", mapped).encode("ascii", "ignore").decode()
-    return re.sub(r"[^a-z0-9]+", "-", n.lower()).strip("-") or "artist"
-
-
-def _unique_slug(base: str) -> str:
-    slug = base
-    for suffix in [""] + [f"-{i}" for i in range(2, 20)]:
-        candidate = slug + suffix
-        existing = sb.schema("tinder").table("artists").select("id").eq(
-            "slug", candidate
-        ).execute().data
-        if not existing:
-            return candidate
-    import uuid as _uuid
-    return f"{base}-{_uuid.uuid4().hex[:6]}"
-
-
-def _fmt_listeners(n) -> str:
-    if n is None:
-        return "?"
-    n = int(n)
-    if n >= 1_000_000:
-        return f"{n/1_000_000:.1f}M"
-    if n >= 1_000:
-        return f"{n/1_000:.0f}k"
-    return str(n)
-
-
-def render_add_artist(query: str) -> None:
-    """Show the 'Add artist' panel when search has no results."""
-    st.info(f"Geen artiest genaamd **{query}** gevonden in de database.")
-
-    with st.expander("➕ Artiest toevoegen en direct scrapen", expanded=True):
-        st.caption(
-            "Maakt het artiestrecord aan en start direct een volledige Chartmetric + RA + "
-            "Partyflock + Last.fm scrape (~60–90 s). "
-            "Het profiel wordt weergegeven zodra dit klaar is."
-        )
-        status_choice = st.radio(
-            "Kandidaatstatus instellen",
-            ["candidate", "booked", "rejected"],
-            horizontal=True,
-            key="add_artist_status",
+        top_n = st.number_input(
+            "Top N",
+            min_value=5,
+            max_value=50,
+            value=10,
+            step=5,
         )
 
-        cand_key = f"cm_cands_{query}"
-        candidates = st.session_state.get(cand_key)  # None = not yet searched
+    with c3:
+        min_confidence = st.number_input(
+            "Min confidence",
+            min_value=0.0,
+            max_value=100.0,
+            value=0.0,
+            step=5.0,
+        )
 
-        # ── Phase 2: disambiguation radio (only when multiple candidates found) ──
-        selected_cm_id: int | None = None
-        if candidates is not None and len(candidates) > 1:
-            st.info("Meerdere artiesten gevonden op Chartmetric — kies de juiste:")
-            options = {
-                f"{c['name']}  —  {_fmt_listeners(c.get('sp_monthly_listeners'))} listeners  "
-                f"(CM {c.get('cm_artist_score', 0):.0f})": c["id"]
-                for c in candidates
-            }
-            choice = st.radio("Welke artiest bedoel je?", list(options.keys()), key="cm_candidate_choice")
-            selected_cm_id = options[choice]
-            st.caption(f"Chartmetric ID: `{selected_cm_id}`")
-            btn_label = f"Bevestig & scrapen →  {choice.split(' — ')[0].strip()}"
-        elif candidates is not None and len(candidates) == 1:
-            selected_cm_id = candidates[0]["id"]
-            btn_label = f"Toevoegen & scrapen →  {query}"
-        else:
-            btn_label = f"Toevoegen & scrapen →  {query}"
+    if st.button("Get recommendations", type="primary"):
+        recommendations = recommend_artists_for_artist(
+            selected_artist_name=selected_artist,
+            historical_scores_df=historical_scores,
+            cooccurrence_df=cooccurrence,
+            external_cooccurrence_df=external_cooccurrence,
+            min_confidence=min_confidence,
+            top_n=int(top_n),
+        )
 
-        # ── Phase 1 / confirm button ──────────────────────────────────────────
-        if st.button(btn_label, type="primary", key="add_artist_btn"):
-            if candidates is None and _HAS_CM_SEARCH and _cm_configured():
-                # First click: search Chartmetric, rerender to show candidates
-                try:
-                    _cm_refresh()
-                    results = _cm_search(query, limit=8)
-                    st.session_state[cand_key] = results
-                    if len(results) > 1:
-                        st.rerun()
-                        return
-                    selected_cm_id = results[0]["id"] if results else None
-                except Exception as e:
-                    st.warning(f"CM zoeken mislukt: {e}")
-            # Either confirmed selection or CM not configured — proceed
-            _run_add_and_scrape(query, status_choice, chartmetric_id=selected_cm_id)
-            st.session_state.pop(cand_key, None)
+        if recommendations.empty:
+            st.warning(f"No recommendations found for {selected_artist}.")
+            st.stop()
 
+        st.subheader(f"Top recommendations for {selected_artist}")
 
-def _run_add_and_scrape(name: str, candidate_status: str, chartmetric_id: int | None = None) -> None:
-    # 1. Check for existing artist (case-insensitive) before inserting
-    existing = sb.schema("tinder").table("artists").select("id, name").ilike("name", name).execute().data or []
-    if existing:
-        artist_id = existing[0]["id"]
-        st.info(f"Artiest **{existing[0]['name']}** bestaat al — scrape opnieuw gestart voor `{artist_id}`")
-        sb.schema("tinder").table("artists").update({"needs_scraping": True}).eq("id", artist_id).execute()
-        if chartmetric_id and not existing[0].get("chartmetric_id"):
-            sb.schema("tinder").table("artists").update(
-                {"chartmetric_id": str(chartmetric_id)}
-            ).eq("id", artist_id).execute()
-    else:
-        slug = _unique_slug(_make_slug(name))
-        row: dict = {
-            "name":             name,
-            "slug":             slug,
-            "candidate_status": candidate_status,
-            "needs_scraping":   True,
-        }
-        if chartmetric_id:
-            row["chartmetric_id"] = str(chartmetric_id)
-        try:
-            result = sb.schema("tinder").table("artists").insert(row).execute()
-            artist_id = result.data[0]["id"]
-        except Exception as e:
-            st.error(f"Could not create artist record: {e}")
-            return
-        st.success(f"Artiest aangemaakt — `{artist_id}`")
-
-    # 2. Run scrape_flagged.py --artist-id <uuid> as subprocess, stream output
-    scraper = str(_ROOT / "scrapers" / "scrape_flagged.py")
-    cmd = [sys.executable, scraper, "--artist-id", artist_id]
-
-    with st.status("Scraping artist data…", expanded=True) as status_box:
-        log_placeholder = st.empty()
-        lines: list[str] = []
-        try:
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                cwd=str(_ROOT),
-            )
-            for line in proc.stdout:
-                lines.append(line.rstrip())
-                log_placeholder.code("\n".join(lines[-30:]))
-            proc.wait()
-            if proc.returncode == 0:
-                status_box.update(label="Scrape complete!", state="complete")
-            else:
-                status_box.update(label="Scrape finished with errors", state="error")
-        except Exception as e:
-            status_box.update(label=f"Scrape failed: {e}", state="error")
-            return
-
-    # 3. Verify what actually landed in the DB
-    _verify_scrape(artist_id, name)
-
-    # 4. Clear cache and reload so the new artist appears
-    st.cache_data.clear()
-    st.session_state["pending_artist"] = name
-    st.rerun()
-
-
-def _verify_scrape(artist_id: str, name: str) -> None:
-    """Query DB to confirm which tables were populated by the scrape."""
-    checks = [
-        ("Chartmetric profiel",  "artist_chartmetric",      "artist_id"),
-        ("Tijdreeksdata",        "artist_chartmetric",      "cm_timeseries"),
-        ("ML groeicijfers",      "artist_chartmetric",      "ml_features"),
-        ("Uitgebreide data",     "artist_cm_extended",      "artist_id"),
-        ("RA events",            "artist_ra",               "artist_id"),
-        ("Partyflock",           "artist_partyflock",       "artist_id"),
-        ("Last.fm",              "artist_lastfm",           "artist_id"),
-    ]
-    rows: list[dict] = []
-    try:
-        cm_row = sb.schema("tinder").table("artist_chartmetric").select(
-            "artist_id, cm_timeseries, ml_features, updated_at"
-        ).eq("artist_id", artist_id).maybe_single().execute()
-        cm = cm_row.data or {} if cm_row else {}
-
-        def _has(table: str) -> bool:
-            r = sb.schema("tinder").table(table).select("artist_id").eq(
-                "artist_id", artist_id
-            ).maybe_single().execute()
-            return bool(r and r.data)
-
-        rows = [
-            {"Check": "Chartmetric profiel", "Status": "OK" if cm else "Ontbreekt"},
-            {"Check": "Tijdreeksdata",       "Status": "OK" if cm.get("cm_timeseries") else "Leeg"},
-            {"Check": "ML groeicijfers",     "Status": "OK" if cm.get("ml_features") else "Leeg"},
-            {"Check": "Uitgebreide data",    "Status": "OK" if _has("artist_cm_extended") else "Ontbreekt"},
-            {"Check": "RA events",           "Status": "OK" if _has("artist_ra") else "Ontbreekt"},
-            {"Check": "Partyflock",          "Status": "OK" if _has("artist_partyflock") else "Ontbreekt"},
-            {"Check": "Last.fm",             "Status": "OK" if _has("artist_lastfm") else "Ontbreekt"},
+        display_columns = [
+            "candidate_artist",
+            "recommendation_score",
+            "cooccur_count",
+            "external_cooccur_count",
+            "historical_lofi_score",
+            "confidence_score",
+            "has_historical_lofi_score",
+            "has_external_scene_evidence",
+            "is_external_only_candidate",
         ]
-        ok_count = sum(1 for r in rows if r["Status"] == "OK")
-        import pandas as _pd
-        df = _pd.DataFrame(rows)
-        df["Status"] = df["Status"].apply(
-            lambda s: f":green[{s}]" if s == "OK" else f":orange[{s}]"
+
+        existing_columns = [
+            column for column in display_columns
+            if column in recommendations.columns
+        ]
+
+        st.dataframe(
+            recommendations[existing_columns],
+            use_container_width=True,
+            hide_index=True,
         )
-        st.markdown(f"**Database verificatie — {ok_count}/{len(rows)} tabellen gevuld:**")
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        if cm.get("updated_at"):
-            st.caption(f"Laatste update: {cm['updated_at'][:19].replace('T',' ')} UTC")
-    except Exception as e:
-        st.warning(f"Verificatie niet gelukt: {e}")
 
+        st.markdown("---")
+        st.subheader("Recommendation reasons")
 
-# ---------------------------------------------------------------------------
-# Page helpers
-# ---------------------------------------------------------------------------
+        for index, row in recommendations.iterrows():
+            evidence_label = "Hybrid / LOFI-backed"
 
+            if row.get("is_external_only_candidate", False):
+                evidence_label = "External scene-backed"
 
+            with st.expander(
+                f"{index + 1}. {row['candidate_artist']} — {evidence_label}",
+                expanded=index < 3,
+            ):
+                m1, m2, m3, m4 = st.columns(4)
 
-def _page_artiest_profiel() -> None:
-    st.title("Artiest Profiel")
-    artist_list = load_artist_list()
-    if artist_list.empty:
-        st.warning("Geen artiestdata beschikbaar."); return
-
-    names = sorted(artist_list["artist_name"].dropna().unique().tolist())
-    query = st.text_input("Zoek artiest", placeholder="bijv. Estella Boersma")
-    if not query:
-        st.info("Typ een artiestnaam hierboven om te beginnen."); return
-
-    # Auto-select a just-scraped artist (after rerun following add flow)
-    pending = st.session_state.pop("pending_artist", None)
-
-    filtered_names = [n for n in names if query.lower() in n.lower()][:20]
-    if not filtered_names:
-        render_add_artist(query)
-        return
-
-    # Auto-select when only one match or freshly added
-    if len(filtered_names) == 1 or (pending and pending in filtered_names):
-        selected = pending if (pending and pending in filtered_names) else filtered_names[0]
-        st.caption(f"Weergave: {selected}")
-    else:
-        selected = st.selectbox("Selecteer", filtered_names, label_visibility="collapsed")
-
-    # Offer "add as new" if no exact match even though partial results exist
-    if query.lower() not in [n.lower() for n in filtered_names]:
-        with st.expander(f"Artiest niet gevonden? Voeg '{query}' toe als nieuw"):
-            st.caption("Maakt het artiestrecord aan en start direct een volledige scrape (~60–90 s).")
-            status_choice = st.radio("Kandidaatstatus instellen", ["candidate","booked","rejected"],
-                                     horizontal=True, key="add_partial_status")
-            if st.button(f"Toevoegen & scrapen →  {query}", key="add_partial_btn"):
-                _run_add_and_scrape(query, status_choice)
-
-    artist_row = artist_list[artist_list["artist_name"] == selected].iloc[0]
-    artist_id  = str(artist_row["artist_id"])
-
-    # Load all data (sequential — sync client)
-    profile   = load_profile(artist_id)
-    if not profile:
-        st.error("Geen profieldata voor deze artiest."); return
-
-    meta      = load_artist_meta(artist_id)
-    ts_data   = load_timeseries(artist_id)
-    ext       = load_ext(artist_id)
-    ra_df     = load_ra_events(artist_id)
-    pf_data   = load_pf_data(artist_id)
-    vdf       = load_validation(artist_id)
-
-    # Render
-    render_header(profile, meta, ext)
-    st.divider()
-    render_five_scores(profile, ts_data)
-    st.divider()
-    render_nl_signal(ext, pf_data)
-    st.divider()
-    render_growth_signals(ts_data)
-    st.divider()
-    render_platform_stats(profile, ts_data.get("ml_features") or {})
-    render_audience_demographics(ext)
-    st.divider()
-    render_show_history(ra_df, pf_data, ext)
-    st.divider()
-    render_milestones(vdf, ext, ra_df)
-    render_discography(ext)
-    render_similar_artists(profile, ext)
-    st.divider()
-    render_growth_forecast(profile, ts_data)
-    render_feedback_form(artist_id, selected)
-
-
-@st.cache_data(ttl=1800)
-def _load_genre_cluster_data() -> pd.DataFrame:
-    """Load artist genres + XGBoost predictions + listeners for genre clustering."""
-    pred_path = _ROOT / "ml" / "models" / "predictions.csv"
-    if not pred_path.exists():
-        return pd.DataFrame()
-
-    preds = pd.read_csv(pred_path)[["artist_id", "predicted_growth_90d", "missing_pct"]]
-
-    # Load genres from flat view
-    rows = sb.schema("tinder").table("artist_chartmetric_flat").select(
-        "artist_id, artist_name, genres, spotify_listeners, cm_artist_score"
-    ).execute().data or []
-    if not rows:
-        return pd.DataFrame()
-    artists_df = pd.DataFrame(rows)
-
-    # Merge predictions
-    df = artists_df.merge(preds, on="artist_id", how="left")
-
-    # Explode genres — genres column is a list
-    def _parse_genres(g):
-        if isinstance(g, list): return g
-        if isinstance(g, str):
-            try: return json.loads(g)
-            except: return []
-        return []
-
-    df["genres_list"] = df["genres"].apply(_parse_genres)
-    df = df[df["genres_list"].apply(len) > 0]
-    df_exploded = df.explode("genres_list").rename(columns={"genres_list": "genre"})
-    df_exploded["genre"] = df_exploded["genre"].str.lower().str.strip()
-    df_exploded = df_exploded[df_exploded["genre"].str.len() > 2]
-
-    return df_exploded
-
-
-def _page_genre_trends() -> None:
-    st.title("Genre Trends")
-    st.caption("Welke genres groeien nu? Op basis van de artiesten die we volgen.")
-
-    df = _load_genre_cluster_data()
-    if df.empty:
-        st.info("Geen data — train het XGBoost-model eerst en zorg dat er artiestdata is.")
-        return
-
-    agg = (
-        df.groupby("genre")
-        .agg(
-            artist_count=("artist_id", "nunique"),
-            avg_predicted_growth=("predicted_growth_90d", "mean"),
-            pct_growing=("predicted_growth_90d", lambda x: (x > 0).mean() * 100),
-            avg_listeners=("spotify_listeners", "mean"),
-            avg_cm_score=("cm_artist_score", "mean"),
-        )
-        .reset_index()
-    )
-    agg = agg[agg["artist_count"] >= 3].copy()
-    agg["avg_predicted_growth"] = agg["avg_predicted_growth"].fillna(0)
-    agg["Trend"] = agg["avg_predicted_growth"].apply(
-        lambda x: "Stijgend" if x >= 5 else ("Stabiel" if x >= -5 else "Dalend")
-    )
-    agg = agg.sort_values("avg_predicted_growth", ascending=False)
-
-    top15 = agg.head(15).copy()
-    top15_count = agg.nlargest(15, "artist_count").copy()
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Groeiende genres")
-        bar_growth = (
-            alt.Chart(top15)
-            .mark_bar()
-            .encode(
-                x=alt.X("avg_predicted_growth:Q", title="Verwachte groei (%)"),
-                y=alt.Y("genre:N", sort="-x", title=""),
-                color=alt.condition(
-                    alt.datum.avg_predicted_growth > 0,
-                    alt.value("#1DB954"),
-                    alt.value("#e05252"),
-                ),
-                tooltip=["genre",
-                         alt.Tooltip("avg_predicted_growth:Q", format=".1f", title="Groei %"),
-                         "artist_count",
-                         alt.Tooltip("pct_growing:Q", format=".0f", title="% groeiend")],
-            )
-            .properties(height=400)
-        )
-        st.altair_chart(bar_growth, use_container_width=True)
-
-    with col2:
-        st.subheader("Grootste genres")
-        bar_count = (
-            alt.Chart(top15_count)
-            .mark_bar()
-            .encode(
-                x=alt.X("artist_count:Q", title="Artiesten"),
-                y=alt.Y("genre:N", sort="-x", title=""),
-                color=alt.condition(
-                    alt.datum.avg_predicted_growth > 0,
-                    alt.value("#1DB954"),
-                    alt.value("#e05252"),
-                ),
-                tooltip=["genre", "artist_count",
-                         alt.Tooltip("avg_predicted_growth:Q", format=".1f", title="Groei %")],
-            )
-            .properties(height=400)
-        )
-        st.altair_chart(bar_count, use_container_width=True)
-
-    st.subheader("Alle genres")
-    display_df = agg[["genre", "artist_count", "avg_predicted_growth", "pct_growing", "avg_listeners", "Trend"]].copy()
-    display_df.columns = ["Genre", "Artiesten", "Groei (%)", "% Groeiend", "Gem. Luisteraars", "Trend"]
-    display_df["Groei (%)"] = display_df["Groei (%)"].round(1)
-    display_df["% Groeiend"] = display_df["% Groeiend"].round(0).astype(int)
-    display_df["Gem. Luisteraars"] = display_df["Gem. Luisteraars"].fillna(0).astype(int)
-    st.dataframe(
-        display_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Groei (%)":        st.column_config.NumberColumn(format="%.1f%%"),
-            "% Groeiend":       st.column_config.NumberColumn(format="%d%%"),
-            "Gem. Luisteraars": st.column_config.NumberColumn(format="%d"),
-        }
-    )
-
-    st.subheader("Inzoomen op een genre")
-    all_genres = sorted(agg["genre"].tolist())
-    selected_genre = st.selectbox("Kies een genre", all_genres)
-    if selected_genre:
-        genre_artists = df[df["genre"] == selected_genre].drop_duplicates("artist_id").sort_values(
-            "predicted_growth_90d", ascending=False
-        )
-        st.caption(f"{len(genre_artists)} artiesten in **{selected_genre}**")
-        cols_to_show = ["artist_name", "predicted_growth_90d", "spotify_listeners", "cm_artist_score"]
-        cols_available = [c for c in cols_to_show if c in genre_artists.columns]
-        ga_display = genre_artists[cols_available].copy()
-        ga_display.columns = ["Artiest", "Groei (%)", "SP Luisteraars", "CM Score"][:len(cols_available)]
-        if "Groei (%)" in ga_display.columns:
-            ga_display["Groei (%)"] = ga_display["Groei (%)"].round(1)
-        if "SP Luisteraars" in ga_display.columns:
-            ga_display["SP Luisteraars"] = ga_display["SP Luisteraars"].fillna(0).astype(int)
-        st.dataframe(ga_display, use_container_width=True, hide_index=True)
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def _count(table: str, schema: str = "tinder", **filters) -> int:
-    """Return exact row count without fetching row data."""
-    q = sb.schema(schema).table(table).select("*", count="exact").limit(0)
-    for k, v in filters.items():
-        q = q.eq(k, v)
-    r = q.execute()
-    return r.count or 0
-
-
-@st.cache_data(ttl=300)
-def _load_scraper_status() -> dict:
-    """Fetch coverage counts across all data tables — cached 5 min."""
-    try:
-        total        = _count("artists")
-        has_cm       = _count("artist_chartmetric")
-        has_ext      = _count("artist_cm_extended")
-        has_ra       = _count("artist_ra")
-        has_pf       = _count("artist_partyflock")
-        has_lfm      = _count("artist_lastfm")
-        needs_scrape = _count("artists", needs_scraping=True)
-        latest_rows = (
-            sb.schema("tinder").table("artist_chartmetric")
-            .select("updated_at").order("updated_at", desc=True).limit(1).execute().data or []
-        )
-        last_scrape = latest_rows[0]["updated_at"][:16].replace("T", " ") if latest_rows else "—"
-        return {
-            "total": total, "has_cm": has_cm, "has_ext": has_ext,
-            "has_ra": has_ra, "has_pf": has_pf, "has_lfm": has_lfm,
-            "needs_scrape": needs_scrape, "last_scrape": last_scrape,
-        }
-    except Exception:
-        return {}
-
-
-def _sidebar_add_artist() -> None:
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**Artiest toevoegen**")
-    name = st.sidebar.text_input("Naam", key="sidebar_add_name", label_visibility="collapsed",
-                                 placeholder="Artiestnaam…")
-    if not name:
-        # Clear stale search state when field is emptied
-        for k in [k for k in st.session_state if k.startswith("sb_cm_cands_")]:
-            del st.session_state[k]
-        return
-
-    cand_key = f"sb_cm_cands_{name}"
-    candidates = st.session_state.get(cand_key)  # None = not yet searched
-
-    # ── Phase 2: disambiguation (multiple results) ────────────────────────────
-    selected_cm_id: int | None = None
-    if candidates is not None and len(candidates) > 1:
-        st.sidebar.info("Meerdere artiesten gevonden — kies:")
-        options = {
-            f"{c['name']}  ({_fmt_listeners(c.get('sp_monthly_listeners'))} lst)": c["id"]
-            for c in candidates
-        }
-        choice = st.sidebar.radio("Artiest:", list(options.keys()), key="sb_cm_choice")
-        selected_cm_id = options[choice]
-        btn_label = "Bevestig & scrapen"
-    elif candidates is not None and len(candidates) == 1:
-        selected_cm_id = candidates[0]["id"]
-        btn_label = "Toevoegen & scrapen"
-    else:
-        btn_label = "Toevoegen & scrapen"
-
-    if st.sidebar.button(btn_label, key="sidebar_add_btn", type="primary"):
-        if candidates is None and _HAS_CM_SEARCH and _cm_configured():
-            # First click: search CM, rerender to show disambiguation if needed
-            try:
-                _cm_refresh()
-                results = _cm_search(name, limit=6)
-                st.session_state[cand_key] = results
-                if len(results) > 1:
-                    st.rerun()
-                    return
-                selected_cm_id = results[0]["id"] if results else None
-            except Exception as e:
-                st.sidebar.warning(f"CM zoeken mislukt: {e}")
-
-        existing = sb.schema("tinder").table("artists").select("id, name, chartmetric_id").ilike("name", name).execute().data or []
-        if existing:
-            artist_id = existing[0]["id"]
-            st.sidebar.info(f"Bestaat al — scrape opnieuw voor {existing[0]['name']}")
-            sb.schema("tinder").table("artists").update({"needs_scraping": True}).eq("id", artist_id).execute()
-            if selected_cm_id and not existing[0].get("chartmetric_id"):
-                sb.schema("tinder").table("artists").update(
-                    {"chartmetric_id": str(selected_cm_id)}
-                ).eq("id", artist_id).execute()
-        else:
-            slug = _unique_slug(_make_slug(name))
-            row: dict = {"name": name, "slug": slug, "candidate_status": "candidate", "needs_scraping": True}
-            if selected_cm_id:
-                row["chartmetric_id"] = str(selected_cm_id)
-            try:
-                result = sb.schema("tinder").table("artists").insert(row).execute()
-                artist_id = result.data[0]["id"]
-            except Exception as e:
-                st.sidebar.error(f"Fout: {e}")
-                return
-
-        scraper = str(_ROOT / "scrapers" / "scrape_flagged.py")
-        with st.sidebar.status("Scrapen…", expanded=True) as sb_status:
-            log_area = st.sidebar.empty()
-            try:
-                proc = subprocess.Popen(
-                    [sys.executable, scraper, "--artist-id", artist_id],
-                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    text=True, cwd=str(_ROOT),
+                m1.metric(
+                    "Score",
+                    f"{row.get('recommendation_score', 0):.1f}",
                 )
-                lines: list[str] = []
-                for line in proc.stdout:
-                    lines.append(line.rstrip())
-                    log_area.code("\n".join(lines[-10:]))
-                proc.wait()
-                if proc.returncode == 0:
-                    sb_status.update(label="Klaar!", state="complete")
-                else:
-                    sb_status.update(label="Scrape errors — zie log", state="error")
-            except Exception as e:
-                sb_status.update(label=f"Mislukt: {e}", state="error")
-                return
-        _verify_scrape(artist_id, name)
-        st.cache_data.clear()
-        st.session_state.pop(cand_key, None)
-        st.session_state["pending_artist"] = name
-        st.rerun()
 
+                m2.metric(
+                    "LOFI co-lineups",
+                    int(row.get("cooccur_count", 0) or 0),
+                )
 
-def _sidebar_scraper_status() -> None:
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**Scraper status**")
-    s = _load_scraper_status()
-    if not s:
-        st.sidebar.caption("Kon status niet laden.")
-        return
+                m3.metric(
+                    "External co-lineups",
+                    int(row.get("external_cooccur_count", 0) or 0),
+                )
 
-    total = s.get("total") or 1
+                hist_score = row.get("historical_lofi_score")
 
-    def _bar(n: int) -> str:
-        pct = n / total
-        filled = int(pct * 10)
-        return f"{'█' * filled}{'░' * (10 - filled)} {n}/{total}"
+                m4.metric(
+                    "Historical LOFI score",
+                    "—" if pd.isna(hist_score) else f"{hist_score:.1f}",
+                )
 
-    st.sidebar.caption(f"Laatste scrape: {s.get('last_scrape', '—')}")
-    if s.get("needs_scrape"):
-        st.sidebar.caption(f"In wachtrij: {s['needs_scrape']} artiesten")
+                st.write(row.get("recommendation_reason", "No reason generated."))
 
-    for label, key in [
-        ("Chartmetric", "has_cm"),
-        ("Uitgebreid",  "has_ext"),
-        ("RA events",   "has_ra"),
-        ("Partyflock",  "has_pf"),
-        ("Last.fm",     "has_lfm"),
-    ]:
-        n = s.get(key, 0)
-        pct = int(n / total * 100)
-        st.sidebar.caption(f"{label}: {_bar(n)} {pct}%")
+                if row.get("sources_together"):
+                    st.markdown(f"**Sources:** {row.get('sources_together')}")
 
+                if row.get("venues_together"):
+                    st.markdown(f"**Venues:** {row.get('venues_together')}")
 
-def main() -> None:
-    if st.sidebar.button("Vernieuwen"):
-        st.cache_data.clear(); st.rerun()
+                if row.get("cities_together"):
+                    st.markdown(f"**Cities:** {row.get('cities_together')}")
 
-    # page = st.sidebar.radio(
-    #     "Navigatie",
-    #     ["Artiest Profiel", "Genre Trends"],
-    #     label_visibility="collapsed",
-    # )
-
-    _sidebar_add_artist()
-    _sidebar_scraper_status()
-
-    _page_artiest_profiel()
-
-    # Genre Trends — commented out, not needed yet
-    # if page == "Artiest Profiel":
-    #     _page_artiest_profiel()
-    # else:
-    #     _page_genre_trends()
-
-
-if __name__ == "__main__":
-    main()
+                if row.get("example_events_external"):
+                    st.markdown(
+                        f"**Example events:** {row.get('example_events_external')}"
+                    )
