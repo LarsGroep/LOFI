@@ -3652,6 +3652,172 @@ def _page_xgboost_leaderboard() -> None:
     st.caption("Klik op een artiestnaam, kopieer, en plak in 'Artiest Profiel' voor het volledige profiel.")
 
 
+# ---------------------------------------------------------------------------
+# YouTube Sets Page
+# ---------------------------------------------------------------------------
+
+_YT_PLATFORM_LABELS = {
+    "boiler_room":     "Boiler Room",
+    "hor_berlin":      "HÖR Berlin",
+    "mixmag":          "Mixmag",
+    "the_lot_radio":   "The Lot Radio",
+    "book_club_radio": "Book Club Radio",
+    "rinse_fm":        "Rinse FM",
+    "be_at_tv":        "BE-AT.TV",
+}
+
+_YT_PLATFORM_COLORS = {
+    "boiler_room":     "#FF0000",
+    "hor_berlin":      "#e5e5e5",
+    "mixmag":          "#FFCC00",
+    "the_lot_radio":   "#E8A87C",
+    "book_club_radio": "#9B59B6",
+    "rinse_fm":        "#1DB954",
+    "be_at_tv":        "#0078FF",
+}
+
+
+@st.cache_data(ttl=120)
+def _load_yt_sets(platform: str | None = None, trending_only: bool = False, limit: int = 200) -> list[dict]:
+    q = (
+        sb.schema("tinder").table("youtube_sets")
+        .select("video_id, platform, title, matched_artist_names, unknown_artist_names, "
+                "view_count, view_velocity, peak_velocity, is_trending, published_at, thumbnail_url")
+        .order("published_at", desc=True)
+        .limit(limit)
+    )
+    if platform:
+        q = q.eq("platform", platform)
+    if trending_only:
+        q = q.eq("is_trending", True)
+    return q.execute().data or []
+
+
+def _render_yt_card(row: dict) -> None:
+    video_id    = row.get("video_id") or ""
+    title       = (row.get("title") or "—").replace("'", "&#39;")
+    platform    = row.get("platform") or ""
+    thumbnail   = row.get("thumbnail_url") or f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
+    views       = int(row.get("view_count") or 0)
+    velocity    = float(row.get("view_velocity") or 0)
+    is_trending = bool(row.get("is_trending"))
+    pub_date    = str(row.get("published_at") or "")[:10]
+    matched     = row.get("matched_artist_names") or []
+    unknown     = row.get("unknown_artist_names") or []
+    yt_url      = f"https://www.youtube.com/watch?v={video_id}"
+
+    channel_label = _YT_PLATFORM_LABELS.get(platform, platform)
+    channel_color = _YT_PLATFORM_COLORS.get(platform, "#6366F1")
+
+    if views >= 1_000_000:
+        views_fmt = f"{views/1_000_000:.1f}M"
+    elif views >= 1_000:
+        views_fmt = f"{views/1_000:.1f}K"
+    else:
+        views_fmt = str(views) if views else "—"
+
+    vel_txt = f"🔥 {velocity:,.0f} v/u" if is_trending and velocity > 0 else (
+              f"{velocity:,.0f} v/u" if velocity > 0 else "")
+
+    trending_badge = (
+        "<span style='background:#dc2626;color:#fff;font-size:0.6rem;"
+        "padding:1px 5px;border-radius:3px;margin-left:4px;font-weight:700;'>TRENDING</span>"
+        if is_trending else ""
+    )
+
+    artist_tags = ""
+    for name in matched[:3]:
+        artist_tags += (
+            f"<span style='background:#1e3a5f;color:#60a5fa;font-size:0.65rem;"
+            f"padding:1px 6px;border-radius:3px;margin-right:3px;white-space:nowrap;'>{name}</span>"
+        )
+    if not matched and unknown:
+        unk = (unknown[0] or "")[:28]
+        artist_tags += (
+            f"<span style='background:#292524;color:#a8a29e;font-size:0.65rem;"
+            f"padding:1px 6px;border-radius:3px;'>{unk}</span>"
+        )
+
+    st.markdown(f"""
+<div style='margin-bottom:1.4rem;'>
+  <a href='{yt_url}' target='_blank' style='text-decoration:none;display:block;'>
+    <div style='position:relative;width:100%;padding-top:56.25%;overflow:hidden;
+                border-radius:8px;background:#111;'>
+      <img src='{thumbnail}'
+           style='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;'
+           loading='lazy'/>
+      <div style='position:absolute;bottom:4px;right:6px;background:rgba(0,0,0,0.82);
+                  color:#fff;font-size:0.68rem;padding:1px 5px;border-radius:3px;
+                  font-weight:600;'>{views_fmt}</div>
+    </div>
+  </a>
+  <div style='margin-top:0.45rem;'>
+    <div style='font-size:0.78rem;font-weight:600;color:#f3f4f6;line-height:1.3;
+                overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;
+                -webkit-box-orient:vertical;' title='{title}'>{title}</div>
+    <div style='margin-top:0.2rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.3rem;'>
+      <span style='font-size:0.67rem;color:{channel_color};font-weight:700;'>{channel_label}</span>
+      {trending_badge}
+    </div>
+    <div style='font-size:0.65rem;color:#6b7280;margin-top:0.1rem;'>
+      {pub_date}{("&nbsp;&nbsp;·&nbsp;&nbsp;" + vel_txt) if vel_txt else ""}
+    </div>
+    <div style='margin-top:0.3rem;line-height:1.8;'>{artist_tags}</div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+
+def _page_youtube_sets() -> None:
+    st.title("YouTube Sets")
+    st.caption(
+        "Gescrapete sets van Boiler Room, HÖR Berlin, Mixmag, The Lot Radio, "
+        "Book Club Radio, Rinse FM en BE-AT.TV. Ververst elke 30 minuten."
+    )
+
+    fc1, fc2, fc3 = st.columns([2, 3, 1])
+    channel_label = fc1.selectbox(
+        "Kanaal", ["Alle"] + list(_YT_PLATFORM_LABELS.values()), key="yt_channel"
+    )
+    search_q     = fc2.text_input("Zoek op titel of artiest", key="yt_search")
+    trending_only = fc3.checkbox("Trending", key="yt_trending", value=False)
+
+    platform_filter = None
+    if channel_label != "Alle":
+        platform_filter = next(k for k, v in _YT_PLATFORM_LABELS.items() if v == channel_label)
+
+    rows = _load_yt_sets(platform=platform_filter, trending_only=trending_only)
+
+    if search_q:
+        ql = search_q.lower()
+        rows = [
+            r for r in rows
+            if ql in (r.get("title") or "").lower()
+            or any(ql in (n or "").lower() for n in (r.get("matched_artist_names") or []))
+            or any(ql in (n or "").lower() for n in (r.get("unknown_artist_names") or []))
+        ]
+
+    if not rows:
+        st.info("Geen sets gevonden.")
+        return
+
+    # KPI row
+    total_views = sum(int(r.get("view_count") or 0) for r in rows)
+    trending_n  = sum(1 for r in rows if r.get("is_trending"))
+    matched_n   = sum(1 for r in rows if r.get("matched_artist_names"))
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Sets", len(rows))
+    k2.metric("Totaal views", f"{total_views/1_000:.0f}K" if total_views >= 1000 else str(total_views))
+    k3.metric("Trending nu", trending_n)
+    k4.metric("Bekende artiesten", matched_n)
+
+    st.divider()
+
+    cols = st.columns(4)
+    for i, row in enumerate(rows):
+        with cols[i % 4]:
+            _render_yt_card(row)
+
+
 def main() -> None:
     try:
         from streamlit_option_menu import option_menu as _option_menu
@@ -3669,8 +3835,8 @@ def main() -> None:
         if _has_option_menu:
             page = _option_menu(
                 menu_title=None,
-                options=["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender"],
-                icons=["house", "trophy", "music-note-list", "shuffle"],
+                options=["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
+                icons=["house", "trophy", "music-note-list", "shuffle", "youtube"],
                 default_index=0,
                 styles={
                     "container": {"padding": "0", "background-color": "transparent"},
@@ -3693,7 +3859,7 @@ def main() -> None:
         else:
             page = st.radio(
                 "Navigatie",
-                ["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender"],
+                ["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
                 label_visibility="collapsed",
             )
 
@@ -3717,6 +3883,9 @@ def main() -> None:
 
     elif page == "Artist Recommender":
         _page_artist_recommender()
+
+    elif page == "YouTube Sets":
+        _page_youtube_sets()
 
 
 if __name__ == "__main__":
