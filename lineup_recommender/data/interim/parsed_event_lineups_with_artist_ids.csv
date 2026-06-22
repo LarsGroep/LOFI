@@ -1,0 +1,1259 @@
+event_id,event_name,event_date,genre,kind,event_type,artist_name_raw,artist_name_clean,source_column,position_in_lineup,artist_id,artist_name
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Nelly,nelly,artist_source,1,artist_00503,Nelly
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Rødhåd,rødhåd,artist_source,2,artist_00607,Rødhåd
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Abstract Division,abstract division,artist_source,3,artist_00016,Abstract Division
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Eric Cloutier,eric cloutier,artist_source,4,artist_00240,Eric Cloutier
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Wata Igarashi,wata igarashi,artist_source,5,artist_00741,Wata Igarashi
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,JEANS,jeans,artist_source,6,artist_00316,JEANS
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Nørbak,nørbak,artist_source,7,artist_00515,Nørbak
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Quelza,quelza,artist_source,8,artist_00572,Quelza
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Woody92,woody92,artist_source,9,artist_00747,Woody92
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Polygonia,polygonia,artist_source,10,artist_00564,Polygonia
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Cobahn,cobahn,artist_source,11,artist_00140,Cobahn
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Pariah,pariah,artist_source,12,artist_00540,Pariah
+reciJ9V8SyrjpFmzC,Ratherlost - New Year's Day,2024-01-01,,intern,Regulier,Human Space Machine,human space machine,artist_source,13,artist_00298,Human Space Machine
+recq6r583zUFROrTd,Kaoz Theory,2024-01-27,,extern,Regulier,Makèz,makèz,artist_source,1,artist_00439,Makèz
+recq6r583zUFROrTd,Kaoz Theory,2024-01-27,,extern,Regulier,Dennis Quin,dennis quin,artist_source,2,artist_00210,Dennis Quin
+recq6r583zUFROrTd,Kaoz Theory,2024-01-27,,extern,Regulier,Kerri Chandler,kerri chandler,artist_source,3,artist_00369,Kerri Chandler
+rect42yhIr1MJzgnV,"Lofi with Bart Skils, Joyhauser, MYRA",2024-02-03,,intern,Regulier,MYRA,myra,artist_source,1,artist_00431,MYRA
+rect42yhIr1MJzgnV,"Lofi with Bart Skils, Joyhauser, MYRA",2024-02-03,,intern,Regulier,Bart Skils,bart skils,artist_source,2,artist_00066,Bart Skils
+rect42yhIr1MJzgnV,"Lofi with Bart Skils, Joyhauser, MYRA",2024-02-03,,intern,Regulier,Joyhauser,joyhauser,artist_source,3,artist_00342,Joyhauser
+recPwU6NWAq3x3qaA,Lofi with Colyn,2024-02-10,,intern,Regulier,Colyn,colyn,artist_source,1,artist_00145,Colyn
+recbaqbP6lJRq9hmU,"Lofi with Paula Temple, Sunil Sharpe, u.r.trax, Vera Grace",2024-02-16,,intern,Regulier,u.r. trax,u.r. trax,artist_source,1,artist_00776,u.r. trax
+recbaqbP6lJRq9hmU,"Lofi with Paula Temple, Sunil Sharpe, u.r.trax, Vera Grace",2024-02-16,,intern,Regulier,Paula Temple,paula temple,artist_source,2,artist_00548,Paula Temple
+recbaqbP6lJRq9hmU,"Lofi with Paula Temple, Sunil Sharpe, u.r.trax, Vera Grace",2024-02-16,,intern,Regulier,Vera Grace,vera grace,artist_source,3,artist_00731,Vera Grace
+recbaqbP6lJRq9hmU,"Lofi with Paula Temple, Sunil Sharpe, u.r.trax, Vera Grace",2024-02-16,,intern,Regulier,Sunil Sharpe,sunil sharpe,artist_source,4,artist_00668,Sunil Sharpe
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Traumer,traumer,artist_source,1,artist_00711,Traumer
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Morgan,morgan,artist_source,2,artist_00488,Morgan
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Noach,noach,artist_source,3,artist_00511,Noach
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Luuk van Dijk,luuk van dijk,artist_source,4,artist_00425,Luuk van Dijk
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Running Hot,running hot,artist_source,5,artist_00604,Running Hot
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Rossi.,rossi.,artist_source,6,artist_00600,Rossi.
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,D Stone,d stone,artist_source,7,artist_00159,D Stone
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Benjamin Berg,benjamin berg,artist_source,8,artist_00079,Benjamin Berg
+recbbLfvMw77KqN0R,Lofi with Rossi. & Traumer + Get Closer,2024-02-17,,extern,Regulier,Juliana X,juliana x,artist_source,9,artist_00347,Juliana X
+recG3gfFNZpPB0jX1,VBX 11,2024-02-24,,extern,Regulier,Alexia Glensy,alexia glensy,artist_source,1,artist_00030,Alexia Glensy
+recG3gfFNZpPB0jX1,VBX 11,2024-02-24,,extern,Regulier,Christian AB,christian ab,artist_source,2,artist_00128,Christian AB
+recG3gfFNZpPB0jX1,VBX 11,2024-02-24,,extern,Regulier,Reiss,reiss,artist_source,3,artist_00584,Reiss
+recG3gfFNZpPB0jX1,VBX 11,2024-02-24,,extern,Regulier,Malika,malika,artist_source,4,artist_00440,Malika
+recG3gfFNZpPB0jX1,VBX 11,2024-02-24,,extern,Regulier,Francesco del Garda,francesco del garda,artist_source,5,artist_00262,Francesco del Garda
+recG3gfFNZpPB0jX1,VBX 11,2024-02-24,,extern,Regulier,Ben UFO,ben ufo,artist_source,6,artist_00078,Ben UFO
+rec34B9R6djJhJEgY,Mindscape,2024-03-01,,intern,Regulier,Beswerda,beswerda,artist_source,1,artist_00086,Beswerda
+rec34B9R6djJhJEgY,Mindscape,2024-03-01,,intern,Regulier,Ae:ther,ae:ther,artist_source,2,artist_00021,Ae:ther
+rec34B9R6djJhJEgY,Mindscape,2024-03-01,,intern,Regulier,8Kays,8kays,artist_source,3,artist_00007,8Kays
+rec34B9R6djJhJEgY,Mindscape,2024-03-01,,intern,Regulier,Woo York,woo york,artist_source,4,artist_00746,Woo York
+rec34B9R6djJhJEgY,Mindscape,2024-03-01,,intern,Regulier,VNTM,vntm,artist_source,5,artist_00723,VNTM
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Shanti,shanti,artist_source,1,artist_00641,Shanti
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Identified Patient,identified patient,artist_source,2,artist_00306,Identified Patient
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Celeste,celeste,artist_source,3,artist_00118,Celeste
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Fafi Abdel Nour,fafi abdel nour,artist_source,4,artist_00248,Fafi Abdel Nour
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Jasmín,jasmín,artist_source,5,artist_00323,Jasmín
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Cinnaman,cinnaman,artist_source,6,artist_00131,Cinnaman
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Marcel Dettmann,marcel dettmann,artist_source,7,artist_00446,Marcel Dettmann
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Casper Tielrooij,casper tielrooij,artist_source,8,artist_00116,Casper Tielrooij
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Nèna,nèna,artist_source,9,artist_00514,Nèna
+rec0abvLJlvLYvHuu,Dekmantel Club Tour,2024-03-02,afro house,extern,Regulier,Nala Brown,nala brown,artist_source,10,artist_00500,Nala Brown
+recfwRYfIUKtPP9Bd,Frenzy,2024-03-09,,extern,Regulier,Tasha,tasha,artist_source,1,artist_00689,Tasha
+recfwRYfIUKtPP9Bd,Frenzy,2024-03-09,,extern,Regulier,Steffi,steffi,artist_source,2,artist_00660,Steffi
+recfwRYfIUKtPP9Bd,Frenzy,2024-03-09,,extern,Regulier,Beau Didier,beau didier,artist_source,3,artist_00073,Beau Didier
+recfwRYfIUKtPP9Bd,Frenzy,2024-03-09,,extern,Regulier,Ben Sims,ben sims,artist_source,4,artist_00077,Ben Sims
+recfwRYfIUKtPP9Bd,Frenzy,2024-03-09,,extern,Regulier,Alarico,alarico,artist_source,5,artist_00024,Alarico
+recfwRYfIUKtPP9Bd,Frenzy,2024-03-09,,extern,Regulier,ANNĒ,annē,artist_source,6,artist_00013,ANNĒ
+recn6HA2LT3SD9kSJ,Maceo Plex presents: '93 - Album Tour,2024-03-15,,extern,Regulier,Cubicolor,cubicolor,artist_source,1,artist_00155,Cubicolor
+recn6HA2LT3SD9kSJ,Maceo Plex presents: '93 - Album Tour,2024-03-15,,extern,Regulier,Maceo Plex,maceo plex,artist_source,2,artist_00436,Maceo Plex
+recn6HA2LT3SD9kSJ,Maceo Plex presents: '93 - Album Tour,2024-03-15,,extern,Regulier,Franc Fala,franc fala,artist_source,3,artist_00260,Franc Fala
+recWNGHLHM0pp1yOD,PALET In Red,2024-03-16,,extern,Regulier,Alex Kassian,alex kassian,artist_source,1,artist_00028,Alex Kassian
+recWNGHLHM0pp1yOD,PALET In Red,2024-03-16,,extern,Regulier,Boris Coelman,boris coelman,artist_source,2,artist_00093,Boris Coelman
+recWNGHLHM0pp1yOD,PALET In Red,2024-03-16,,extern,Regulier,Spacer Woman,spacer woman,artist_source,3,artist_00655,Spacer Woman
+recWNGHLHM0pp1yOD,PALET In Red,2024-03-16,,extern,Regulier,Merve,merve,artist_source,4,artist_00474,Merve
+recWNGHLHM0pp1yOD,PALET In Red,2024-03-16,,extern,Regulier,Kyra Khaldi,kyra khaldi,artist_source,5,artist_00385,Kyra Khaldi
+reczU6hktnsrk6t9d,Lofi with Benny Rodrigues b2b De Sluwe Vos,2024-03-23,,intern,Regulier,Chloé Robinson,chloé robinson,artist_source,1,artist_00123,Chloé Robinson
+reczU6hktnsrk6t9d,Lofi with Benny Rodrigues b2b De Sluwe Vos,2024-03-23,,intern,Regulier,De Sluwe Vos,de sluwe vos,artist_source,2,artist_00205,De Sluwe Vos
+reczU6hktnsrk6t9d,Lofi with Benny Rodrigues b2b De Sluwe Vos,2024-03-23,,intern,Regulier,Benny Rodrigues,benny rodrigues,artist_source,3,artist_00081,Benny Rodrigues
+reczU6hktnsrk6t9d,Lofi with Benny Rodrigues b2b De Sluwe Vos,2024-03-23,,intern,Regulier,Laidlaw,laidlaw,artist_source,4,artist_00392,Laidlaw
+reczU6hktnsrk6t9d,Lofi with Benny Rodrigues b2b De Sluwe Vos,2024-03-23,,intern,Regulier,Newtone,newtone,artist_source,5,artist_00507,Newtone
+rec5CcO4zCOsK6jQ2,Bordello A Parigi,2024-03-29,,extern,Regulier,Budino,budino,artist_source,1,artist_00100,Budino
+rec5CcO4zCOsK6jQ2,Bordello A Parigi,2024-03-29,,extern,Regulier,Cormac,cormac,artist_source,2,artist_00148,Cormac
+rec5CcO4zCOsK6jQ2,Bordello A Parigi,2024-03-29,,extern,Regulier,Curses,curses,artist_source,3,artist_00156,Curses
+rec5CcO4zCOsK6jQ2,Bordello A Parigi,2024-03-29,,extern,Regulier,Daniel Monaco,daniel monaco,artist_source,4,artist_00196,Daniel Monaco
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Efdemin,efdemin,artist_source,1,artist_00229,Efdemin
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Talismann,talismann,artist_source,2,artist_00686,Talismann
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,DJ Red,dj red,artist_source,3,artist_00184,DJ Red
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Anthony Linell,anthony linell,artist_source,4,artist_00042,Anthony Linell
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Luke Slater,luke slater,artist_source,5,artist_00420,Luke Slater
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Shoal,shoal,artist_source,6,artist_00644,Shoal
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Laura BCR,laura bcr,artist_source,7,artist_00395,Laura BCR
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Garçon,garçon,artist_source,8,artist_00272,Garçon
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Loek Frey,loek frey,artist_source,9,artist_00414,Loek Frey
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Jephta,jephta,artist_source,10,artist_00329,Jephta
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,DJ Maria.,dj maria.,artist_source,11,artist_00181,DJ Maria.
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Spekki Webu,spekki webu,artist_source,12,artist_00657,Spekki Webu
+recD8yuWRIIJcbKfU,Ratherlost - Easter Sunday,2024-03-31,,intern,Regulier,Feral,feral,artist_source,13,artist_00252,Feral
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,Luna,luna,artist_source,1,artist_00423,Luna
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,Cynthia Spiering,cynthia spiering,artist_source,2,artist_00158,Cynthia Spiering
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,Vince,vince,artist_source,3,artist_00737,Vince
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,Pila,pila,artist_source,4,artist_00559,Pila
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,The Darkraver,the darkraver,artist_source,5,artist_00694,The Darkraver
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,Olive Anguz,olive anguz,artist_source,6,artist_00521,Olive Anguz
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,Bass-D,bass-d,artist_source,7,artist_00069,Bass-D
+recU235QfZxwM6ZQZ,Multigroove - Darkraver All Night Long,2024-04-06,,extern,Regulier,Da Mouth of Madness,da mouth of madness,artist_source,8,artist_00192,Da Mouth of Madness
+rec7sQ5yn44AeMtbt,Tjade presents: Agrio Club,2024-04-12,,intern,Regulier,Essy,essy,artist_source,1,artist_00243,Essy
+rec7sQ5yn44AeMtbt,Tjade presents: Agrio Club,2024-04-12,,intern,Regulier,Kyle Starkey,kyle starkey,artist_source,2,artist_00384,Kyle Starkey
+rec7sQ5yn44AeMtbt,Tjade presents: Agrio Club,2024-04-12,,intern,Regulier,Jenny Cara,jenny cara,artist_source,3,artist_00327,Jenny Cara
+rec7sQ5yn44AeMtbt,Tjade presents: Agrio Club,2024-04-12,,intern,Regulier,Tjade,tjade,artist_source,4,artist_00704,Tjade
+recsJqJOlYTmcPuNM,"Lofi w/ X CLUB., Jensen Interceptor, Lolsnake, Cybersex & Slimfit",2024-04-13,,intern,Regulier,Cybersex,cybersex,artist_source,1,artist_00157,Cybersex
+recsJqJOlYTmcPuNM,"Lofi w/ X CLUB., Jensen Interceptor, Lolsnake, Cybersex & Slimfit",2024-04-13,,intern,Regulier,Lolsnake,lolsnake,artist_source,2,artist_00416,Lolsnake
+recsJqJOlYTmcPuNM,"Lofi w/ X CLUB., Jensen Interceptor, Lolsnake, Cybersex & Slimfit",2024-04-13,,intern,Regulier,X CLUB.,x club.,artist_source,3,artist_00748,X CLUB.
+recsJqJOlYTmcPuNM,"Lofi w/ X CLUB., Jensen Interceptor, Lolsnake, Cybersex & Slimfit",2024-04-13,,intern,Regulier,Jensen Interceptor,jensen interceptor,artist_source,4,artist_00328,Jensen Interceptor
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Ryan Elliott,ryan elliott,artist_source,1,artist_00606,Ryan Elliott
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Timo Nikson,timo nikson,artist_source,2,artist_00703,Timo Nikson
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Sansibar,sansibar,artist_source,3,artist_00627,Sansibar
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Sandrien,sandrien,artist_source,4,artist_00625,Sandrien
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Doudou MD,doudou md,artist_source,5,artist_00223,Doudou MD
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Anthony Parasole,anthony parasole,artist_source,6,artist_00043,Anthony Parasole
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Samuel Deep,samuel deep,artist_source,7,artist_00623,Samuel Deep
+recuhnpUiuNRNVoW0,SlapFunk x Vault Sessions,2024-04-26,,extern,Regulier,Blasha & Allatt,blasha & allatt,artist_source,8,artist_00090,Blasha & Allatt
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Carlos Valdes,carlos valdes,artist_source,1,artist_00113,Carlos Valdes
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Virginia,virginia,artist_source,2,artist_00738,Virginia
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Adam Pits,adam pits,artist_source,3,artist_00019,Adam Pits
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Naone,naone,artist_source,4,artist_00502,Naone
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Aletha,aletha,artist_source,5,artist_00027,Aletha
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Oceanic,oceanic,artist_source,6,artist_00519,Oceanic
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Tammo Hesselink,tammo hesselink,artist_source,7,artist_00688,Tammo Hesselink
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Verity,verity,artist_source,8,artist_00734,Verity
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,HUNEE,hunee,artist_source,9,artist_00283,HUNEE
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,DJ Marcelle,dj marcelle,artist_source,10,artist_00180,DJ Marcelle
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,CHEWCHEW,chewchew,artist_source,11,artist_00106,CHEWCHEW
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Satoshi,satoshi,artist_source,12,artist_00630,Satoshi
+recWHrC0hFMfzQzj6,Lofi King's Day,2024-04-27,,intern,Regulier,Robert Bergman,robert bergman,artist_source,13,artist_00590,Robert Bergman
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,Start Finish Courtyard,start finish courtyard,artist_source,1,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,14:00 16:30 Twiena,14:00 16:30 twiena,artist_source,2,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,16:30 18:30 Moody Mehran,16:30 18:30 moody mehran,artist_source,3,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,18:30 20:15 DJ Sweet6teen,18:30 20:15 dj sweet6teen,artist_source,4,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,20:15 22:00 Maara,20:15 22:00 maara,artist_source,5,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,22:00 23:00 Miss Bashful x DBBD,22:00 23:00 miss bashful x dbbd,artist_source,6,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,Start Finish. Colorfloor,start finish. colorfloor,artist_source,7,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,16:00: 19:00 Doppelgang,16:00: 19:00 doppelgang,artist_source,8,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,19:00 21:00 Spray,19:00 21:00 spray,artist_source,9,,
+rec7rimSyrD5epf5y,Liberté Liberté 2024,2024-05-05,,extern,Regulier,21:00 23:00/ 0.00 Elias Mazian,21:00 23:00/ 0.00 elias mazian,artist_source,10,,
+rec6ypzZZJi4sBG2H,SONA Presents: PAWSA,2024-05-09,,extern,Regulier,15.00-17.00 Joëlla Jackson,15.00-17.00 joëlla jackson,artist_source,1,,
+rec6ypzZZJi4sBG2H,SONA Presents: PAWSA,2024-05-09,,extern,Regulier,17.00-20.00 Samuel Deep,17.00-20.00 samuel deep,artist_source,2,,
+rec6ypzZZJi4sBG2H,SONA Presents: PAWSA,2024-05-09,,extern,Regulier,20.00-23.00 PAWSA,20.00-23.00 pawsa,artist_source,3,,
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,Pablo Bozzi,pablo bozzi,artist_source,1,artist_00533,Pablo Bozzi
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,DJ Gigola,dj gigola,artist_source,2,artist_00174,DJ Gigola
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,Baraka,baraka,artist_source,3,artist_00062,Baraka
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,Mila Black,mila black,artist_source,4,artist_00480,Mila Black
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,ace of demons,ace of demons,artist_source,5,artist_00761,ace of demons
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,Mietze Conte,mietze conte,artist_source,6,artist_00478,Mietze Conte
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,Courtesy,courtesy,artist_source,7,artist_00150,Courtesy
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,MCR-T,mcr-t,artist_source,8,artist_00429,MCR-T
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,ALCATRAZ,alcatraz,artist_source,9,artist_00011,ALCATRAZ
+rec20NPvHUx0xdtcu,Live From Earth - Courtyard Opening,2024-05-10,,intern,Regulier,Clara Cuvé,clara cuvé,artist_source,10,artist_00132,Clara Cuvé
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,COURTYARD,courtyard,artist_source,1,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,14:00 17:00 Dj Tracksuit,14:00 17:00 dj tracksuit,artist_source,2,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,17:00 19:00 Nathalie Seres,17:00 19:00 nathalie seres,artist_source,3,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,19:00 21:00 Shy One,19:00 21:00 shy one,artist_source,4,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,21:00 23:00 Dj Swisha,21:00 23:00 dj swisha,artist_source,5,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,CLUB,club,artist_source,6,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,23:00 1:00 Bambounou b2b Kikelomo,23:00 1:00 bambounou b2b kikelomo,artist_source,7,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,1:00 3:00 Ploy (ziet er heel goed uit),1:00 3:00 ploy (ziet er heel goed uit),artist_source,8,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,3:00 5:00 Angel D'Lite b2b Bennet,3:00 5:00 angel d'lite b2b bennet,artist_source,9,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,COLORFLOOR,colorfloor,artist_source,10,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,17:00 20:00 Jan Koster,17:00 20:00 jan koster,artist_source,11,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,20:00 22:00 Teqmun,20:00 22:00 teqmun,artist_source,12,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,22:00 0:00 Jerrau,22:00 0:00 jerrau,artist_source,13,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,0:00 2:00 RHR,0:00 2:00 rhr,artist_source,14,,
+reckeS7UwG7FgcXJf,Festimi - Courtyard Opening,2024-05-11,,extern,Regulier,2:00 4:00 Nala Brown,2:00 4:00 nala brown,artist_source,15,,
+recFOmHmsGGXyDk2E,Patio - Courtyard Opening,2024-05-12,,intern,Regulier,Stephanie Sykes,stephanie sykes,artist_source,1,artist_00662,Stephanie Sykes
+recFOmHmsGGXyDk2E,Patio - Courtyard Opening,2024-05-12,,intern,Regulier,Lea Occhi,lea occhi,artist_source,2,artist_00402,Lea Occhi
+recFOmHmsGGXyDk2E,Patio - Courtyard Opening,2024-05-12,,intern,Regulier,Chlär,chlär,artist_source,3,artist_00124,Chlär
+recFOmHmsGGXyDk2E,Patio - Courtyard Opening,2024-05-12,,intern,Regulier,Tasha,tasha,artist_source,4,artist_00689,Tasha
+recFOmHmsGGXyDk2E,Patio - Courtyard Opening,2024-05-12,,intern,Regulier,TAFKAMP,tafkamp,artist_source,5,artist_00678,TAFKAMP
+recFOmHmsGGXyDk2E,Patio - Courtyard Opening,2024-05-12,,intern,Regulier,JSPRV35,jsprv35,artist_source,6,artist_00317,JSPRV35
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Kalle Pablo,kalle pablo,artist_source,1,artist_00360,Kalle Pablo
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Juri Miralles,juri miralles,artist_source,2,artist_00350,Juri Miralles
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Cinema Royale,cinema royale,artist_source,3,artist_00130,Cinema Royale
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Tonno Disko,tonno disko,artist_source,4,artist_00709,Tonno Disko
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Barbara Boeing,barbara boeing,artist_source,5,artist_00063,Barbara Boeing
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Bibi Seck,bibi seck,artist_source,6,artist_00087,Bibi Seck
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Brass Rave Unit,brass rave unit,artist_source,7,artist_00098,Brass Rave Unit
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Juliana X,juliana x,artist_source,8,artist_00347,Juliana X
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Boris Coelman,boris coelman,artist_source,9,artist_00093,Boris Coelman
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Cromby,cromby,artist_source,10,artist_00154,Cromby
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,BELLA,bella,artist_source,11,artist_00053,BELLA
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Berkan V8,berkan v8,artist_source,12,artist_00084,Berkan V8
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Trippy Tins,trippy tins,artist_source,13,artist_00714,Trippy Tins
+recsct2yHwIc7otFu,PALET,2024-05-18,,extern,Regulier,Lola Edo,lola edo,artist_source,14,artist_00415,Lola Edo
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,Doudou MD,doudou md,artist_source,1,artist_00223,Doudou MD
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,DPR,dpr,artist_source,2,artist_00190,DPR
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,Reflex Blue,reflex blue,artist_source,3,artist_00582,Reflex Blue
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,cap,cap,artist_source,4,artist_00765,cap
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,DJ Senc,dj senc,artist_source,5,artist_00185,DJ Senc
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,D'Julz,d'julz,artist_source,6,artist_00160,D'Julz
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,Samuel Deep,samuel deep,artist_source,7,artist_00623,Samuel Deep
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,Christian AB,christian ab,artist_source,8,artist_00128,Christian AB
+recYwwAjJGjCi44mU,SlapFunk,2024-05-19,,extern,Regulier,Coast 2 Coast,coast 2 coast,artist_source,9,artist_00139,Coast 2 Coast
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Sisi,sisi,artist_source,1,artist_00647,Sisi
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Moxie,moxie,artist_source,2,artist_00491,Moxie
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Daphni,daphni,artist_source,3,artist_00200,Daphni
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Daiki,daiki,artist_source,4,artist_00193,Daiki
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,DJ Almelo,dj almelo,artist_source,5,artist_00168,DJ Almelo
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Charmaine,charmaine,artist_source,6,artist_00122,Charmaine
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Margie,margie,artist_source,7,artist_00450,Margie
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Kamma,kamma,artist_source,8,artist_00361,Kamma
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Chaos in The CBD,chaos in the cbd,artist_source,9,artist_00120,Chaos in The CBD
+recMAwHAuHCj82kBQ,Rainbow Disco Club,2024-05-25,,intern,Regulier,Antal,antal,artist_source,10,artist_00041,Antal
+rec5zKQeD3qsJZFVH,Patio,2024-05-26,,intern,Regulier,Chrissie,chrissie,artist_source,1,artist_00127,Chrissie
+rec5zKQeD3qsJZFVH,Patio,2024-05-26,,intern,Regulier,I-RO,i-ro,artist_source,2,artist_00303,I-RO
+rec5zKQeD3qsJZFVH,Patio,2024-05-26,,intern,Regulier,Pink Concrete,pink concrete,artist_source,3,artist_00560,Pink Concrete
+rec5zKQeD3qsJZFVH,Patio,2024-05-26,,intern,Regulier,Comrade Winston,comrade winston,artist_source,4,artist_00147,Comrade Winston
+rec5zKQeD3qsJZFVH,Patio,2024-05-26,,intern,Regulier,Rosati,rosati,artist_source,5,artist_00599,Rosati
+rec5zKQeD3qsJZFVH,Patio,2024-05-26,,intern,Regulier,Arthur Robert,arthur robert,artist_source,6,artist_00047,Arthur Robert
+rec5zKQeD3qsJZFVH,Patio,2024-05-26,,intern,Regulier,Marcal,marcal,artist_source,7,artist_00445,Marcal
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,Moxes,moxes,artist_source,1,artist_00490,Moxes
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,Emvae,emvae,artist_source,2,artist_00236,Emvae
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,Schwesta P,schwesta p,artist_source,3,artist_00632,Schwesta P
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,Baron Von Trax,baron von trax,artist_source,4,artist_00065,Baron Von Trax
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,YONES,yones,artist_source,5,artist_00752,YONES
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,Vera Moro,vera moro,artist_source,6,artist_00733,Vera Moro
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,Hoesephine,hoesephine,artist_source,7,artist_00293,Hoesephine
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,PietNormaal,pietnormaal,artist_source,8,artist_00558,PietNormaal
+recebivIcOiqEAWcD,Die Rakete,2024-06-01,,extern,Regulier,Desire,desire,artist_source,9,artist_00212,Desire
+recWnqo13B0kQrr0z,"Lofi w/ Yazzus, lucia lu",2024-06-01,,intern,Regulier,acidheaven,acidheaven,artist_source,1,artist_00762,acidheaven
+recWnqo13B0kQrr0z,"Lofi w/ Yazzus, lucia lu",2024-06-01,,intern,Regulier,Eva Vrijdag,eva vrijdag,artist_source,2,artist_00244,Eva Vrijdag
+recWnqo13B0kQrr0z,"Lofi w/ Yazzus, lucia lu",2024-06-01,,intern,Regulier,lucia lu,lucia lu,artist_source,3,artist_00770,lucia lu
+recWnqo13B0kQrr0z,"Lofi w/ Yazzus, lucia lu",2024-06-01,,intern,Regulier,Yazzus,yazzus,artist_source,4,artist_00754,Yazzus
+recWnqo13B0kQrr0z,"Lofi w/ Yazzus, lucia lu",2024-06-01,,intern,Regulier,spikey lee,spikey lee,artist_source,5,artist_00775,spikey lee
+recWnqo13B0kQrr0z,"Lofi w/ Yazzus, lucia lu",2024-06-01,,intern,Regulier,cryptofauna,cryptofauna,artist_source,6,artist_00766,cryptofauna
+recWnqo13B0kQrr0z,"Lofi w/ Yazzus, lucia lu",2024-06-01,,intern,Regulier,JEANS,jeans,artist_source,7,artist_00316,JEANS
+rec1JUz9aHS4qUdUT,Patio,2024-06-02,,intern,Regulier,Sarkawt Hamad,sarkawt hamad,artist_source,1,artist_00628,Sarkawt Hamad
+rec1JUz9aHS4qUdUT,Patio,2024-06-02,,intern,Regulier,Soft Break,soft break,artist_source,2,artist_00650,Soft Break
+rec1JUz9aHS4qUdUT,Patio,2024-06-02,,intern,Regulier,mad miran,mad miran,artist_source,3,artist_00771,mad miran
+rec1JUz9aHS4qUdUT,Patio,2024-06-02,,intern,Regulier,Djrum,djrum,artist_source,4,artist_00221,Djrum
+rec1JUz9aHS4qUdUT,Patio,2024-06-02,,intern,Regulier,JASSS,jasss,artist_source,5,artist_00315,JASSS
+recwTKnM2ZDjjrHt0,HF x LOFI,2024-06-07,,extern,Regulier,DJ K,dj k,artist_source,1,artist_00176,DJ K
+recwTKnM2ZDjjrHt0,HF x LOFI,2024-06-07,,extern,Regulier,Rocinha,rocinha,artist_source,2,artist_00592,Rocinha
+recwTKnM2ZDjjrHt0,HF x LOFI,2024-06-07,,extern,Regulier,Mbé,mbé,artist_source,3,artist_00469,Mbé
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Laurine,laurine,artist_source,1,artist_00400,Laurine
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Nicolas Lutz,nicolas lutz,artist_source,2,artist_00510,Nicolas Lutz
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Hannecart,hannecart,artist_source,3,artist_00284,Hannecart
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Paul Lution,paul lution,artist_source,4,artist_00546,Paul Lution
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Craig Richards,craig richards,artist_source,5,artist_00153,Craig Richards
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Midland,midland,artist_source,6,artist_00477,Midland
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Gabbs,gabbs,artist_source,7,artist_00268,Gabbs
+recN7jXGdjTtY6J8T,VBX,2024-06-08,,extern,Regulier,Among trees,among trees,artist_source,8,artist_00034,Among trees
+recRwa9gtBOueEPVH,Disturbia x Patio,2024-06-09,,extern,Regulier,Nacho,nacho,artist_source,1,artist_00497,Nacho
+recRwa9gtBOueEPVH,Disturbia x Patio,2024-06-09,,extern,Regulier,Mystral,mystral,artist_source,2,artist_00493,Mystral
+recRwa9gtBOueEPVH,Disturbia x Patio,2024-06-09,,extern,Regulier,Denver,denver,artist_source,3,artist_00211,Denver
+recRwa9gtBOueEPVH,Disturbia x Patio,2024-06-09,,extern,Regulier,Developer,developer,artist_source,4,artist_00213,Developer
+recRwa9gtBOueEPVH,Disturbia x Patio,2024-06-09,,extern,Regulier,Beatrice,beatrice,artist_source,5,artist_00071,Beatrice
+recRwa9gtBOueEPVH,Disturbia x Patio,2024-06-09,,extern,Regulier,Matrixxman,matrixxman,artist_source,6,artist_00464,Matrixxman
+recRwa9gtBOueEPVH,Disturbia x Patio,2024-06-09,,extern,Regulier,Aadja,aadja,artist_source,7,artist_00014,Aadja
+recTJurwX2KFduF7e,No Art - No Phone Policy,2024-06-22,,extern,Regulier,Mateo Dufour,mateo dufour,artist_source,1,artist_00461,Mateo Dufour
+recTJurwX2KFduF7e,No Art - No Phone Policy,2024-06-22,,extern,Regulier,Alci,alci,artist_source,2,artist_00025,Alci
+recTJurwX2KFduF7e,No Art - No Phone Policy,2024-06-22,,extern,Regulier,Traumer,traumer,artist_source,3,artist_00711,Traumer
+recTJurwX2KFduF7e,No Art - No Phone Policy,2024-06-22,,extern,Regulier,Kai King,kai king,artist_source,4,artist_00357,Kai King
+recTJurwX2KFduF7e,No Art - No Phone Policy,2024-06-22,,extern,Regulier,Toman,toman,artist_source,5,artist_00705,Toman
+recUf9Zl2XX8zJfxx,Tjade presents: Agrio Club,2024-06-23,,intern,Regulier,Tjade,tjade,artist_source,1,artist_00704,Tjade
+recUf9Zl2XX8zJfxx,Tjade presents: Agrio Club,2024-06-23,,intern,Regulier,Lewis Taylor,lewis taylor,artist_source,2,artist_00407,Lewis Taylor
+recUf9Zl2XX8zJfxx,Tjade presents: Agrio Club,2024-06-23,,intern,Regulier,Regularfantasy,regularfantasy,artist_source,3,artist_00583,Regularfantasy
+recUf9Zl2XX8zJfxx,Tjade presents: Agrio Club,2024-06-23,,intern,Regulier,FAFF,faff,artist_source,4,artist_00245,FAFF
+recUf9Zl2XX8zJfxx,Tjade presents: Agrio Club,2024-06-23,,intern,Regulier,Marie Malarie,marie malarie,artist_source,5,artist_00451,Marie Malarie
+recUf9Zl2XX8zJfxx,Tjade presents: Agrio Club,2024-06-23,,intern,Regulier,Emmz,emmz,artist_source,6,artist_00235,Emmz
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Carlos Valdes,carlos valdes,artist_source,1,artist_00113,Carlos Valdes
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Velasco,velasco,artist_source,2,artist_00730,Velasco
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Cinnaman,cinnaman,artist_source,3,artist_00131,Cinnaman
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Ron Obvious,ron obvious,artist_source,4,artist_00596,Ron Obvious
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Fonte,fonte,artist_source,5,artist_00259,Fonte
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,D. Tiffany,d. tiffany,artist_source,6,artist_00162,D. Tiffany
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Samuel Deep,samuel deep,artist_source,7,artist_00623,Samuel Deep
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Mauro Moreno,mauro moreno,artist_source,8,artist_00466,Mauro Moreno
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Inoz,inoz,artist_source,9,artist_00311,Inoz
+recCko933E8vvTIUt,SlapFunk,2024-07-06,,extern,Regulier,Sugar Free,sugar free,artist_source,10,artist_00667,Sugar Free
+recq3PrZGv2ypNzqi,Patio,2024-07-07,,intern,Regulier,Sandrien,sandrien,artist_source,1,artist_00625,Sandrien
+recq3PrZGv2ypNzqi,Patio,2024-07-07,,intern,Regulier,Nick Moody,nick moody,artist_source,2,artist_00509,Nick Moody
+recq3PrZGv2ypNzqi,Patio,2024-07-07,,intern,Regulier,Ø [Phase],ø [phase],artist_source,3,artist_00779,Ø [Phase]
+recq3PrZGv2ypNzqi,Patio,2024-07-07,,intern,Regulier,Ignez,ignez,artist_source,4,artist_00307,Ignez
+recq3PrZGv2ypNzqi,Patio,2024-07-07,,intern,Regulier,Wispelturig,wispelturig,artist_source,5,artist_00745,Wispelturig
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,Moody Mehran,moody mehran,artist_source,1,artist_00485,Moody Mehran
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,evin,evin,artist_source,2,artist_00768,evin
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,Helena Lauwaert,helena lauwaert,artist_source,3,artist_00288,Helena Lauwaert
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,CRUSH3d,crush3d,artist_source,4,artist_00109,CRUSH3d
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,Dangerous Dreaming,dangerous dreaming,artist_source,5,artist_00195,Dangerous Dreaming
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,Malugi,malugi,artist_source,6,artist_00443,Malugi
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,Rozie,rozie,artist_source,7,artist_00603,Rozie
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,Spacer Woman,spacer woman,artist_source,8,artist_00655,Spacer Woman
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,ferrari rot,ferrari rot,artist_source,9,artist_00769,ferrari rot
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,Diffrent,diffrent,artist_source,10,artist_00214,Diffrent
+recM9xTIwgiYHeIfN,Club Heart Broken (Day & Night),2024-07-13,,intern,Regulier,MALOU,malou,artist_source,11,artist_00427,MALOU
+recTg4rTCpCXDr0Mp,Mindscape,2024-07-19,,intern,Regulier,Recondite,recondite,artist_source,1,artist_00581,Recondite
+recTg4rTCpCXDr0Mp,Mindscape,2024-07-19,,intern,Regulier,VNTM,vntm,artist_source,2,artist_00723,VNTM
+recTg4rTCpCXDr0Mp,Mindscape,2024-07-19,,intern,Regulier,Mathew Jonson,mathew jonson,artist_source,3,artist_00462,Mathew Jonson
+recTg4rTCpCXDr0Mp,Mindscape,2024-07-19,,intern,Regulier,Patrice Baumel,patrice baumel,artist_source,4,artist_00544,Patrice Baumel
+recTg4rTCpCXDr0Mp,Mindscape,2024-07-19,,intern,Regulier,Just Lauren,just lauren,artist_source,5,artist_00351,Just Lauren
+recSX06wvcnUqltF5,Lofi w/ Max Cooper,2024-07-20,,intern,Regulier,Nadia Struiwigh,nadia struiwigh,artist_source,1,artist_00498,Nadia Struiwigh
+recSX06wvcnUqltF5,Lofi w/ Max Cooper,2024-07-20,,intern,Regulier,Jasmín,jasmín,artist_source,2,artist_00323,Jasmín
+recSX06wvcnUqltF5,Lofi w/ Max Cooper,2024-07-20,,intern,Regulier,Max Cooper,max cooper,artist_source,3,artist_00467,Max Cooper
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Moopie,moopie,artist_source,1,artist_00486,Moopie
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Combined Type,combined type,artist_source,2,artist_00146,Combined Type
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Hannecart,hannecart,artist_source,3,artist_00284,Hannecart
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Gene On Earth,gene on earth,artist_source,4,artist_00273,Gene On Earth
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,cap,cap,artist_source,5,artist_00765,cap
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Reiss,reiss,artist_source,6,artist_00584,Reiss
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Stella Zekri,stella zekri,artist_source,7,artist_00661,Stella Zekri
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Across Boundaries,across boundaries,artist_source,8,artist_00017,Across Boundaries
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Sonja Moonear,sonja moonear,artist_source,9,artist_00652,Sonja Moonear
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Noach,noach,artist_source,10,artist_00511,Noach
+rec0Aci5GWnCXNqMF,VBX - 24hrs,2024-07-20,progressieve techno,extern,Regulier,Automatic Writing,automatic writing,artist_source,11,artist_00051,Automatic Writing
+recUtqxeLx5tPCCOq,"Lofi Courtyard w/ Colin Benders live, Perc, Lobster b2b Laura van Hal, Megan Leber",2024-07-27,,intern,Regulier,Colin Benders,colin benders,artist_source,1,artist_00142,Colin Benders
+recUtqxeLx5tPCCOq,"Lofi Courtyard w/ Colin Benders live, Perc, Lobster b2b Laura van Hal, Megan Leber",2024-07-27,,intern,Regulier,Perc,perc,artist_source,2,artist_00552,Perc
+recUtqxeLx5tPCCOq,"Lofi Courtyard w/ Colin Benders live, Perc, Lobster b2b Laura van Hal, Megan Leber",2024-07-27,,intern,Regulier,Lobster,lobster,artist_source,3,artist_00412,Lobster
+recUtqxeLx5tPCCOq,"Lofi Courtyard w/ Colin Benders live, Perc, Lobster b2b Laura van Hal, Megan Leber",2024-07-27,,intern,Regulier,Laura van Hal,laura van hal,artist_source,4,artist_00397,Laura van Hal
+recUtqxeLx5tPCCOq,"Lofi Courtyard w/ Colin Benders live, Perc, Lobster b2b Laura van Hal, Megan Leber",2024-07-27,,intern,Regulier,Megan Leber,megan leber,artist_source,5,artist_00471,Megan Leber
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Nera,nera,artist_source,1,artist_00505,Nera
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,D-Leria,d-leria,artist_source,2,artist_00161,D-Leria
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,DVS1,dvs1,artist_source,3,artist_00191,DVS1
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,JakoJako,jakojako,artist_source,4,artist_00320,JakoJako
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Tammo Hesselink,tammo hesselink,artist_source,5,artist_00688,Tammo Hesselink
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Barker,barker,artist_source,6,artist_00064,Barker
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Konduku,konduku,artist_source,7,artist_00379,Konduku
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Andy Garvey,andy garvey,artist_source,8,artist_00037,Andy Garvey
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,French II,french ii,artist_source,9,artist_00265,French II
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Hitam,hitam,artist_source,10,artist_00292,Hitam
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Vardae,vardae,artist_source,11,artist_00728,Vardae
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Vera Logdanidi,vera logdanidi,artist_source,12,artist_00732,Vera Logdanidi
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Marco Shuttle,marco shuttle,artist_source,13,artist_00448,Marco Shuttle
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,VRIL,vril,artist_source,14,artist_00724,VRIL
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,GiGi FM,gigi fm,artist_source,15,artist_00276,GiGi FM
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Chami,chami,artist_source,16,artist_00119,Chami
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,Olivia Mendez,olivia mendez,artist_source,17,artist_00524,Olivia Mendez
+recyTDyRuMpkIT3kb,Ratherlost - 24hrs,2024-08-17,,intern,Regulier,NDRX,ndrx,artist_source,18,artist_00494,NDRX
+recmxkBgdr4lgG3Eg,SONA Presents: WhoMadeWho,2024-08-17,,extern,Regulier,14.00-16.15 Benja,14.00-16.15 benja,artist_source,1,,
+recmxkBgdr4lgG3Eg,SONA Presents: WhoMadeWho,2024-08-17,,extern,Regulier,16.15-18.00 Emjie,16.15-18.00 emjie,artist_source,2,,
+recmxkBgdr4lgG3Eg,SONA Presents: WhoMadeWho,2024-08-17,,extern,Regulier,18.00-20.00 Alex Wann,18.00-20.00 alex wann,artist_source,3,,
+recmxkBgdr4lgG3Eg,SONA Presents: WhoMadeWho,2024-08-17,,extern,Regulier,20.00-23.00 WMW,20.00-23.00 wmw,artist_source,4,,
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,Georgia,georgia,artist_source,1,artist_00274,Georgia
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,Dungeon Meat,dungeon meat,artist_source,2,artist_00226,Dungeon Meat
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,Doudou MD,doudou md,artist_source,3,artist_00223,Doudou MD
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,Samuel Deep,samuel deep,artist_source,4,artist_00623,Samuel Deep
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,Daniele Temperilli,daniele temperilli,artist_source,5,artist_00197,Daniele Temperilli
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,Carlita,carlita,artist_source,6,artist_00112,Carlita
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,Phone Traxxx,phone traxxx,artist_source,7,artist_00557,Phone Traxxx
+recEJqcrh9MQVCkC8,SlapFunk,2024-08-24,,extern,Regulier,DJ Senc,dj senc,artist_source,8,artist_00185,DJ Senc
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Dissolver,dissolver,artist_source,1,artist_00217,Dissolver
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,LB aka LABAT,lb aka labat,artist_source,2,artist_00386,LB aka LABAT
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Yoshiko,yoshiko,artist_source,3,artist_00755,Yoshiko
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Bushbaby,bushbaby,artist_source,4,artist_00101,Bushbaby
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,DJ Gigola,dj gigola,artist_source,5,artist_00174,DJ Gigola
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Somewhen,somewhen,artist_source,6,artist_00651,Somewhen
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Flansie,flansie,artist_source,7,artist_00255,Flansie
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Nene H,nene h,artist_source,8,artist_00504,Nene H
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Yung Singh,yung singh,artist_source,9,artist_00758,Yung Singh
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,angelboy,angelboy,artist_source,10,artist_00763,angelboy
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Krampf,krampf,artist_source,11,artist_00381,Krampf
+recf596my33xyfrLU,Live From Earth,2024-08-31,,intern,Regulier,Paul Seul,paul seul,artist_source,12,artist_00547,Paul Seul
+recKuuVnwM9gRFt6o,Planet Lofi,2024-09-07,,extern,Regulier,Alex Kassian,alex kassian,artist_source,1,artist_00028,Alex Kassian
+recKuuVnwM9gRFt6o,Planet Lofi,2024-09-07,,extern,Regulier,Fafi Abdel Nour,fafi abdel nour,artist_source,2,artist_00248,Fafi Abdel Nour
+recKuuVnwM9gRFt6o,Planet Lofi,2024-09-07,,extern,Regulier,Parris,parris,artist_source,3,artist_00541,Parris
+recRSHgW6lXObnfDc,Patio,2024-09-08,,intern,Regulier,Selene,selene,artist_source,1,artist_00634,Selene
+recRSHgW6lXObnfDc,Patio,2024-09-08,,intern,Regulier,Dimi Angélis,dimi angélis,artist_source,2,artist_00215,Dimi Angélis
+recRSHgW6lXObnfDc,Patio,2024-09-08,,intern,Regulier,Altinbas,altinbas,artist_source,3,artist_00031,Altinbas
+recRSHgW6lXObnfDc,Patio,2024-09-08,,intern,Regulier,Justine Perry,justine perry,artist_source,4,artist_00353,Justine Perry
+recRSHgW6lXObnfDc,Patio,2024-09-08,,intern,Regulier,Setaoc Mass,setaoc mass,artist_source,5,artist_00639,Setaoc Mass
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,Dax J,dax j,artist_source,1,artist_00167,DAX J
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,Chontane,chontane,artist_source,2,artist_00125,Chontane
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,UVB,uvb,artist_source,3,artist_00717,UVB
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,Stephanie Sykes,stephanie sykes,artist_source,4,artist_00662,Stephanie Sykes
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,Grace Dahl,grace dahl,artist_source,5,artist_00279,Grace Dahl
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,Thomas P. Heckmann,thomas p. heckmann,artist_source,6,artist_00698,Thomas P. Heckmann
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,Umwelt,umwelt,artist_source,7,artist_00718,Umwelt
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,VIL,vil,artist_source,8,artist_00722,VIL
+recLB2q5o5DZYIw3q,Monnom Black,2024-09-14,,intern,Regulier,CRAVO,cravo,artist_source,9,artist_00108,CRAVO
+recZlirea7Z46TAgq,TLM Airlines,2024-09-14,,intern,Regulier,TLM Airlines,tlm airlines,artist_source,1,artist_00682,TLM  Airlines
+rec0ukDASokXNKDIK,Patio,2024-09-15,,intern,Regulier,mul/ANNA,mul/anna,artist_source,1,artist_00772,mul/ANNA
+rec0ukDASokXNKDIK,Patio,2024-09-15,,intern,Regulier,Amanda Mussi,amanda mussi,artist_source,2,artist_00033,Amanda Mussi
+rec0ukDASokXNKDIK,Patio,2024-09-15,,intern,Regulier,Kaiser,kaiser,artist_source,3,artist_00359,Kaiser
+rec0ukDASokXNKDIK,Patio,2024-09-15,,intern,Regulier,Yanamaste,yanamaste,artist_source,4,artist_00753,Yanamaste
+rec0ukDASokXNKDIK,Patio,2024-09-15,,intern,Regulier,DJ TOOL,dj tool,artist_source,5,artist_00188,DJ TOOL
+rectMVK6G91kPgzVW,Lofi w/ Luuk van Dijk,2024-09-20,,intern,Regulier,Kyra Khaldi,kyra khaldi,artist_source,1,artist_00385,Kyra Khaldi
+rectMVK6G91kPgzVW,Lofi w/ Luuk van Dijk,2024-09-20,,intern,Regulier,Demi Riquísimo,demi riquísimo,artist_source,2,artist_00208,Demi Riquísimo
+rectMVK6G91kPgzVW,Lofi w/ Luuk van Dijk,2024-09-20,,intern,Regulier,Tsepo,tsepo,artist_source,3,artist_00715,Tsepo
+rectMVK6G91kPgzVW,Lofi w/ Luuk van Dijk,2024-09-20,,intern,Regulier,Luuk van Dijk,luuk van dijk,artist_source,4,artist_00425,Luuk van Dijk
+rectMVK6G91kPgzVW,Lofi w/ Luuk van Dijk,2024-09-20,,intern,Regulier,Laidlaw,laidlaw,artist_source,5,artist_00392,Laidlaw
+rectMVK6G91kPgzVW,Lofi w/ Luuk van Dijk,2024-09-20,,intern,Regulier,Matisa,matisa,artist_source,6,artist_00463,Matisa
+recaEkiGNO5q5zOmL,Patio - Courtyard Closing,2024-09-29,,intern,Regulier,Nala Brown,nala brown,artist_source,1,artist_00500,Nala Brown
+recaEkiGNO5q5zOmL,Patio - Courtyard Closing,2024-09-29,,intern,Regulier,Zenker Brothers,zenker brothers,artist_source,2,artist_00759,Zenker Brothers
+recaEkiGNO5q5zOmL,Patio - Courtyard Closing,2024-09-29,,intern,Regulier,Philippa Pacho,philippa pacho,artist_source,3,artist_00554,Philippa Pacho
+recaEkiGNO5q5zOmL,Patio - Courtyard Closing,2024-09-29,,intern,Regulier,Woody92,woody92,artist_source,4,artist_00747,Woody92
+recaEkiGNO5q5zOmL,Patio - Courtyard Closing,2024-09-29,,intern,Regulier,DJ MELL G,dj mell g,artist_source,5,artist_00179,DJ MELL G
+recXv3OYWXd9XbyQ4,MINDSCAPE,2024-10-04,,intern,Regulier,Philou Celaries,philou celaries,artist_source,1,artist_00555,Philou Celaries
+recXv3OYWXd9XbyQ4,MINDSCAPE,2024-10-04,,intern,Regulier,Marino Canal,marino canal,artist_source,2,artist_00452,Marino Canal
+recXv3OYWXd9XbyQ4,MINDSCAPE,2024-10-04,,intern,Regulier,VNTM,vntm,artist_source,3,artist_00723,VNTM
+recXv3OYWXd9XbyQ4,MINDSCAPE,2024-10-04,,intern,Regulier,Ae:ther,ae:ther,artist_source,4,artist_00021,Ae:ther
+recz08Xz9pwpebo2y,Club Roto,2024-10-05,,intern,Regulier,Reiss,reiss,artist_source,1,artist_00584,Reiss
+recz08Xz9pwpebo2y,Club Roto,2024-10-05,,intern,Regulier,Noach,noach,artist_source,2,artist_00511,Noach
+recz08Xz9pwpebo2y,Club Roto,2024-10-05,,intern,Regulier,Tommy Chikara,tommy chikara,artist_source,3,artist_00706,Tommy Chikara
+recz08Xz9pwpebo2y,Club Roto,2024-10-05,,intern,Regulier,Locklead,locklead,artist_source,4,artist_00413,Locklead
+recz08Xz9pwpebo2y,Club Roto,2024-10-05,,intern,Regulier,Carlos Valdes,carlos valdes,artist_source,5,artist_00113,Carlos Valdes
+recz08Xz9pwpebo2y,Club Roto,2024-10-05,,intern,Regulier,Julian Anthony,julian anthony,artist_source,6,artist_00345,Julian Anthony
+recz08Xz9pwpebo2y,Club Roto,2024-10-05,,intern,Regulier,Voigtmann,voigtmann,artist_source,7,artist_00740,Voigtmann
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,DJ Gigola,dj gigola,artist_source,1,artist_00174,DJ Gigola
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,MCR-T,mcr-t,artist_source,2,artist_00429,MCR-T
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,MRD,mrd,artist_source,3,artist_00430,MRD
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Jennifer Cardini,jennifer cardini,artist_source,4,artist_00325,Jennifer Cardini
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Boys Noize,boys noize,artist_source,5,artist_00095,Boys Noize
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Bauernfeind,bauernfeind,artist_source,6,artist_00070,Bauernfeind
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Slimfit,slimfit,artist_source,7,artist_00649,Slimfit
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Courtesy,courtesy,artist_source,8,artist_00150,Courtesy
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,ALCATRAZ,alcatraz,artist_source,9,artist_00011,ALCATRAZ
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Juicy Romance,juicy romance,artist_source,10,artist_00343,Juicy Romance
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Ellen Allien,ellen allien,artist_source,11,artist_00232,Ellen Allien
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Diora,diora,artist_source,12,artist_00216,Diora
+recwkONuOxIt9ODcn,Live From Earth - ADE,2024-10-17,,intern,Regulier,Daria Kolosova,daria kolosova,artist_source,13,artist_00201,Daria Kolosova
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Reiss,reiss,artist_source,1,artist_00584,Reiss
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Peach,peach,artist_source,2,artist_00549,Peach
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Ryan Elliott,ryan elliott,artist_source,3,artist_00606,Ryan Elliott
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Shanti Celeste,shanti celeste,artist_source,4,artist_00642,Shanti Celeste
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Ogazón,ogazón,artist_source,5,artist_00520,Ogazón
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,PLO Man,plo man,artist_source,6,artist_00531,PLO Man
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Gabbs,gabbs,artist_source,7,artist_00268,Gabbs
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Junki Inoue,junki inoue,artist_source,8,artist_00349,Junki Inoue
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Mia Cecille,mia cecille,artist_source,9,artist_00475,Mia Cecille
+recvZdTSXJGeAVphr,VBX - ADE,2024-10-18,,intern,Regulier,Dresden,dresden,artist_source,10,artist_00225,Dresden
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Tjade,tjade,artist_source,1,artist_00704,Tjade
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Maara,maara,artist_source,2,artist_00432,Maara
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Aldonna,aldonna,artist_source,3,artist_00026,Aldonna
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Sam Alfred,sam alfred,artist_source,4,artist_00621,Sam Alfred
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Spray,spray,artist_source,5,artist_00658,Spray
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Berkan V8,berkan v8,artist_source,6,artist_00084,Berkan V8
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Audrey Danza,audrey danza,artist_source,7,artist_00049,Audrey Danza
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Danielle,danielle,artist_source,8,artist_00198,Danielle
+recq3vAK9CRMhXURc,Agrio Club - ADE,2024-10-19,,intern,Regulier,Amaliah,amaliah,artist_source,9,artist_00032,Amaliah
+rec6yIcyCmQxrBXT7,Rush Hour - ADE,2024-10-19,,intern,Regulier,Antal,antal,artist_source,1,artist_00041,Antal
+rec6yIcyCmQxrBXT7,Rush Hour - ADE,2024-10-19,,intern,Regulier,Ron Trent,ron trent,artist_source,2,artist_00597,Ron Trent
+rec6yIcyCmQxrBXT7,Rush Hour - ADE,2024-10-19,,intern,Regulier,Kléo,kléo,artist_source,3,artist_00378,Kléo
+rec6yIcyCmQxrBXT7,Rush Hour - ADE,2024-10-19,,intern,Regulier,Sassy J,sassy j,artist_source,4,artist_00629,Sassy J
+rec6yIcyCmQxrBXT7,Rush Hour - ADE,2024-10-19,,intern,Regulier,Coco Maria,coco maria,artist_source,5,artist_00141,Coco Maria
+rec6yIcyCmQxrBXT7,Rush Hour - ADE,2024-10-19,,intern,Regulier,Kaidi Tatham,kaidi tatham,artist_source,6,artist_00358,Kaidi Tatham
+rec6yIcyCmQxrBXT7,Rush Hour - ADE,2024-10-19,,intern,Regulier,Daniel Monaco,daniel monaco,artist_source,7,artist_00196,Daniel Monaco
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Serti,serti,artist_source,1,artist_00638,Serti
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Clarisa Kimskii,clarisa kimskii,artist_source,2,artist_00133,Clarisa Kimskii
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Quelza,quelza,artist_source,3,artist_00572,Quelza
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Dj Nobu,dj nobu,artist_source,4,artist_00219,Dj Nobu
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Oscar Mulero,oscar mulero,artist_source,5,artist_00528,Oscar Mulero
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Marco Shuttle,marco shuttle,artist_source,6,artist_00448,Marco Shuttle
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Jane Fitz,jane fitz,artist_source,7,artist_00321,Jane Fitz
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Nelly,nelly,artist_source,8,artist_00503,Nelly
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Kia,kia,artist_source,9,artist_00374,Kia
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Reptant,reptant,artist_source,10,artist_00585,Reptant
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Garçon,garçon,artist_source,11,artist_00272,Garçon
+recx2LAwsPfdPcr9K,CODA - ADE,2024-10-20,,intern,Regulier,Sybil,sybil,artist_source,12,artist_00676,Sybil
+recDXm503W8dkWDy8,Superstrings,2024-10-26,,intern,Regulier,Superstrings,superstrings,artist_source,1,artist_00671,Superstrings
+recc0yvNwDx7XijSS,KAOS w/ Héctor Oaks,2024-11-01,,intern,Regulier,Héctor Oaks,héctor oaks,artist_source,1,artist_00302,Héctor Oaks
+recc0yvNwDx7XijSS,KAOS w/ Héctor Oaks,2024-11-01,,intern,Regulier,ADIEL,adiel,artist_source,2,artist_00009,ADIEL
+recc0yvNwDx7XijSS,KAOS w/ Héctor Oaks,2024-11-01,,intern,Regulier,Carmen Electro,carmen electro,artist_source,3,artist_00114,Carmen Electro
+recc0yvNwDx7XijSS,KAOS w/ Héctor Oaks,2024-11-01,,intern,Regulier,P.E.A.R.L.,p.e.a.r.l.,artist_source,4,artist_00529,P.E.A.R.L.
+recc0yvNwDx7XijSS,KAOS w/ Héctor Oaks,2024-11-01,,intern,Regulier,Not A Headliner,not a headliner,artist_source,5,artist_00513,Not A Headliner
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,Morgan,morgan,artist_source,1,artist_00488,Morgan
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,Essets,essets,artist_source,2,artist_00242,Essets
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,Moxes,moxes,artist_source,3,artist_00490,Moxes
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,Berkan V8,berkan v8,artist_source,4,artist_00084,Berkan V8
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,Fais Le Beau,fais le beau,artist_source,5,artist_00249,Fais Le Beau
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,Moody Mehran,moody mehran,artist_source,6,artist_00485,Moody Mehran
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,Freakenstein,freakenstein,artist_source,7,artist_00263,Freakenstein
+recxIpm1Jn2FXxK1U,Halloween by VS,2024-11-02,,extern,Regulier,DJ Killing,dj killing,artist_source,8,artist_00177,DJ Killing
+recksbRoLIfciT098,WEVAL Selects,2024-11-09,,intern,Regulier,Weval,weval,artist_source,1,artist_00744,Weval
+recksbRoLIfciT098,WEVAL Selects,2024-11-09,,intern,Regulier,Mano Le Tough,mano le tough,artist_source,2,artist_00444,Mano Le Tough
+recksbRoLIfciT098,WEVAL Selects,2024-11-09,,intern,Regulier,Jasper Tygner,jasper tygner,artist_source,3,artist_00324,Jasper Tygner
+recksbRoLIfciT098,WEVAL Selects,2024-11-09,,intern,Regulier,Aletha,aletha,artist_source,4,artist_00027,Aletha
+recAwU68jENbcF0QD,Curated by Rozie,2024-11-10,,intern,Regulier,EMILIJA,emilija,artist_source,1,artist_00228,EMILIJA
+recAwU68jENbcF0QD,Curated by Rozie,2024-11-10,,intern,Regulier,Rozie,rozie,artist_source,2,artist_00603,Rozie
+recAwU68jENbcF0QD,Curated by Rozie,2024-11-10,,intern,Regulier,Dangerous Dreaming,dangerous dreaming,artist_source,3,artist_00195,Dangerous Dreaming
+recAwU68jENbcF0QD,Curated by Rozie,2024-11-10,,intern,Regulier,Newtone,newtone,artist_source,4,artist_00507,Newtone
+recAwU68jENbcF0QD,Curated by Rozie,2024-11-10,,intern,Regulier,DART,dart,artist_source,5,artist_00166,DART
+recoYyPUOnWQy7ReG,"Lofi w/ Speedy J, MARRØN, Mareena X TGIB",2024-11-16,,intern,Regulier,Speedy J,speedy j,artist_source,1,artist_00656,Speedy J
+recoYyPUOnWQy7ReG,"Lofi w/ Speedy J, MARRØN, Mareena X TGIB",2024-11-16,,intern,Regulier,MARRØN,marrøn,artist_source,2,artist_00428,MARRØN
+recoYyPUOnWQy7ReG,"Lofi w/ Speedy J, MARRØN, Mareena X TGIB",2024-11-16,,intern,Regulier,Mareena,mareena,artist_source,3,artist_00449,Mareena
+recoYyPUOnWQy7ReG,"Lofi w/ Speedy J, MARRØN, Mareena X TGIB",2024-11-16,,intern,Regulier,Najel,najel,artist_source,4,artist_00499,Najel
+recoYyPUOnWQy7ReG,"Lofi w/ Speedy J, MARRØN, Mareena X TGIB",2024-11-16,,intern,Regulier,Prance,prance,artist_source,5,artist_00566,Prance
+recoYyPUOnWQy7ReG,"Lofi w/ Speedy J, MARRØN, Mareena X TGIB",2024-11-16,,intern,Regulier,Lea Occhi,lea occhi,artist_source,6,artist_00402,Lea Occhi
+recNKXylOYuTcfncW,Lofi w/ Bart Skils,2024-11-22,,intern,Regulier,Bart Skils,bart skils,artist_source,1,artist_00066,Bart Skils
+recNKXylOYuTcfncW,Lofi w/ Bart Skils,2024-11-22,,intern,Regulier,Konstantin Sibold,konstantin sibold,artist_source,2,artist_00380,Konstantin Sibold
+recAOAG4ctP65s9tF,Lofi w/ Gerd Janson,2024-11-23,,intern,Regulier,Gerd Janson,gerd janson,artist_source,1,artist_00275,Gerd Janson
+recAOAG4ctP65s9tF,Lofi w/ Gerd Janson,2024-11-23,,intern,Regulier,ISAbella,isabella,artist_source,2,artist_00305,ISAbella
+recAOAG4ctP65s9tF,Lofi w/ Gerd Janson,2024-11-23,,intern,Regulier,HAAi,haai,artist_source,3,artist_00282,HAAi
+recAOAG4ctP65s9tF,Lofi w/ Gerd Janson,2024-11-23,,intern,Regulier,Oceanic,oceanic,artist_source,4,artist_00519,Oceanic
+recBh5P9g5Mz57yXQ,Forza,2024-11-24,,intern,Regulier,Eva Vrijdag,eva vrijdag,artist_source,1,artist_00244,Eva Vrijdag
+recBh5P9g5Mz57yXQ,Forza,2024-11-24,,intern,Regulier,Lin C,lin c,artist_source,2,artist_00411,Lin C
+recBh5P9g5Mz57yXQ,Forza,2024-11-24,,intern,Regulier,Surf 2 Glory,surf 2 glory,artist_source,3,artist_00672,Surf 2 Glory
+recBh5P9g5Mz57yXQ,Forza,2024-11-24,,intern,Regulier,Valeby,valeby,artist_source,4,artist_00725,Valeby
+recBh5P9g5Mz57yXQ,Forza,2024-11-24,,intern,Regulier,Spacer Woman,spacer woman,artist_source,5,artist_00655,Spacer Woman
+recBh5P9g5Mz57yXQ,Forza,2024-11-24,,intern,Regulier,Helena Lauwaert,helena lauwaert,artist_source,6,artist_00288,Helena Lauwaert
+rec5iHx7XtKJzyO8e,Lofi w/ Philou Louzolo & Cincity,2024-11-29,,intern,Regulier,Philou Louzolo,philou louzolo,artist_source,1,artist_00556,Philou Louzolo
+rec5iHx7XtKJzyO8e,Lofi w/ Philou Louzolo & Cincity,2024-11-29,,intern,Regulier,Cincity,cincity,artist_source,2,artist_00129,Cincity
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Craig Richards,craig richards,artist_source,1,artist_00153,Craig Richards
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Peach,peach,artist_source,2,artist_00549,Peach
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Gabrielle Kwarteng,gabrielle kwarteng,artist_source,3,artist_00270,Gabrielle Kwarteng
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Christian AB,christian ab,artist_source,4,artist_00128,Christian AB
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Quest,quest,artist_source,5,artist_00573,Quest
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Carlita,carlita,artist_source,6,artist_00112,Carlita
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Francesco del Garda,francesco del garda,artist_source,7,artist_00262,Francesco del Garda
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Helena Hauff,helena hauff,artist_source,8,artist_00287,Helena Hauff
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Carlos Valdes,carlos valdes,artist_source,9,artist_00113,Carlos Valdes
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Naone,naone,artist_source,10,artist_00502,Naone
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Harry McCanna,harry mccanna,artist_source,11,artist_00285,Harry McCanna
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Doudou MD,doudou md,artist_source,12,artist_00223,Doudou MD
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,The Ghost,the ghost,artist_source,13,artist_00695,The Ghost
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Samuel Deep,samuel deep,artist_source,14,artist_00623,Samuel Deep
+recsRrCnn0F81cSWt,VBX & SlapFunk presents fabric25: Continuum,2024-11-30,,extern,Regulier,Reiss,reiss,artist_source,15,artist_00584,Reiss
+recKDy4yjVB9DAjN9,Bordello a Parigi,2024-12-06,,extern,Regulier,Jennifer Cardini,jennifer cardini,artist_source,1,artist_00325,Jennifer Cardini
+recWOv7Xw2iGUCaM2,Tjade presents: Agrio Club,2024-12-07,,intern,Regulier,Tjade,tjade,artist_source,1,artist_00704,Tjade
+recWOv7Xw2iGUCaM2,Tjade presents: Agrio Club,2024-12-07,,intern,Regulier,Flo Massé,flo massé,artist_source,2,artist_00256,Flo Massé
+recWOv7Xw2iGUCaM2,Tjade presents: Agrio Club,2024-12-07,,intern,Regulier,AIDA,aida,artist_source,3,artist_00010,AIDA
+recWOv7Xw2iGUCaM2,Tjade presents: Agrio Club,2024-12-07,,intern,Regulier,SOLIT,solit,artist_source,4,artist_00615,SOLIT
+recE6Gcy4pwWALOW3,Frenzy,2024-12-14,,intern,Regulier,Liane,liane,artist_source,1,artist_00409,Liane
+recE6Gcy4pwWALOW3,Frenzy,2024-12-14,,intern,Regulier,Fireground,fireground,artist_source,2,artist_00254,Fireground
+recE6Gcy4pwWALOW3,Frenzy,2024-12-14,,intern,Regulier,Alarico,alarico,artist_source,3,artist_00024,Alarico
+recE6Gcy4pwWALOW3,Frenzy,2024-12-14,,intern,Regulier,Matrixxman,matrixxman,artist_source,4,artist_00464,Matrixxman
+recE6Gcy4pwWALOW3,Frenzy,2024-12-14,,intern,Regulier,Temudo,temudo,artist_source,5,artist_00692,Temudo
+recE6Gcy4pwWALOW3,Frenzy,2024-12-14,,intern,Regulier,Laure Croft,laure croft,artist_source,6,artist_00398,Laure Croft
+recPw7CBS8sRfbvVd,Hunee b2b Antal,2024-12-20,,intern,Regulier,Antal,antal,artist_source,1,artist_00041,Antal
+recPw7CBS8sRfbvVd,Hunee b2b Antal,2024-12-20,,intern,Regulier,HUNEE,hunee,artist_source,2,artist_00283,HUNEE
+recuU3F0PMUtS01gy,Mindscape,2024-12-27,,intern,Regulier,VNTM,vntm,artist_source,1,artist_00723,VNTM
+recuU3F0PMUtS01gy,Mindscape,2024-12-27,,intern,Regulier,KiNK,kink,artist_source,2,artist_00373,KiNK
+recuU3F0PMUtS01gy,Mindscape,2024-12-27,,intern,Regulier,STERAC,sterac,artist_source,3,artist_00616,STERAC
+recuU3F0PMUtS01gy,Mindscape,2024-12-27,,intern,Regulier,ROD,rod,artist_source,4,artist_00575,ROD
+recuU3F0PMUtS01gy,Mindscape,2024-12-27,,intern,Regulier,Megan Leber,megan leber,artist_source,5,artist_00471,Megan Leber
+recbDVPykUmXVCayQ,Nali,2024-12-29,,intern,Regulier,Julian Muller,julian muller,artist_source,1,artist_00346,Julian Muller
+recbDVPykUmXVCayQ,Nali,2024-12-29,,intern,Regulier,CAIVA,caiva,artist_source,2,artist_00103,CAIVA
+recbDVPykUmXVCayQ,Nali,2024-12-29,,intern,Regulier,Bebe Bad,bebe bad,artist_source,3,artist_00074,Bebe Bad
+recbDVPykUmXVCayQ,Nali,2024-12-29,,intern,Regulier,MRD,mrd,artist_source,4,artist_00430,MRD
+recbDVPykUmXVCayQ,Nali,2024-12-29,,intern,Regulier,Swimming Paul,swimming paul,artist_source,5,artist_00675,Swimming Paul
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Roger Gerressen,roger gerressen,artist_source,1,artist_00594,Roger Gerressen
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,DJ Pete,dj pete,artist_source,2,artist_00183,DJ Pete
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Ogazón,ogazón,artist_source,3,artist_00520,Ogazón
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Stranger,stranger,artist_source,4,artist_00666,Stranger
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Philippa Pacho,philippa pacho,artist_source,5,artist_00554,Philippa Pacho
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Spekki Webu,spekki webu,artist_source,6,artist_00657,Spekki Webu
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,DJ Red,dj red,artist_source,7,artist_00184,DJ Red
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Priori,priori,artist_source,8,artist_00568,Priori
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Loek Frey,loek frey,artist_source,9,artist_00414,Loek Frey
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Shoal,shoal,artist_source,10,artist_00644,Shoal
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Polygonia,polygonia,artist_source,11,artist_00564,Polygonia
+reccRmenOFwitvgeX,Ratherlost - New Year's Day,2025-01-01,progressieve techno,intern,Regulier,Djrum,djrum,artist_source,12,artist_00221,Djrum
+recuLrQRA1M1fok7S,Lofi x Contrarium,2025-01-04,progressieve techno,intern,Regulier,Colin Benders,colin benders,artist_source,1,artist_00142,Colin Benders
+recuLrQRA1M1fok7S,Lofi x Contrarium,2025-01-04,progressieve techno,intern,Regulier,Boris Acket,boris acket,artist_source,2,artist_00092,Boris Acket
+recDgu8ph0m4vTjqS,Lofi x Contrarium,2025-01-05,progressieve techno,intern,Regulier,Mary Lake,mary lake,artist_source,1,artist_00458,Mary Lake
+recDgu8ph0m4vTjqS,Lofi x Contrarium,2025-01-05,progressieve techno,intern,Regulier,Portrait XO,portrait xo,artist_source,2,artist_00565,Portrait XO
+recrlSEdJSLD3ADWP,Contrarium by Night,2025-01-11,progressieve techno,intern,Regulier,Oceanic,oceanic,artist_source,1,artist_00519,Oceanic
+recrlSEdJSLD3ADWP,Contrarium by Night,2025-01-11,progressieve techno,intern,Regulier,Sandrien,sandrien,artist_source,2,artist_00625,Sandrien
+recrlSEdJSLD3ADWP,Contrarium by Night,2025-01-11,progressieve techno,intern,Regulier,Enequist,enequist,artist_source,3,artist_00237,Enequist
+receyBNLQSXQHt3QF,Lofi x Contrarium,2025-01-11,progressieve techno,intern,Regulier,Maarten Vos & Max Frimout,maarten vos & max frimout,artist_source,1,artist_00434,Maarten Vos & Max Frimout
+receyBNLQSXQHt3QF,Lofi x Contrarium,2025-01-11,progressieve techno,intern,Regulier,Polygonia,polygonia,artist_source,2,artist_00564,Polygonia
+reccuPlQPJWW34Spt,"Lofi w/ Robert Hood, Carista, Samuel Deep",2025-01-24,left field house & techno,intern,Regulier,Samuel Deep,samuel deep,artist_source,1,artist_00623,Samuel Deep
+reccuPlQPJWW34Spt,"Lofi w/ Robert Hood, Carista, Samuel Deep",2025-01-24,left field house & techno,intern,Regulier,CARISTA,carista,artist_source,2,artist_00104,CARISTA
+reccuPlQPJWW34Spt,"Lofi w/ Robert Hood, Carista, Samuel Deep",2025-01-24,left field house & techno,intern,Regulier,Robert Hood,robert hood,artist_source,3,artist_00591,Robert Hood
+recITi9D9WRgSflCX,Superstrings Invites,2025-01-31,Bounce / trance,intern,Regulier,Juicy Romance,juicy romance,artist_source,1,artist_00343,Juicy Romance
+recITi9D9WRgSflCX,Superstrings Invites,2025-01-31,Bounce / trance,intern,Regulier,Schwesta P,schwesta p,artist_source,2,artist_00632,Schwesta P
+recITi9D9WRgSflCX,Superstrings Invites,2025-01-31,Bounce / trance,intern,Regulier,Superstrings,superstrings,artist_source,3,artist_00671,Superstrings
+recITi9D9WRgSflCX,Superstrings Invites,2025-01-31,Bounce / trance,intern,Regulier,Bae Blade,bae blade,artist_source,4,artist_00059,Bae Blade
+reco1HOPKObW3xP1f,SHADOWPRINT,2025-02-14,commerciele old school techno,intern,Regulier,Bart Skils,bart skils,artist_source,1,artist_00066,Bart Skils
+reco1HOPKObW3xP1f,SHADOWPRINT,2025-02-14,commerciele old school techno,intern,Regulier,Victor Ruiz,victor ruiz,artist_source,2,artist_00735,Victor Ruiz
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Lyrae,lyrae,artist_source,1,artist_00426,Lyrae
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Moxes,moxes,artist_source,2,artist_00490,Moxes
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Ollie Lishman,ollie lishman,artist_source,3,artist_00525,Ollie Lishman
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Sophia Violet,sophia violet,artist_source,4,artist_00653,Sophia Violet
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Miguel de Bois,miguel de bois,artist_source,5,artist_00479,Miguel de Bois
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Lennart,lennart,artist_source,6,artist_00403,Lennart
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Queen Saba,queen saba,artist_source,7,artist_00571,Queen Saba
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Janis Zielinski,janis zielinski,artist_source,8,artist_00322,Janis Zielinski
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Rosa Red,rosa red,artist_source,9,artist_00598,Rosa Red
+recqOk15L0qiFpHw9,Benwal pres. NOUW,2025-02-15,Bounce / trance,intern,Regulier,Benwal,benwal,artist_source,10,artist_00083,Benwal
+rec80kAkUjWgIKttQ,Mama Told Ya,2025-02-21,commerciele new school techno,intern,Regulier,JEANS,jeans,artist_source,1,artist_00316,JEANS
+rec80kAkUjWgIKttQ,Mama Told Ya,2025-02-21,commerciele new school techno,intern,Regulier,Anetha,anetha,artist_source,2,artist_00039,Anetha
+rec80kAkUjWgIKttQ,Mama Told Ya,2025-02-21,commerciele new school techno,intern,Regulier,VEL,vel,artist_source,3,artist_00721,VEL
+rec80kAkUjWgIKttQ,Mama Told Ya,2025-02-21,commerciele new school techno,intern,Regulier,A Strange Wedding,a strange wedding,artist_source,4,artist_00008,A Strange Wedding
+rec80kAkUjWgIKttQ,Mama Told Ya,2025-02-21,commerciele new school techno,intern,Regulier,Mac Declos,mac declos,artist_source,5,artist_00435,Mac Declos
+rec80kAkUjWgIKttQ,Mama Told Ya,2025-02-21,commerciele new school techno,intern,Regulier,DJ Leoni,dj leoni,artist_source,6,artist_00178,DJ Leoni
+rec41vhKYRVYvnfRr,Kevin de Vries - All Night Long,2025-02-22,Melodic commercieel,intern,Regulier,Luna Ludmila,luna ludmila,artist_source,1,artist_00424,Luna Ludmila
+rec41vhKYRVYvnfRr,Kevin de Vries - All Night Long,2025-02-22,Melodic commercieel,intern,Regulier,Kevin De Vries,kevin de vries,artist_source,2,artist_00372,Kevin De Vries
+rec65UKOxwux89RIY,Joris Voorn  - All Night Long,2025-02-28,techno,intern,Regulier,Joris Voorn,joris voorn,artist_source,1,artist_00338,Joris Voorn
+recsC0vsHLYnp9lCh,Lofi w/ Collabs 3000 (4hr set) & Beste Hira,2025-03-01,techno,intern,Regulier,Collabs 3000,collabs 3000,artist_source,1,artist_00143,Collabs 3000
+recsC0vsHLYnp9lCh,Lofi w/ Collabs 3000 (4hr set) & Beste Hira,2025-03-01,techno,intern,Regulier,Beste Hira,beste hira,artist_source,2,artist_00085,Beste Hira
+recTP5Zt5DvBiIDYo,Lofi w/ Danilo Plessow (MCDE),2025-03-07,,intern,Regulier,Move D,move d,artist_source,1,artist_00489,Move D
+recTP5Zt5DvBiIDYo,Lofi w/ Danilo Plessow (MCDE),2025-03-07,,intern,Regulier,Margie,margie,artist_source,2,artist_00450,Margie
+recTP5Zt5DvBiIDYo,Lofi w/ Danilo Plessow (MCDE),2025-03-07,,intern,Regulier,Ays,ays,artist_source,3,artist_00052,Ays
+recTP5Zt5DvBiIDYo,Lofi w/ Danilo Plessow (MCDE),2025-03-07,,intern,Regulier,Danilo Plessow (MCDE),danilo plessow (mcde),artist_source,4,artist_00199,Danilo Plessow (MCDE)
+rec5WcmD8z25NYhrX,Luuk van Dijk pres. GET CLOSER,2025-03-14,tech house,intern,Regulier,Liam Palmer,liam palmer,artist_source,1,artist_00408,Liam Palmer
+rec5WcmD8z25NYhrX,Luuk van Dijk pres. GET CLOSER,2025-03-14,tech house,intern,Regulier,Luuk van Dijk,luuk van dijk,artist_source,2,artist_00425,Luuk van Dijk
+rec5WcmD8z25NYhrX,Luuk van Dijk pres. GET CLOSER,2025-03-14,tech house,intern,Regulier,Naomi,naomi,artist_source,3,artist_00501,Naomi
+rec5WcmD8z25NYhrX,Luuk van Dijk pres. GET CLOSER,2025-03-14,tech house,intern,Regulier,Benjamin Berg,benjamin berg,artist_source,4,artist_00079,Benjamin Berg
+rec5WcmD8z25NYhrX,Luuk van Dijk pres. GET CLOSER,2025-03-14,tech house,intern,Regulier,Elliot Schooling,elliot schooling,artist_source,5,artist_00233,Elliot Schooling
+rec1hFDp7rOmiL98D,Festimi,2025-03-15,"""minimal house, left field house & techno""",intern,Regulier,CARISTA,carista,artist_source,1,artist_00104,CARISTA
+recSiNFomtgwjILyy,Area 69,2025-03-22,Bounce / trance,intern,Regulier,Partiboi69,partiboi69,artist_source,1,artist_00543,Partiboi69
+recSiNFomtgwjILyy,Area 69,2025-03-22,Bounce / trance,intern,Regulier,Moxes,moxes,artist_source,2,artist_00490,Moxes
+recSiNFomtgwjILyy,Area 69,2025-03-22,Bounce / trance,intern,Regulier,Loods,loods,artist_source,3,artist_00417,Loods
+recSiNFomtgwjILyy,Area 69,2025-03-22,Bounce / trance,intern,Regulier,Maruwa,maruwa,artist_source,4,artist_00457,Maruwa
+recYSAzMGTcnJ9Cs6,Mindscape,2025-03-28,"""techno, Melodic""",intern,Regulier,VNTM,vntm,artist_source,1,artist_00723,VNTM
+recYSAzMGTcnJ9Cs6,Mindscape,2025-03-28,"""techno, Melodic""",intern,Regulier,Âme,âme,artist_source,2,artist_00778,Âme
+recYSAzMGTcnJ9Cs6,Mindscape,2025-03-28,"""techno, Melodic""",intern,Regulier,Eli Verveine,eli verveine,artist_source,3,artist_00230,Eli Verveine
+rec0c1sTCDPSEeaCv,Symfora by Philou Louzolo,2025-03-29,afro house,intern,Regulier,Djeff,djeff,artist_source,1,artist_00220,Djeff
+rec0c1sTCDPSEeaCv,Symfora by Philou Louzolo,2025-03-29,afro house,intern,Regulier,Philou Louzolo,philou louzolo,artist_source,2,artist_00556,Philou Louzolo
+rec0c1sTCDPSEeaCv,Symfora by Philou Louzolo,2025-03-29,afro house,intern,Regulier,Jaden Thompson,jaden thompson,artist_source,3,artist_00319,Jaden Thompson
+recEafwK8GG1uHfGi,Shadowprint,2025-04-04,techno,intern,Regulier,Bart Skils,bart skils,artist_source,1,artist_00066,Bart Skils
+recEafwK8GG1uHfGi,Shadowprint,2025-04-04,techno,intern,Regulier,Adam Beyer,adam beyer,artist_source,2,artist_00018,Adam Beyer
+recE2hpUjuslo7yA7,Agrio Club,2025-04-12,Bounce / trance,intern,Regulier,Maï-Linh,maï-linh,artist_source,1,artist_00468,Maï-Linh
+recE2hpUjuslo7yA7,Agrio Club,2025-04-12,Bounce / trance,intern,Regulier,Newtone,newtone,artist_source,2,artist_00507,Newtone
+recE2hpUjuslo7yA7,Agrio Club,2025-04-12,Bounce / trance,intern,Regulier,Tjade,tjade,artist_source,3,artist_00704,Tjade
+recE2hpUjuslo7yA7,Agrio Club,2025-04-12,Bounce / trance,intern,Regulier,Julie Desire,julie desire,artist_source,4,artist_00348,Julie Desire
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,upsammy,upsammy,artist_source,1,artist_00777,upsammy
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Vera Logdanidi,vera logdanidi,artist_source,2,artist_00732,Vera Logdanidi
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Agonis,agonis,artist_source,3,artist_00023,Agonis
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Dasha Rush,dasha rush,artist_source,4,artist_00203,Dasha Rush
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Aurora Halal,aurora halal,artist_source,5,artist_00050,Aurora Halal
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Bas Dobbelaer,bas dobbelaer,artist_source,6,artist_00067,Bas Dobbelaer
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,DVS1,dvs1,artist_source,7,artist_00191,DVS1
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Oscar Mulero,oscar mulero,artist_source,8,artist_00528,Oscar Mulero
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Na Nich,na nich,artist_source,9,artist_00496,Na Nich
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,OCCA,occa,artist_source,10,artist_00516,OCCA
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Seb H.,seb h.,artist_source,11,artist_00633,Seb H.
+recjciiB6BBCiNRaA,Ratherlost - Easter Sunday (extended closing),2025-04-20,techno,intern,Regulier,Aaron J,aaron j,artist_source,12,artist_00015,Aaron J
+receVYpzhlviYvVMo,Club Roto King's Night,2025-04-25,"""tech house, minimal house""",intern,Regulier,Mella Dee,mella dee,artist_source,1,artist_00472,Mella Dee
+receVYpzhlviYvVMo,Club Roto King's Night,2025-04-25,"""tech house, minimal house""",intern,Regulier,Noach,noach,artist_source,2,artist_00511,Noach
+receVYpzhlviYvVMo,Club Roto King's Night,2025-04-25,"""tech house, minimal house""",intern,Regulier,Luuk van Dijk,luuk van dijk,artist_source,3,artist_00425,Luuk van Dijk
+receVYpzhlviYvVMo,Club Roto King's Night,2025-04-25,"""tech house, minimal house""",intern,Regulier,Morgan,morgan,artist_source,4,artist_00488,Morgan
+receVYpzhlviYvVMo,Club Roto King's Night,2025-04-25,"""tech house, minimal house""",intern,Regulier,Alex Kassian,alex kassian,artist_source,5,artist_00028,Alex Kassian
+receVYpzhlviYvVMo,Club Roto King's Night,2025-04-25,"""tech house, minimal house""",intern,Regulier,Locklead,locklead,artist_source,6,artist_00413,Locklead
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Anz,anz,artist_source,1,artist_00045,Anz
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Moxie,moxie,artist_source,2,artist_00491,Moxie
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Sherelle,sherelle,artist_source,3,artist_00643,Sherelle
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Chaos in The CBD,chaos in the cbd,artist_source,4,artist_00120,Chaos in The CBD
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,D Stone,d stone,artist_source,5,artist_00159,D Stone
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Byron Yeates,byron yeates,artist_source,6,artist_00102,Byron Yeates
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Bambounou,bambounou,artist_source,7,artist_00061,Bambounou
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Bashkka,bashkka,artist_source,8,artist_00068,Bashkka
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Courtesy,courtesy,artist_source,9,artist_00150,Courtesy
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Naone,naone,artist_source,10,artist_00502,Naone
+recPkUSF9JUn7scLQ,Lofi King's Day,2025-04-26,left field house & techno,intern,Regulier,Doudou MD,doudou md,artist_source,11,artist_00223,Doudou MD
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Cobahn,cobahn,artist_source,1,artist_00140,Cobahn
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Quelza,quelza,artist_source,2,artist_00572,Quelza
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Hyperaktivist,hyperaktivist,artist_source,3,artist_00300,Hyperaktivist
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Nene H,nene h,artist_source,4,artist_00504,Nene H
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Delano Legito,delano legito,artist_source,5,artist_00207,Delano Legito
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,FJAAK,fjaak,artist_source,6,artist_00246,FJAAK
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Jack Fresia,jack fresia,artist_source,7,artist_00318,Jack Fresia
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Fadi Mohem,fadi mohem,artist_source,8,artist_00247,Fadi Mohem
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Comrade Winston,comrade winston,artist_source,9,artist_00147,Comrade Winston
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,I-RO,i-ro,artist_source,10,artist_00303,I-RO
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Planetary Assault Systems,planetary assault systems,artist_source,11,artist_00561,Planetary Assault Systems
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Dr Rubinstein,dr rubinstein,artist_source,12,artist_00224,Dr Rubinstein
+rec3NtKXh3Kbd7Kqv,Patio - Courtyard Opening,2025-05-03,techno,intern,Regulier,Lobster,lobster,artist_source,13,artist_00412,Lobster
+reclQZvQxNxuWmdDu,Courtyard w/ Daphni,2025-05-10,left field house & techno,intern,Regulier,Orpheu The Wizard,orpheu the wizard,artist_source,1,artist_00527,Orpheu The Wizard
+reclQZvQxNxuWmdDu,Courtyard w/ Daphni,2025-05-10,left field house & techno,intern,Regulier,Parris,parris,artist_source,2,artist_00541,Parris
+reclQZvQxNxuWmdDu,Courtyard w/ Daphni,2025-05-10,left field house & techno,intern,Regulier,Kyra Khaldi,kyra khaldi,artist_source,3,artist_00385,Kyra Khaldi
+reclQZvQxNxuWmdDu,Courtyard w/ Daphni,2025-05-10,left field house & techno,intern,Regulier,Daphni,daphni,artist_source,4,artist_00200,Daphni
+reclQZvQxNxuWmdDu,Courtyard w/ Daphni,2025-05-10,left field house & techno,intern,Regulier,Berkan V8,berkan v8,artist_source,5,artist_00084,Berkan V8
+recv4euLjhvJb8K8l,Courtyard by Superstrings,2025-05-11,Bounce / trance,intern,Regulier,Superstrings,superstrings,artist_source,1,artist_00671,Superstrings
+recv4euLjhvJb8K8l,Courtyard by Superstrings,2025-05-11,Bounce / trance,intern,Regulier,Bella Claxton,bella claxton,artist_source,2,artist_00075,Bella Claxton
+recv4euLjhvJb8K8l,Courtyard by Superstrings,2025-05-11,Bounce / trance,intern,Regulier,Faster Horses,faster horses,artist_source,3,artist_00250,Faster Horses
+recv4euLjhvJb8K8l,Courtyard by Superstrings,2025-05-11,Bounce / trance,intern,Regulier,CRUSH3d,crush3d,artist_source,4,artist_00109,CRUSH3d
+recv4euLjhvJb8K8l,Courtyard by Superstrings,2025-05-11,Bounce / trance,intern,Regulier,SWIM,swim,artist_source,5,artist_00617,SWIM
+recv4euLjhvJb8K8l,Courtyard by Superstrings,2025-05-11,Bounce / trance,intern,Regulier,Sex Wax,sex wax,artist_source,6,artist_00640,Sex Wax
+recg277sWaHj2FMeD,Rainbow Disco Club,2025-05-23,,intern,Regulier,HUNEE,hunee,artist_source,1,artist_00283,HUNEE
+recg277sWaHj2FMeD,Rainbow Disco Club,2025-05-23,,intern,Regulier,Prins Thomas,prins thomas,artist_source,2,artist_00567,Prins Thomas
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Kikiorix,kikiorix,artist_source,1,artist_00375,Kikiorix
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Daiki,daiki,artist_source,2,artist_00193,Daiki
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Daiki,daiki,artist_source,3,artist_00193,Daiki
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Luke Una,luke una,artist_source,4,artist_00421,Luke Una
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Kamma & Masalo,kamma & masalo,artist_source,5,artist_00362,Kamma & Masalo
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Sadar Bahar,sadar bahar,artist_source,6,artist_00618,Sadar Bahar
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Ays,ays,artist_source,7,artist_00052,Ays
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Antal,antal,artist_source,8,artist_00041,Antal
+recHjyu8GNd1AVxly,Rainbow Disco Club,2025-05-24,,intern,Regulier,Gerd Janson,gerd janson,artist_source,9,artist_00275,Gerd Janson
+recWFbDszWqiIIJn1,Courtyard by Weval,2025-05-25,Melodic,intern,Regulier,LUXE,luxe,artist_source,1,artist_00390,LUXE
+recWFbDszWqiIIJn1,Courtyard by Weval,2025-05-25,Melodic,intern,Regulier,John Talabot,john talabot,artist_source,2,artist_00333,John Talabot
+recWFbDszWqiIIJn1,Courtyard by Weval,2025-05-25,Melodic,intern,Regulier,Weval,weval,artist_source,3,artist_00744,Weval
+recWFbDszWqiIIJn1,Courtyard by Weval,2025-05-25,Melodic,intern,Regulier,Leon Vynehall,leon vynehall,artist_source,4,artist_00405,Leon Vynehall
+recWFbDszWqiIIJn1,Courtyard by Weval,2025-05-25,Melodic,intern,Regulier,Alexia Glensy,alexia glensy,artist_source,5,artist_00030,Alexia Glensy
+recDGkniXhojSwJYS,Mindscape,2025-05-31,techno,intern,Regulier,VNTM,vntm,artist_source,1,artist_00723,VNTM
+recDGkniXhojSwJYS,Mindscape,2025-05-31,techno,intern,Regulier,Mano Le Tough,mano le tough,artist_source,2,artist_00444,Mano Le Tough
+recDGkniXhojSwJYS,Mindscape,2025-05-31,techno,intern,Regulier,Recondite,recondite,artist_source,3,artist_00581,Recondite
+recU8nSmcr5qzIkuh,Lofi x 500 raves,2025-06-13,left field house & techno,intern,Regulier,Steffi,steffi,artist_source,1,artist_00660,Steffi
+recU8nSmcr5qzIkuh,Lofi x 500 raves,2025-06-13,left field house & techno,intern,Regulier,Shoal & Vand,shoal & vand,artist_source,2,artist_00645,Shoal & Vand
+recU8nSmcr5qzIkuh,Lofi x 500 raves,2025-06-13,left field house & techno,intern,Regulier,Efdemin,efdemin,artist_source,3,artist_00229,Efdemin
+recU8nSmcr5qzIkuh,Lofi x 500 raves,2025-06-13,left field house & techno,intern,Regulier,Eric Cloutier,eric cloutier,artist_source,4,artist_00240,Eric Cloutier
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Tjade,tjade,artist_source,1,artist_00704,Tjade
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Storm Mollison,storm mollison,artist_source,2,artist_00665,Storm Mollison
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Inafekt,inafekt,artist_source,3,artist_00309,Inafekt
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,MALOU,malou,artist_source,4,artist_00427,MALOU
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Spacer Woman,spacer woman,artist_source,5,artist_00655,Spacer Woman
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Olympe4000,olympe4000,artist_source,6,artist_00526,Olympe4000
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Dan Shake,dan shake,artist_source,7,artist_00194,Dan Shake
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Essy,essy,artist_source,8,artist_00243,Essy
+recWOa0C3ns5uvlbZ,Agrio Club,2025-06-14,Bounce / trance,intern,Regulier,Leo Sanderson,leo sanderson,artist_source,9,artist_00404,Leo Sanderson
+rec1fQFPPQAwkn7bZ,LOFI COURTYARD,2025-07-12,"""Melodic, techno""",intern,Regulier,Cassian,cassian,artist_source,1,artist_00117,Cassian
+rec1fQFPPQAwkn7bZ,LOFI COURTYARD,2025-07-12,"""Melodic, techno""",intern,Regulier,Rebuke,rebuke,artist_source,2,artist_00580,Rebuke
+rec1fQFPPQAwkn7bZ,LOFI COURTYARD,2025-07-12,"""Melodic, techno""",intern,Regulier,Hedda Stenberg,hedda stenberg,artist_source,3,artist_00286,Hedda Stenberg
+rec1fQFPPQAwkn7bZ,LOFI COURTYARD,2025-07-12,"""Melodic, techno""",intern,Regulier,Tonco,tonco,artist_source,4,artist_00708,Tonco
+rec1fQFPPQAwkn7bZ,LOFI COURTYARD,2025-07-12,"""Melodic, techno""",intern,Regulier,VNTM,vntm,artist_source,5,artist_00723,VNTM
+recvd4GmlbCUDdgIy,LOFI COURTYARD,2025-07-13,commerciele new school techno,intern,Regulier,Victoria De Angelis,victoria de angelis,artist_source,1,artist_00736,Victoria De Angelis
+recvd4GmlbCUDdgIy,LOFI COURTYARD,2025-07-13,commerciele new school techno,intern,Regulier,angelboy,angelboy,artist_source,2,artist_00763,angelboy
+recvd4GmlbCUDdgIy,LOFI COURTYARD,2025-07-13,commerciele new school techno,intern,Regulier,Cybersex,cybersex,artist_source,3,artist_00157,Cybersex
+recvd4GmlbCUDdgIy,LOFI COURTYARD,2025-07-13,commerciele new school techno,intern,Regulier,Daria Kolosova,daria kolosova,artist_source,4,artist_00201,Daria Kolosova
+recvd4GmlbCUDdgIy,LOFI COURTYARD,2025-07-13,commerciele new school techno,intern,Regulier,Patrick Mason,patrick mason,artist_source,5,artist_00545,Patrick Mason
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,Benny Rodrigues,benny rodrigues,artist_source,1,artist_00081,Benny Rodrigues
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,Emvae,emvae,artist_source,2,artist_00236,Emvae
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,Sozef,sozef,artist_source,3,artist_00654,Sozef
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,22 Interns,22 interns,artist_source,4,artist_00005,22 Interns
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,Hidde van Wee,hidde van wee,artist_source,5,artist_00291,Hidde van Wee
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,Enzo Jeff,enzo jeff,artist_source,6,artist_00239,Enzo Jeff
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,Milion,milion,artist_source,7,artist_00481,Milion
+rec05xLPsgGYV9Dyc,De Binnenstad,2025-07-26,Commercieel,intern,Regulier,Jimi Jua,jimi jua,artist_source,8,artist_00331,Jimi Jua
+recgODED5wh3iiHSo,Lofi By Night,2025-07-26,Bounce / trance,intern,Regulier,Rozie,rozie,artist_source,1,artist_00603,Rozie
+recgODED5wh3iiHSo,Lofi By Night,2025-07-26,Bounce / trance,intern,Regulier,Olivia Lensen,olivia lensen,artist_source,2,artist_00523,Olivia Lensen
+recgODED5wh3iiHSo,Lofi By Night,2025-07-26,Bounce / trance,intern,Regulier,Freddi,freddi,artist_source,3,artist_00264,Freddi
+recgODED5wh3iiHSo,Lofi By Night,2025-07-26,Bounce / trance,intern,Regulier,Moody Mehran,moody mehran,artist_source,4,artist_00485,Moody Mehran
+recNr5ReCO9nuy8js,Dekmantel... IsBurning by Night,2025-08-01,left field house & techno,extern,Regulier,Club:,club:,artist_source,1,,
+recNr5ReCO9nuy8js,Dekmantel... IsBurning by Night,2025-08-01,left field house & techno,extern,Regulier,23:00 - 1:00. Karina Schneider,23:00 - 1:00. karina schneider,artist_source,2,,
+recNr5ReCO9nuy8js,Dekmantel... IsBurning by Night,2025-08-01,left field house & techno,extern,Regulier,1:00 - 3:00 Blasha & Allatt,1:00 - 3:00 blasha & allatt,artist_source,3,,
+recNr5ReCO9nuy8js,Dekmantel... IsBurning by Night,2025-08-01,left field house & techno,extern,Regulier,3:00 - 5:00 Fadi Mohem & Ogazón,3:00 - 5:00 fadi mohem & ogazón,artist_source,4,,
+recNr5ReCO9nuy8js,Dekmantel... IsBurning by Night,2025-08-01,left field house & techno,extern,Regulier,Colorfloor,colorfloor,artist_source,5,,
+recNr5ReCO9nuy8js,Dekmantel... IsBurning by Night,2025-08-01,left field house & techno,extern,Regulier,0:00 - 2:00 Andy,0:00 - 2:00 andy,artist_source,6,,
+recNr5ReCO9nuy8js,Dekmantel... IsBurning by Night,2025-08-01,left field house & techno,extern,Regulier,2:00 - 4:00 Faustin,2:00 - 4:00 faustin,artist_source,7,,
+recwnBs1x4XSKaaGe,Dekmantel ...IsBurning by Night,2025-08-02,left field house & techno,extern,Regulier,Club,club,artist_source,1,,
+recwnBs1x4XSKaaGe,Dekmantel ...IsBurning by Night,2025-08-02,left field house & techno,extern,Regulier,23:00 - 1:00 TITIA,23:00 - 1:00 titia,artist_source,2,,
+recwnBs1x4XSKaaGe,Dekmantel ...IsBurning by Night,2025-08-02,left field house & techno,extern,Regulier,1:00 - 3:00 Paramida,1:00 - 3:00 paramida,artist_source,3,,
+recwnBs1x4XSKaaGe,Dekmantel ...IsBurning by Night,2025-08-02,left field house & techno,extern,Regulier,3:00 - 5:00 tINI & Saoirse,3:00 - 5:00 tini & saoirse,artist_source,4,,
+recwnBs1x4XSKaaGe,Dekmantel ...IsBurning by Night,2025-08-02,left field house & techno,extern,Regulier,Colorfloor,colorfloor,artist_source,5,,
+recwnBs1x4XSKaaGe,Dekmantel ...IsBurning by Night,2025-08-02,left field house & techno,extern,Regulier,0:00 - 2:00 Paulete Lindacelva,0:00 - 2:00 paulete lindacelva,artist_source,6,,
+recwnBs1x4XSKaaGe,Dekmantel ...IsBurning by Night,2025-08-02,left field house & techno,extern,Regulier,2:00 - 4:00 Josh Caffe,2:00 - 4:00 josh caffe,artist_source,7,,
+rec5yPw73Iw07UdfA,Pride by Day... IsBurning,2025-08-02,left field house & techno,intern,Regulier,BELLA,bella,artist_source,1,artist_00053,BELLA
+rec5yPw73Iw07UdfA,Pride by Day... IsBurning,2025-08-02,left field house & techno,intern,Regulier,Uni Son,uni son,artist_source,2,artist_00719,Uni Son
+rec5yPw73Iw07UdfA,Pride by Day... IsBurning,2025-08-02,left field house & techno,intern,Regulier,Grace Sands,grace sands,artist_source,3,artist_00280,Grace Sands
+rec5yPw73Iw07UdfA,Pride by Day... IsBurning,2025-08-02,left field house & techno,intern,Regulier,Timmerman,timmerman,artist_source,4,artist_00701,Timmerman
+rec5yPw73Iw07UdfA,Pride by Day... IsBurning,2025-08-02,left field house & techno,intern,Regulier,LYLO,lylo,artist_source,5,artist_00391,LYLO
+rec9PDMvmiLQJkC3B,Dekmantel ...IsBurning by Night,2025-08-03,left field house & techno,extern,Regulier,Club:,club:,artist_source,1,,
+rec9PDMvmiLQJkC3B,Dekmantel ...IsBurning by Night,2025-08-03,left field house & techno,extern,Regulier,23:30 - 1:00 Victor,23:30 - 1:00 victor,artist_source,2,,
+rec9PDMvmiLQJkC3B,Dekmantel ...IsBurning by Night,2025-08-03,left field house & techno,extern,Regulier,1:00 - 3:00 Sedef Adasi & Roi Perez,1:00 - 3:00 sedef adasi & roi perez,artist_source,3,,
+rec9PDMvmiLQJkC3B,Dekmantel ...IsBurning by Night,2025-08-03,left field house & techno,extern,Regulier,3:00 - 5:00 Eris Drew,3:00 - 5:00 eris drew,artist_source,4,,
+rec9PDMvmiLQJkC3B,Dekmantel ...IsBurning by Night,2025-08-03,left field house & techno,extern,Regulier,Colorfloor:,colorfloor:,artist_source,5,,
+rec9PDMvmiLQJkC3B,Dekmantel ...IsBurning by Night,2025-08-03,left field house & techno,extern,Regulier,0:00 - 2:00 Vuur,0:00 - 2:00 vuur,artist_source,6,,
+rec9PDMvmiLQJkC3B,Dekmantel ...IsBurning by Night,2025-08-03,left field house & techno,extern,Regulier,2:00 - 4:00 Carlos Valdes (techno),2:00 - 4:00 carlos valdes (techno),artist_source,7,,
+rec7fvj6wP4pwl3Lr,SPIELRAUM ...IsBurning,2025-08-03,left field house & techno,extern,Regulier,Courtyard,courtyard,artist_source,1,,
+rec7fvj6wP4pwl3Lr,SPIELRAUM ...IsBurning,2025-08-03,left field house & techno,extern,Regulier,14:00-17:00 Doppelgang,14:00-17:00 doppelgang,artist_source,2,,
+rec7fvj6wP4pwl3Lr,SPIELRAUM ...IsBurning,2025-08-03,left field house & techno,extern,Regulier,17:00-19:00 Gabrielle Kwarteng,17:00-19:00 gabrielle kwarteng,artist_source,3,,
+rec7fvj6wP4pwl3Lr,SPIELRAUM ...IsBurning,2025-08-03,left field house & techno,extern,Regulier,19:00-21:00 BASHKKA,19:00-21:00 bashkka,artist_source,4,,
+rec7fvj6wP4pwl3Lr,SPIELRAUM ...IsBurning,2025-08-03,left field house & techno,extern,Regulier,21:00-23:00 Mez Monty,21:00-23:00 mez monty,artist_source,5,,
+rec7fvj6wP4pwl3Lr,SPIELRAUM ...IsBurning,2025-08-03,left field house & techno,extern,Regulier,Colorfloor,colorfloor,artist_source,6,,
+rec7fvj6wP4pwl3Lr,SPIELRAUM ...IsBurning,2025-08-03,left field house & techno,extern,Regulier,18:00-22:00 TWIENA,18:00-22:00 twiena,artist_source,7,,
+recxvTlbFlz7qPolx,Laurent Garnier,2025-08-08,commerciele old school techno,intern,Regulier,Laurent Garnier,laurent garnier,artist_source,1,artist_00399,Laurent Garnier
+recxvTlbFlz7qPolx,Laurent Garnier,2025-08-08,commerciele old school techno,intern,Regulier,Steve Rachmad,steve rachmad,artist_source,2,artist_00663,Steve Rachmad
+recxvTlbFlz7qPolx,Laurent Garnier,2025-08-08,commerciele old school techno,intern,Regulier,Naone,naone,artist_source,3,artist_00502,Naone
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Jane Fitz,jane fitz,artist_source,1,artist_00321,Jane Fitz
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Garçon,garçon,artist_source,2,artist_00272,Garçon
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Talismann,talismann,artist_source,3,artist_00686,Talismann
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,nthng,nthng,artist_source,4,artist_00773,nthng
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Andy Garvey,andy garvey,artist_source,5,artist_00037,Andy Garvey
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Kessler,kessler,artist_source,6,artist_00371,Kessler
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Oberman,oberman,artist_source,7,artist_00517,Oberman
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Reptant,reptant,artist_source,8,artist_00585,Reptant
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,D.Dan,d.dan,artist_source,9,artist_00163,D.Dan
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Konduku,konduku,artist_source,10,artist_00379,Konduku
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Sandwell District,sandwell district,artist_source,11,artist_00626,Sandwell District
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Costanza,costanza,artist_source,12,artist_00149,Costanza
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,JakoJako,jakojako,artist_source,13,artist_00320,JakoJako
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Woody92,woody92,artist_source,14,artist_00747,Woody92
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Eric Cloutier,eric cloutier,artist_source,15,artist_00240,Eric Cloutier
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Richard Akingbehin,richard akingbehin,artist_source,16,artist_00587,Richard Akingbehin
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Human Space Machine,human space machine,artist_source,17,artist_00298,Human Space Machine
+recHx4wlvhCyuKZri,Ratherlost - 24hrs,2025-08-16,progressieve techno,intern,Regulier,Pariah,pariah,artist_source,18,artist_00540,Pariah
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,Courtyard,courtyard,artist_source,1,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,14:00 - 16:00 Stooge Wilson B2B Pokuman,14:00 - 16:00 stooge wilson b2b pokuman,artist_source,2,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,16:00 - 20:00 Benny Rodrigues B2B Samuel Deep,16:00 - 20:00 benny rodrigues b2b samuel deep,artist_source,3,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,20:00 - 23:00 Ryan Elliot,20:00 - 23:00 ryan elliot,artist_source,4,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,Club,club,artist_source,5,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,22:00 - 01:00 DJ Senc,22:00 - 01:00 dj senc,artist_source,6,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,01:00 - 05:00 Truly Madly B2B Dr Banana B2B Tristan da Cunha,01:00 - 05:00 truly madly b2b dr banana b2b tristan da cunha,artist_source,7,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,Colorfloor,colorfloor,artist_source,8,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,22:00 - 01:00 DJ Senc,22:00 - 01:00 dj senc,artist_source,9,,
+rechZiGoszmb9IJW3,SlapFunk,2025-08-23,minimal house,extern,Regulier,01:00 - 05:00 Truly Madly B2B Dr Banana B2B Tristan da Cunha,01:00 - 05:00 truly madly b2b dr banana b2b tristan da cunha,artist_source,10,,
+recMwOGViGWBz8rhF,Sona presents Carlita,2025-08-24,tech house,extern,Regulier,14:00-18:00 Kai king,14:00-18:00 kai king,artist_source,1,,
+recMwOGViGWBz8rhF,Sona presents Carlita,2025-08-24,tech house,extern,Regulier,18:00-20:00 D stone,18:00-20:00 d stone,artist_source,2,,
+recMwOGViGWBz8rhF,Sona presents Carlita,2025-08-24,tech house,extern,Regulier,20:00-23:00 Carlita,20:00-23:00 carlita,artist_source,3,,
+reciJqmGbCCO7vUbJ,Luuk van Dijk pres. GET CLOSER,2025-08-29,tech house,intern,Regulier,Bradley Zero,bradley zero,artist_source,1,artist_00096,Bradley Zero
+reciJqmGbCCO7vUbJ,Luuk van Dijk pres. GET CLOSER,2025-08-29,tech house,intern,Regulier,Jordan Brando,jordan brando,artist_source,2,artist_00335,Jordan Brando
+reciJqmGbCCO7vUbJ,Luuk van Dijk pres. GET CLOSER,2025-08-29,tech house,intern,Regulier,Luuk van Dijk,luuk van dijk,artist_source,3,artist_00425,Luuk van Dijk
+reciJqmGbCCO7vUbJ,Luuk van Dijk pres. GET CLOSER,2025-08-29,tech house,intern,Regulier,Bibi Seck,bibi seck,artist_source,4,artist_00087,Bibi Seck
+reciJqmGbCCO7vUbJ,Luuk van Dijk pres. GET CLOSER,2025-08-29,tech house,intern,Regulier,Elias Mazian,elias mazian,artist_source,5,artist_00231,Elias Mazian
+recGwG8Yrxf5gf0gv,Major Lazer Soundsystem,2025-08-29,Commercieel,intern,Regulier,Jolani Jhones,jolani jhones,artist_source,1,artist_00334,Jolani Jhones
+recGwG8Yrxf5gf0gv,Major Lazer Soundsystem,2025-08-29,Commercieel,intern,Regulier,Major Lazer,major lazer,artist_source,2,artist_00437,Major Lazer
+recGwG8Yrxf5gf0gv,Major Lazer Soundsystem,2025-08-29,Commercieel,intern,Regulier,Kybba,kybba,artist_source,3,artist_00383,Kybba
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,Proposed line-up,proposed line-up,artist_source,1,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,Start Finish Club,start finish club,artist_source,2,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,23:30 0:30 Essy,23:30 0:30 essy,artist_source,3,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,0:30 2:00 Pablo Bozzi,0:30 2:00 pablo bozzi,artist_source,4,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,2:00 3:30 X CLUB.,2:00 3:30 x club.,artist_source,5,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,3:30 5:00 DART & Bella Claxton,3:30 5:00 dart & bella claxton,artist_source,6,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,colorfloor,colorfloor,artist_source,7,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,0:00 2:00 angelboy,0:00 2:00 angelboy,artist_source,8,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,2:00 3:30 mul/ANNA,2:00 3:30 mul/anna,artist_source,9,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,3:30 5:00 Flansie,3:30 5:00 flansie,artist_source,10,,
+reclJOV0NNyMi0gbi,ZeeZout Festival - after,2025-08-30,Bounce / trance,extern,Regulier,Kamil Aoragh is de event manager vanuit ons. Zijn nummer is 06-41094410.,kamil aoragh is de event manager vanuit ons. zijn nummer is 06-41094410.,artist_source,11,,
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,LSDXOXO,lsdxoxo,artist_source,1,artist_00389,LSDXOXO
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,Travis,travis,artist_source,2,artist_00712,Travis
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,Raven,raven,artist_source,3,artist_00578,Raven
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,bebe bad,bebe bad,artist_source,4,artist_00074,Bebe Bad
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,IFIF,ifif,artist_source,5,artist_00304,IFIF
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,Tsepo,tsepo,artist_source,6,artist_00715,Tsepo
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,Rob Black,rob black,artist_source,7,artist_00589,Rob Black
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,Lola Edo,lola edo,artist_source,8,artist_00415,Lola Edo
+recjP1ZW3k1wmUeQQ,Yere Yere,2025-08-31,house,intern,Regulier,BIIANCO,biianco,artist_source,9,artist_00055,BIIANCO
+recjHpIzosc7QfbCL,Symfora by Philou Louzolo,2025-09-05,afro house,intern,Regulier,HoneyLuv,honeyluv,artist_source,1,artist_00295,HoneyLuv
+recjHpIzosc7QfbCL,Symfora by Philou Louzolo,2025-09-05,afro house,intern,Regulier,LevyM,levym,artist_source,2,artist_00406,LevyM
+recjHpIzosc7QfbCL,Symfora by Philou Louzolo,2025-09-05,afro house,intern,Regulier,Syreeta,syreeta,artist_source,3,artist_00677,Syreeta
+recjHpIzosc7QfbCL,Symfora by Philou Louzolo,2025-09-05,afro house,intern,Regulier,Philou Louzolo,philou louzolo,artist_source,4,artist_00556,Philou Louzolo
+reci1FHaH2i4eyLuc,Westside Gunn Afterparty,2025-09-06,,intern,Regulier,Kurashi Soundsystem,kurashi soundsystem,artist_source,1,artist_00382,Kurashi Soundsystem
+reci1FHaH2i4eyLuc,Westside Gunn Afterparty,2025-09-06,,intern,Regulier,Sandor,sandor,artist_source,2,artist_00624,Sandor
+reci1FHaH2i4eyLuc,Westside Gunn Afterparty,2025-09-06,,intern,Regulier,Westside Gunn,westside gunn,artist_source,3,artist_00743,Westside Gunn
+reci1FHaH2i4eyLuc,Westside Gunn Afterparty,2025-09-06,,intern,Regulier,LIL 'VIC,lil 'vic,artist_source,4,artist_00387,LIL 'VIC
+reci1FHaH2i4eyLuc,Westside Gunn Afterparty,2025-09-06,,intern,Regulier,Tida Kamara,tida kamara,artist_source,5,artist_00699,Tida Kamara
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Varuna Agosti,varuna agosti,artist_source,1,artist_00729,Varuna Agosti
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,TWIENA,twiena,artist_source,2,artist_00684,TWIENA
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Parrish Smith,parrish smith,artist_source,3,artist_00542,Parrish Smith
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Ben Klock,ben klock,artist_source,4,artist_00076,Ben Klock
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,DJ Pete,dj pete,artist_source,5,artist_00183,DJ Pete
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Hitam,hitam,artist_source,6,artist_00292,Hitam
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Rosati,rosati,artist_source,7,artist_00599,Rosati
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Mareena,mareena,artist_source,8,artist_00449,Mareena
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Jesse G,jesse g,artist_source,9,artist_00330,Jesse G
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Altinbas,altinbas,artist_source,10,artist_00031,Altinbas
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Adriana Lopez,adriana lopez,artist_source,11,artist_00020,Adriana Lopez
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Amanda Mussi,amanda mussi,artist_source,12,artist_00033,Amanda Mussi
+recuxepzvwbZzeyFU,Patio - Summer Closing,2025-09-13,progressieve techno,intern,Regulier,Abstract Division,abstract division,artist_source,13,artist_00016,Abstract Division
+recvKhZtsODFV1pxd,Blond:ish,2025-09-14,"""afro house, house""",intern,Regulier,Cincity,cincity,artist_source,1,artist_00129,Cincity
+recvKhZtsODFV1pxd,Blond:ish,2025-09-14,"""afro house, house""",intern,Regulier,Collé,collé,artist_source,2,artist_00144,Collé
+recvKhZtsODFV1pxd,Blond:ish,2025-09-14,"""afro house, house""",intern,Regulier,BLOND:ISH,blond:ish,artist_source,3,artist_00057,BLOND:ISH
+rec4vURxaJtHrVVty,SONA presents Bedouïn,2025-09-19,"""Melodic, tech house""",extern,Regulier,22:00-00:00 Benja & franc fala,22:00-00:00 benja & franc fala,artist_source,1,,
+rec4vURxaJtHrVVty,SONA presents Bedouïn,2025-09-19,"""Melodic, tech house""",extern,Regulier,00:00-03:00 Bedouin,00:00-03:00 bedouin,artist_source,2,,
+rec4vURxaJtHrVVty,SONA presents Bedouïn,2025-09-19,"""Melodic, tech house""",extern,Regulier,03:00-04:30 Benja & franc fala x Cole,03:00-04:30 benja & franc fala x cole,artist_source,3,,
+recpGdigRpqq90GOu,Spades,2025-09-21,"""house, Bounce / trance""",intern,Regulier,Florinsz,florinsz,artist_source,1,artist_00258,Florinsz
+recpGdigRpqq90GOu,Spades,2025-09-21,"""house, Bounce / trance""",intern,Regulier,Reiss,reiss,artist_source,2,artist_00584,Reiss
+recpGdigRpqq90GOu,Spades,2025-09-21,"""house, Bounce / trance""",intern,Regulier,Papa Nugs,papa nugs,artist_source,3,artist_00537,Papa Nugs
+recpGdigRpqq90GOu,Spades,2025-09-21,"""house, Bounce / trance""",intern,Regulier,Moxes,moxes,artist_source,4,artist_00490,Moxes
+recpGdigRpqq90GOu,Spades,2025-09-21,"""house, Bounce / trance""",intern,Regulier,Emvae,emvae,artist_source,5,artist_00236,Emvae
+recpGdigRpqq90GOu,Spades,2025-09-21,"""house, Bounce / trance""",intern,Regulier,Laura Meester,laura meester,artist_source,6,artist_00396,Laura Meester
+rec5aOIoZoLH6pWnU,SHADOWPRINT,2025-09-26,techno,intern,Regulier,Kaufman,kaufman,artist_source,1,artist_00367,Kaufman
+rec5aOIoZoLH6pWnU,SHADOWPRINT,2025-09-26,techno,intern,Regulier,Marco Faraone,marco faraone,artist_source,2,artist_00447,Marco Faraone
+rec5aOIoZoLH6pWnU,SHADOWPRINT,2025-09-26,techno,intern,Regulier,S.A.M.,s.a.m.,artist_source,3,artist_00608,S.A.M.
+rec5aOIoZoLH6pWnU,SHADOWPRINT,2025-09-26,techno,intern,Regulier,Bart Skils,bart skils,artist_source,4,artist_00066,Bart Skils
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Jennifer Loveless,jennifer loveless,artist_source,1,artist_00326,Jennifer Loveless
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Ploy,ploy,artist_source,2,artist_00562,Ploy
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,NIKS,niks,artist_source,3,artist_00495,NIKS
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Dyed Soundorom,dyed soundorom,artist_source,4,artist_00227,Dyed Soundorom
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Hervé,hervé,artist_source,5,artist_00290,Hervé
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Anz,anz,artist_source,6,artist_00045,Anz
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,DJ Spit,dj spit,artist_source,7,artist_00187,DJ Spit
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Shonky,shonky,artist_source,8,artist_00646,Shonky
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Kyra Khaldi,kyra khaldi,artist_source,9,artist_00385,Kyra Khaldi
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Elias Mazian,elias mazian,artist_source,10,artist_00231,Elias Mazian
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,Doudou MD,doudou md,artist_source,11,artist_00223,Doudou MD
+reccC1y5GdQEy3jyv,Festimi,2025-09-27,left field house & techno,intern,Regulier,DJ Fart in the Club,dj fart in the club,artist_source,12,artist_00171,DJ Fart in the Club
+rec4yfrL3TMVtEtCg,Club Roto,2025-10-04,"""tech house, minimal house""",intern,Regulier,Noach,noach,artist_source,1,artist_00511,Noach
+rec4yfrL3TMVtEtCg,Club Roto,2025-10-04,"""tech house, minimal house""",intern,Regulier,Paramida,paramida,artist_source,2,artist_00539,Paramida
+rec4yfrL3TMVtEtCg,Club Roto,2025-10-04,"""tech house, minimal house""",intern,Regulier,Tommy Chikara,tommy chikara,artist_source,3,artist_00706,Tommy Chikara
+rec4yfrL3TMVtEtCg,Club Roto,2025-10-04,"""tech house, minimal house""",intern,Regulier,Job de Jong,job de jong,artist_source,4,artist_00332,Job de Jong
+rec4yfrL3TMVtEtCg,Club Roto,2025-10-04,"""tech house, minimal house""",intern,Regulier,Sweely,sweely,artist_source,5,artist_00674,Sweely
+recSFDSzI2yWbrO1C,12 15 6 9 by Numéro x TGIB - ADE,2025-10-22,techno,intern,Regulier,Polygonia,polygonia,artist_source,1,artist_00564,Polygonia
+recSFDSzI2yWbrO1C,12 15 6 9 by Numéro x TGIB - ADE,2025-10-22,techno,intern,Regulier,Joya Astou,joya astou,artist_source,2,artist_00341,Joya Astou
+recSFDSzI2yWbrO1C,12 15 6 9 by Numéro x TGIB - ADE,2025-10-22,techno,intern,Regulier,Prance,prance,artist_source,3,artist_00566,Prance
+recSFDSzI2yWbrO1C,12 15 6 9 by Numéro x TGIB - ADE,2025-10-22,techno,intern,Regulier,JEANS,jeans,artist_source,4,artist_00316,JEANS
+recSFDSzI2yWbrO1C,12 15 6 9 by Numéro x TGIB - ADE,2025-10-22,techno,intern,Regulier,Richie Hawtin,richie hawtin,artist_source,5,artist_00588,Richie Hawtin
+recSFDSzI2yWbrO1C,12 15 6 9 by Numéro x TGIB - ADE,2025-10-22,techno,intern,Regulier,Olivia Mendez,olivia mendez,artist_source,6,artist_00524,Olivia Mendez
+recSFDSzI2yWbrO1C,12 15 6 9 by Numéro x TGIB - ADE,2025-10-22,techno,intern,Regulier,MARRØN,marrøn,artist_source,7,artist_00428,MARRØN
+recz0Kim1Op786PDX,Numero private event,2025-10-22,techno,intern,Regulier,Gyatso,gyatso,artist_source,1,artist_00281,Gyatso
+recz0Kim1Op786PDX,Numero private event,2025-10-22,techno,intern,Regulier,Tommy Gold,tommy gold,artist_source,2,artist_00707,Tommy Gold
+recz0Kim1Op786PDX,Numero private event,2025-10-22,techno,intern,Regulier,Richie Hawtin,richie hawtin,artist_source,3,artist_00588,Richie Hawtin
+recz0Kim1Op786PDX,Numero private event,2025-10-22,techno,intern,Regulier,Ignez,ignez,artist_source,4,artist_00307,Ignez
+recz0Kim1Op786PDX,Numero private event,2025-10-22,techno,intern,Regulier,u.r. trax,u.r. trax,artist_source,5,artist_00776,u.r. trax
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,Club,club,artist_source,1,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,06:00 - 08:00 [tbc] - Idea,06:00 - 08:00 [tbc] - idea,artist_source,2,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,04:00 - 06:00 [tbc] - Idea,04:00 - 06:00 [tbc] - idea,artist_source,3,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,02:00 - 04:00 [tbc] - Idea,02:00 - 04:00 [tbc] - idea,artist_source,4,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,00:00 - 02:00 [tbc] - Idea,00:00 - 02:00 [tbc] - idea,artist_source,5,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,22:00 - 00:00 [tbc] - Idea,22:00 - 00:00 [tbc] - idea,artist_source,6,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,Colorfloor,colorfloor,artist_source,7,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,02:00 - 04:00 [tbc] - Idea,02:00 - 04:00 [tbc] - idea,artist_source,8,,
+recw3WxiDn4rJL1Wm,HOT MEAL - ADE,2025-10-23,Bounce / trance,intern,Regulier,00:00 - 02:00 [tbc] - Idea,00:00 - 02:00 [tbc] - idea,artist_source,9,,
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,dj sweet6teen,dj sweet6teen,artist_source,1,artist_00767,dj sweet6teen
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,D Stone,d stone,artist_source,2,artist_00159,D Stone
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,PHIA,phia,artist_source,3,artist_00530,PHIA
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,Luuk van Dijk,luuk van dijk,artist_source,4,artist_00425,Luuk van Dijk
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,Tsepo,tsepo,artist_source,5,artist_00715,Tsepo
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,Julian Anthony,julian anthony,artist_source,6,artist_00345,Julian Anthony
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,Storm Mollison,storm mollison,artist_source,7,artist_00665,Storm Mollison
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,Retromigration,retromigration,artist_source,8,artist_00586,Retromigration
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,Denis Sulta,denis sulta,artist_source,9,artist_00209,Denis Sulta
+recqwzEd5yLlh3gnR,Get Closer - ADE,2025-10-24,"""tech house, house""",intern,Regulier,TSHA,tsha,artist_source,10,artist_00683,TSHA
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,mad miran,mad miran,artist_source,1,artist_00771,mad miran
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Christian AB,christian ab,artist_source,2,artist_00128,Christian AB
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Pangaea,pangaea,artist_source,3,artist_00536,Pangaea
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Amaliah,amaliah,artist_source,4,artist_00032,Amaliah
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Ploy,ploy,artist_source,5,artist_00562,Ploy
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Moopie,moopie,artist_source,6,artist_00486,Moopie
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Naone,naone,artist_source,7,artist_00502,Naone
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Jorg Kuning (live),jorg kuning (live),artist_source,8,artist_00336,Jorg Kuning (live)
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Impérieux,impérieux,artist_source,9,artist_00308,Impérieux
+recmBZGtfdFhTgRMU,VBX curated by Ben UFO - ADE,2025-10-24,"""minimal house, left field house & techno""",intern,Regulier,Ben UFO,ben ufo,artist_source,10,artist_00078,Ben UFO
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,Interpol,interpol,artist_source,1,artist_00312,Interpol
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,THC,thc,artist_source,2,artist_00679,THC
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,DART,dart,artist_source,3,artist_00166,DART
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,Kyle Starkey,kyle starkey,artist_source,4,artist_00384,Kyle Starkey
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,Bae Blade,bae blade,artist_source,5,artist_00059,Bae Blade
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,Mordi,mordi,artist_source,6,artist_00487,Mordi
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,RONI,roni,artist_source,7,artist_00576,RONI
+recmiao3o5mKDY9B8,AGRIO CLUB - ADE,2025-10-25,Bounce / trance,intern,Regulier,Match Box,match box,artist_source,8,artist_00460,Match Box
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Antal,antal,artist_source,1,artist_00041,Antal
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Tama Sumo,tama sumo,artist_source,2,artist_00687,Tama Sumo
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Louie Vega,louie vega,artist_source,3,artist_00418,Louie Vega
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,HUNEE,hunee,artist_source,4,artist_00283,HUNEE
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Antal,antal,artist_source,5,artist_00041,Antal
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Lakuti,lakuti,artist_source,6,artist_00393,Lakuti
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Antal,antal,artist_source,7,artist_00041,Antal
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Coco Maria,coco maria,artist_source,8,artist_00141,Coco Maria
+recuWX5UcBxbohbQv,RUSH HOUR - ADE,2025-10-25,,intern,Regulier,Brandfee,brandfee,artist_source,9,artist_00097,Brandfee
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Rødhåd,rødhåd,artist_source,1,artist_00607,Rødhåd
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Serti,serti,artist_source,2,artist_00638,Serti
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Xiaolin,xiaolin,artist_source,3,artist_00750,Xiaolin
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Wata Igarashi,wata igarashi,artist_source,4,artist_00741,Wata Igarashi
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Sarkawt Hamad,sarkawt hamad,artist_source,5,artist_00628,Sarkawt Hamad
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,DJ Red,dj red,artist_source,6,artist_00184,DJ Red
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Dj Nobu,dj nobu,artist_source,7,artist_00219,Dj Nobu
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,GiGi FM,gigi fm,artist_source,8,artist_00276,GiGi FM
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Objekt,objekt,artist_source,9,artist_00518,Objekt
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Sepehr,sepehr,artist_source,10,artist_00637,Sepehr
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,Priori,priori,artist_source,11,artist_00568,Priori
+recH3D6PTtkDXvkBS,CODA by Ratherlost & Pax-Romana - ADE,2025-10-26,progressieve techno,intern,Regulier,CCL,ccl,artist_source,12,artist_00105,CCL
+recmahFhtG7Mxo7pJ,KREAM,2025-11-01,Commercieel,intern,Regulier,KREAM,kream,artist_source,1,artist_00354,KREAM
+reclJeduL1NMDcqCQ,Mindscape - VNTM Live All Night Long,2025-11-08,"""techno, Melodic""",intern,Regulier,VNTM,vntm,artist_source,1,artist_00723,VNTM
+recC44sMKY07iXTwV,Colin Benders pres. Hiss & Hertz,2025-11-15,techno,intern,Regulier,Efdemin,efdemin,artist_source,1,artist_00229,Efdemin
+recC44sMKY07iXTwV,Colin Benders pres. Hiss & Hertz,2025-11-15,techno,intern,Regulier,Jasmín,jasmín,artist_source,2,artist_00323,Jasmín
+recC44sMKY07iXTwV,Colin Benders pres. Hiss & Hertz,2025-11-15,techno,intern,Regulier,Nene H,nene h,artist_source,3,artist_00504,Nene H
+recC44sMKY07iXTwV,Colin Benders pres. Hiss & Hertz,2025-11-15,techno,intern,Regulier,Colin Benders,colin benders,artist_source,4,artist_00142,Colin Benders
+recC44sMKY07iXTwV,Colin Benders pres. Hiss & Hertz,2025-11-15,techno,intern,Regulier,Quelza,quelza,artist_source,5,artist_00572,Quelza
+recQIXOJ1P1LVVma5,Joy Orbison,2025-11-22,left field house & techno,intern,Regulier,Joy Orbison,joy orbison,artist_source,1,artist_00340,Joy Orbison
+recQIXOJ1P1LVVma5,Joy Orbison,2025-11-22,left field house & techno,intern,Regulier,CARISTA,carista,artist_source,2,artist_00104,CARISTA
+recQIXOJ1P1LVVma5,Joy Orbison,2025-11-22,left field house & techno,intern,Regulier,BSS,bss,artist_source,3,artist_00058,BSS
+recQIXOJ1P1LVVma5,Joy Orbison,2025-11-22,left field house & techno,intern,Regulier,Nick Leon,nick leon,artist_source,4,artist_00508,Nick Leon
+recSsQWKYL0bpQlRp,This Is Gala x Rush Hour,2025-11-28,,intern,Regulier,Kléo,kléo,artist_source,1,artist_00378,Kléo
+recSsQWKYL0bpQlRp,This Is Gala x Rush Hour,2025-11-28,,intern,Regulier,Richard Akingbehin,richard akingbehin,artist_source,2,artist_00587,Richard Akingbehin
+recSsQWKYL0bpQlRp,This Is Gala x Rush Hour,2025-11-28,,intern,Regulier,Marcel Dettmann,marcel dettmann,artist_source,3,artist_00446,Marcel Dettmann
+recSsQWKYL0bpQlRp,This Is Gala x Rush Hour,2025-11-28,,intern,Regulier,Pearson Sound,pearson sound,artist_source,4,artist_00550,Pearson Sound
+recSsQWKYL0bpQlRp,This Is Gala x Rush Hour,2025-11-28,,intern,Regulier,Peach,peach,artist_source,5,artist_00549,Peach
+recSsQWKYL0bpQlRp,This Is Gala x Rush Hour,2025-11-28,,intern,Regulier,Prosumer,prosumer,artist_source,6,artist_00570,Prosumer
+recSsQWKYL0bpQlRp,This Is Gala x Rush Hour,2025-11-28,,intern,Regulier,Antal,antal,artist_source,7,artist_00041,Antal
+rece4MzzTBakEZZZK,Lofi by Milion,2025-12-05,"""UKG, Bounce / trance""",intern,Regulier,DJ BORING,dj boring,artist_source,1,artist_00169,DJ BORING
+rece4MzzTBakEZZZK,Lofi by Milion,2025-12-05,"""UKG, Bounce / trance""",intern,Regulier,Gabriel Muñoz,gabriel muñoz,artist_source,2,artist_00269,Gabriel Muñoz
+rece4MzzTBakEZZZK,Lofi by Milion,2025-12-05,"""UKG, Bounce / trance""",intern,Regulier,LoveFoxy,lovefoxy,artist_source,3,artist_00419,LoveFoxy
+rece4MzzTBakEZZZK,Lofi by Milion,2025-12-05,"""UKG, Bounce / trance""",intern,Regulier,Esi,esi,artist_source,4,artist_00241,Esi
+rece4MzzTBakEZZZK,Lofi by Milion,2025-12-05,"""UKG, Bounce / trance""",intern,Regulier,Milion,milion,artist_source,5,artist_00481,Milion
+rece4MzzTBakEZZZK,Lofi by Milion,2025-12-05,"""UKG, Bounce / trance""",intern,Regulier,Faster Horses,faster horses,artist_source,6,artist_00250,Faster Horses
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,DJ Hyperdrive,dj hyperdrive,artist_source,1,artist_00175,DJ Hyperdrive
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,Eva Vrijdag,eva vrijdag,artist_source,2,artist_00244,Eva Vrijdag
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,VEL,vel,artist_source,3,artist_00721,VEL
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,DJ Shoplifter,dj shoplifter,artist_source,4,artist_00186,DJ Shoplifter
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,Pegassi,pegassi,artist_source,5,artist_00551,Pegassi
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,Swarobski,swarobski,artist_source,6,artist_00673,Swarobski
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,Justin Tinderdate,justin tinderdate,artist_source,7,artist_00352,Justin Tinderdate
+reclF4Lb7ZHezZj39,Sweet Nothing,2025-12-07,Bounce / trance,intern,Regulier,Elotrance,elotrance,artist_source,8,artist_00234,Elotrance
+recr3FVr1WpnIey1O,Chris Stussy,2025-12-13,"""minimal house, house""",intern,Regulier,Alexandria,alexandria,artist_source,1,artist_00029,Alexandria
+recr3FVr1WpnIey1O,Chris Stussy,2025-12-13,"""minimal house, house""",intern,Regulier,Hidde van Wee,hidde van wee,artist_source,2,artist_00291,Hidde van Wee
+recr3FVr1WpnIey1O,Chris Stussy,2025-12-13,"""minimal house, house""",intern,Regulier,Anil Aras,anil aras,artist_source,3,artist_00040,Anil Aras
+recr3FVr1WpnIey1O,Chris Stussy,2025-12-13,"""minimal house, house""",intern,Regulier,Chris Stussy,chris stussy,artist_source,4,artist_00126,Chris Stussy
+recoSXknIxPKqLJW6,ANTAL B2B HUNEE - All Night Long,2025-12-19,,intern,Regulier,HUNEE,hunee,artist_source,1,artist_00283,HUNEE
+recoSXknIxPKqLJW6,ANTAL B2B HUNEE - All Night Long,2025-12-19,,intern,Regulier,Antal,antal,artist_source,2,artist_00041,Antal
+rec5eqtvPF042JM4I,"Lofi w/ ØTTA, Daria Kolosova b2b Lolsnake, BIIANCO b2b Fumi, Technoslave 69",2025-12-27,commerciele new school techno,intern,Regulier,Daria Kolosova,daria kolosova,artist_source,1,artist_00201,Daria Kolosova
+rec5eqtvPF042JM4I,"Lofi w/ ØTTA, Daria Kolosova b2b Lolsnake, BIIANCO b2b Fumi, Technoslave 69",2025-12-27,commerciele new school techno,intern,Regulier,Fumi,fumi,artist_source,2,artist_00266,Fumi
+rec5eqtvPF042JM4I,"Lofi w/ ØTTA, Daria Kolosova b2b Lolsnake, BIIANCO b2b Fumi, Technoslave 69",2025-12-27,commerciele new school techno,intern,Regulier,Technoslave 69,technoslave 69,artist_source,3,artist_00691,Technoslave 69
+rec5eqtvPF042JM4I,"Lofi w/ ØTTA, Daria Kolosova b2b Lolsnake, BIIANCO b2b Fumi, Technoslave 69",2025-12-27,commerciele new school techno,intern,Regulier,Lolsnake,lolsnake,artist_source,4,artist_00416,Lolsnake
+rec5eqtvPF042JM4I,"Lofi w/ ØTTA, Daria Kolosova b2b Lolsnake, BIIANCO b2b Fumi, Technoslave 69",2025-12-27,commerciele new school techno,intern,Regulier,ØTTA,øtta,artist_source,5,artist_00780,ØTTA
+rec5eqtvPF042JM4I,"Lofi w/ ØTTA, Daria Kolosova b2b Lolsnake, BIIANCO b2b Fumi, Technoslave 69",2025-12-27,commerciele new school techno,intern,Regulier,BIIANCO,biianco,artist_source,6,artist_00055,BIIANCO
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Bambounou,bambounou,artist_source,1,artist_00061,Bambounou
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Malindi,malindi,artist_source,2,artist_00441,Malindi
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Tsepo,tsepo,artist_source,3,artist_00715,Tsepo
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Boris Coelman,boris coelman,artist_source,4,artist_00093,Boris Coelman
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Gabrielle Kwarteng,gabrielle kwarteng,artist_source,5,artist_00270,Gabrielle Kwarteng
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,TINS,tins,artist_source,6,artist_00681,TINS
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Rozaly,rozaly,artist_source,7,artist_00602,Rozaly
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Cormac,cormac,artist_source,8,artist_00148,Cormac
+recpfelSTnDOwd4OZ,Palet  - NYE,2025-12-31,left field house & techno,intern,Regulier,Bibtiana,bibtiana,artist_source,9,artist_00088,Bibtiana
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Aaron J,aaron j,artist_source,1,artist_00015,Aaron J
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Andy Martin,andy martin,artist_source,2,artist_00038,Andy Martin
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Donato Dozzy,donato dozzy,artist_source,3,artist_00222,Donato Dozzy
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Nelly,nelly,artist_source,4,artist_00503,Nelly
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Marius Bø,marius bø,artist_source,5,artist_00453,Marius Bø
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Oceanic,oceanic,artist_source,6,artist_00519,Oceanic
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Paquita Gordon,paquita gordon,artist_source,7,artist_00538,Paquita Gordon
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Sandrien,sandrien,artist_source,8,artist_00625,Sandrien
+recyT2Qzdf2NC58dB,Ratherlost - NYD,2026-01-01,progressieve techno,intern,Regulier,Marco Shuttle,marco shuttle,artist_source,9,artist_00448,Marco Shuttle
+rec5tcHw7GU8n9sba,Contrarium AV shows,2026-01-10,progressieve techno,intern,Regulier,Young Marco & Max Frimout,young marco & max frimout,artist_source,1,artist_00756,Young Marco & Max Frimout
+rec5tcHw7GU8n9sba,Contrarium AV shows,2026-01-10,progressieve techno,intern,Regulier,VRIL,vril,artist_source,2,artist_00724,VRIL
+recwv74fEYJ9tUBVI,Contrarium AV shows,2026-01-16,progressieve techno,intern,Regulier,JakoJako,jakojako,artist_source,1,artist_00320,JakoJako
+recwv74fEYJ9tUBVI,Contrarium AV shows,2026-01-16,progressieve techno,intern,Regulier,Maarten Vos,maarten vos,artist_source,2,artist_00433,Maarten Vos
+recbkJglu6xqumvLG,Contrarium club night,2026-01-17,progressieve techno,intern,Regulier,Shoal,shoal,artist_source,1,artist_00644,Shoal
+recbkJglu6xqumvLG,Contrarium club night,2026-01-17,progressieve techno,intern,Regulier,Dasha Rush,dasha rush,artist_source,2,artist_00203,Dasha Rush
+recbkJglu6xqumvLG,Contrarium club night,2026-01-17,progressieve techno,intern,Regulier,Spekki Webu,spekki webu,artist_source,3,artist_00657,Spekki Webu
+recgdGD58Dok1mDOB,Colyn - All Night Long,2026-01-23,Melodic commercieel,intern,Regulier,Collé,collé,artist_source,1,artist_00144,Collé
+recgdGD58Dok1mDOB,Colyn - All Night Long,2026-01-23,Melodic commercieel,intern,Regulier,Colyn,colyn,artist_source,2,artist_00145,Colyn
+recxr36ouLBsOaI2W,Charlotte de Witte,2026-01-31,techno,intern,Regulier,SAMOH,samoh,artist_source,1,artist_00612,SAMOH
+recxr36ouLBsOaI2W,Charlotte de Witte,2026-01-31,techno,intern,Regulier,Carmen Lisa,carmen lisa,artist_source,2,artist_00115,Carmen Lisa
+recxr36ouLBsOaI2W,Charlotte de Witte,2026-01-31,techno,intern,Regulier,Charlotte de Witte,charlotte de witte,artist_source,3,artist_00121,Charlotte de Witte
+recxr36ouLBsOaI2W,Charlotte de Witte,2026-01-31,techno,intern,Regulier,Selene,selene,artist_source,4,artist_00634,Selene
+recibDirI9Ugfs083,Mau P all night long,2026-02-06,tech house,intern,Regulier,Mau P,mau p,artist_source,1,artist_00465,Mau P
+recKOjDFflC0tKSaE,MASONICS,2026-02-07,"""commerciele new school techno, techno""",intern,Regulier,Héctor Oaks,héctor oaks,artist_source,1,artist_00302,Héctor Oaks
+recKOjDFflC0tKSaE,MASONICS,2026-02-07,"""commerciele new school techno, techno""",intern,Regulier,Vanille,vanille,artist_source,2,artist_00727,Vanille
+recKOjDFflC0tKSaE,MASONICS,2026-02-07,"""commerciele new school techno, techno""",intern,Regulier,Patrick Mason,patrick mason,artist_source,3,artist_00545,Patrick Mason
+recKOjDFflC0tKSaE,MASONICS,2026-02-07,"""commerciele new school techno, techno""",intern,Regulier,Prance,prance,artist_source,4,artist_00566,Prance
+recnJmQhEwNFQkbXx,Dixon,2026-02-08,Melodic,intern,Regulier,Tsepo,tsepo,artist_source,1,artist_00715,Tsepo
+recnJmQhEwNFQkbXx,Dixon,2026-02-08,Melodic,intern,Regulier,Dixon,dixon,artist_source,2,artist_00218,Dixon
+recZCTohfhlZEaGUf,SHADOWPRINT,2026-02-14,commerciele old school techno,intern,Regulier,Weska,weska,artist_source,1,artist_00742,Weska
+recZCTohfhlZEaGUf,SHADOWPRINT,2026-02-14,commerciele old school techno,intern,Regulier,Bart Skils,bart skils,artist_source,2,artist_00066,Bart Skils
+recZCTohfhlZEaGUf,SHADOWPRINT,2026-02-14,commerciele old school techno,intern,Regulier,Boris Werner,boris werner,artist_source,3,artist_00094,Boris Werner
+recZCTohfhlZEaGUf,SHADOWPRINT,2026-02-14,commerciele old school techno,intern,Regulier,Pan-Pot,pan-pot,artist_source,4,artist_00535,Pan-Pot
+recRGSERDwVLqoycU,"Lofi w/ Sally C, Bradley Zero, Berkan V8, Kyra Khaldi",2026-02-21,left field house & techno,intern,Regulier,Bradley Zero,bradley zero,artist_source,1,artist_00096,Bradley Zero
+recRGSERDwVLqoycU,"Lofi w/ Sally C, Bradley Zero, Berkan V8, Kyra Khaldi",2026-02-21,left field house & techno,intern,Regulier,Kyra Khaldi,kyra khaldi,artist_source,2,artist_00385,Kyra Khaldi
+recRGSERDwVLqoycU,"Lofi w/ Sally C, Bradley Zero, Berkan V8, Kyra Khaldi",2026-02-21,left field house & techno,intern,Regulier,Berkan V8,berkan v8,artist_source,3,artist_00084,Berkan V8
+recRGSERDwVLqoycU,"Lofi w/ Sally C, Bradley Zero, Berkan V8, Kyra Khaldi",2026-02-21,left field house & techno,intern,Regulier,Sally C,sally c,artist_source,4,artist_00620,Sally C
+recHSHtzqPIt2utQ5,Mall Grab - 10 Years Tour,2026-03-01,house,intern,Regulier,Mall Grab,mall grab,artist_source,1,artist_00442,Mall Grab
+recHSHtzqPIt2utQ5,Mall Grab - 10 Years Tour,2026-03-01,house,intern,Regulier,Mees Javois,mees javois,artist_source,2,artist_00470,Mees Javois
+recHSHtzqPIt2utQ5,Mall Grab - 10 Years Tour,2026-03-01,house,intern,Regulier,Lola Edo,lola edo,artist_source,3,artist_00415,Lola Edo
+recsyZr2LofKvMZi8,DVS1 x Ratherlost present The Wall of Sound,2026-03-06,progressieve techno,intern,Regulier,Tim Reaper,tim reaper,artist_source,1,artist_00700,Tim Reaper
+recsyZr2LofKvMZi8,DVS1 x Ratherlost present The Wall of Sound,2026-03-06,progressieve techno,intern,Regulier,GiGi FM,gigi fm,artist_source,2,artist_00276,GiGi FM
+recsyZr2LofKvMZi8,DVS1 x Ratherlost present The Wall of Sound,2026-03-06,progressieve techno,intern,Regulier,Pariah,pariah,artist_source,3,artist_00540,Pariah
+recsyZr2LofKvMZi8,DVS1 x Ratherlost present The Wall of Sound,2026-03-06,progressieve techno,intern,Regulier,Darwin,darwin,artist_source,4,artist_00202,Darwin
+recsyZr2LofKvMZi8,DVS1 x Ratherlost present The Wall of Sound,2026-03-06,progressieve techno,intern,Regulier,DJ Pete,dj pete,artist_source,5,artist_00183,DJ Pete
+rec93RDXOkCAcXSzB,DVS1 x Ratherlost present The Wall of Sound,2026-03-07,progressieve techno,intern,Regulier,Richie Hawtin,richie hawtin,artist_source,1,artist_00588,Richie Hawtin
+rec93RDXOkCAcXSzB,DVS1 x Ratherlost present The Wall of Sound,2026-03-07,progressieve techno,intern,Regulier,DVS1,dvs1,artist_source,2,artist_00191,DVS1
+rec93RDXOkCAcXSzB,DVS1 x Ratherlost present The Wall of Sound,2026-03-07,progressieve techno,intern,Regulier,Josey Rebelle,josey rebelle,artist_source,3,artist_00339,Josey Rebelle
+rec93RDXOkCAcXSzB,DVS1 x Ratherlost present The Wall of Sound,2026-03-07,progressieve techno,intern,Regulier,Samuel Deep,samuel deep,artist_source,4,artist_00623,Samuel Deep
+recNYl59LEzreiWDb,Kevin De Vries,2026-03-13,Melodic commercieel,intern,Regulier,LINSKA,linska,artist_source,1,artist_00388,LINSKA
+recNYl59LEzreiWDb,Kevin De Vries,2026-03-13,Melodic commercieel,intern,Regulier,Kevin De Vries,kevin de vries,artist_source,2,artist_00372,Kevin De Vries
+rectkvAKTImkzBlxq,Agrio Club,2026-03-14,Bounce / trance,intern,Regulier,Kara Okay,kara okay,artist_source,1,artist_00364,Kara Okay
+rectkvAKTImkzBlxq,Agrio Club,2026-03-14,Bounce / trance,intern,Regulier,Paige Tomlinson,paige tomlinson,artist_source,2,artist_00534,Paige Tomlinson
+rectkvAKTImkzBlxq,Agrio Club,2026-03-14,Bounce / trance,intern,Regulier,Julie Desire,julie desire,artist_source,3,artist_00348,Julie Desire
+rectkvAKTImkzBlxq,Agrio Club,2026-03-14,Bounce / trance,intern,Regulier,Tjade,tjade,artist_source,4,artist_00704,Tjade
+rectkvAKTImkzBlxq,Agrio Club,2026-03-14,Bounce / trance,intern,Regulier,Paige Tomlinson,paige tomlinson,artist_source,5,artist_00534,Paige Tomlinson
+recRrxu1wd5GDpCIX,Lofi w/ Bontan,2026-03-21,tech house,intern,Regulier,Philou Louzolo,philou louzolo,artist_source,1,artist_00556,Philou Louzolo
+recRrxu1wd5GDpCIX,Lofi w/ Bontan,2026-03-21,tech house,intern,Regulier,Us Two,us two,artist_source,2,artist_00720,Us Two
+recRrxu1wd5GDpCIX,Lofi w/ Bontan,2026-03-21,tech house,intern,Regulier,DAF,daf,artist_source,3,artist_00165,DAF
+recRrxu1wd5GDpCIX,Lofi w/ Bontan,2026-03-21,tech house,intern,Regulier,Bontan,bontan,artist_source,4,artist_00091,Bontan
+recoULeIyuIKNReDQ,Lofi presents,2026-03-28,Bounce / trance,intern,Regulier,Bae Blade,bae blade,artist_source,1,artist_00059,Bae Blade
+recoULeIyuIKNReDQ,Lofi presents,2026-03-28,Bounce / trance,intern,Regulier,X-COAST,x-coast,artist_source,2,artist_00749,X-COAST
+recoULeIyuIKNReDQ,Lofi presents,2026-03-28,Bounce / trance,intern,Regulier,YASMIN REGISFORD,yasmin regisford,artist_source,3,artist_00751,YASMIN REGISFORD
+recoULeIyuIKNReDQ,Lofi presents,2026-03-28,Bounce / trance,intern,Regulier,EMILIJA,emilija,artist_source,4,artist_00228,EMILIJA
+recoULeIyuIKNReDQ,Lofi presents,2026-03-28,Bounce / trance,intern,Regulier,Essy,essy,artist_source,5,artist_00243,Essy
+recoULeIyuIKNReDQ,Lofi presents,2026-03-28,Bounce / trance,intern,Regulier,KTK,ktk,artist_source,6,artist_00355,KTK
+recoULeIyuIKNReDQ,Lofi presents,2026-03-28,Bounce / trance,intern,Regulier,Supergloss,supergloss,artist_source,7,artist_00670,Supergloss
+recgPufzG1BPkbe8o,Honey Dijon - album tour,2026-03-29,house,intern,Regulier,Honey Dijon,honey dijon,artist_source,1,artist_00294,Honey Dijon
+recgPufzG1BPkbe8o,Honey Dijon - album tour,2026-03-29,house,intern,Regulier,Carlos Valdes,carlos valdes,artist_source,2,artist_00113,Carlos Valdes
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,mad miran,mad miran,artist_source,1,artist_00771,mad miran
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Skee Mask,skee mask,artist_source,2,artist_00648,Skee Mask
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Luna Ludmila,luna ludmila,artist_source,3,artist_00424,Luna Ludmila
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Efdemin,efdemin,artist_source,4,artist_00229,Efdemin
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Hysteria Temple Foundation,hysteria temple foundation,artist_source,5,artist_00301,Hysteria Temple Foundation
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Oscar Mulero,oscar mulero,artist_source,6,artist_00528,Oscar Mulero
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Polygonia,polygonia,artist_source,7,artist_00564,Polygonia
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Jorge Fons,jorge fons,artist_source,8,artist_00337,Jorge Fons
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Altinbas,altinbas,artist_source,9,artist_00031,Altinbas
+recntZT9TxuUvJJwZ,Ratherlost Easter Sunday,2026-04-05,progressieve techno,intern,Regulier,Timnah,timnah,artist_source,10,artist_00702,Timnah
+recwqvtVrJ9WTc5gj,"Lofi w/ Floorplan, Carista, Makam",2026-04-10,house,intern,Regulier,Floorplan,floorplan,artist_source,1,artist_00257,Floorplan
+recwqvtVrJ9WTc5gj,"Lofi w/ Floorplan, Carista, Makam",2026-04-10,house,intern,Regulier,CARISTA,carista,artist_source,2,artist_00104,CARISTA
+recwqvtVrJ9WTc5gj,"Lofi w/ Floorplan, Carista, Makam",2026-04-10,house,intern,Regulier,Makam,makam,artist_source,3,artist_00438,Makam
+recbEQ3JlrApt19P1,Mindscape,2026-04-17,progressieve techno,intern,Regulier,JakoJako,jakojako,artist_source,1,artist_00320,JakoJako
+recbEQ3JlrApt19P1,Mindscape,2026-04-17,progressieve techno,intern,Regulier,VNTM,vntm,artist_source,2,artist_00723,VNTM
+recbEQ3JlrApt19P1,Mindscape,2026-04-17,progressieve techno,intern,Regulier,Gizem,gizem,artist_source,3,artist_00278,Gizem
+recbEQ3JlrApt19P1,Mindscape,2026-04-17,progressieve techno,intern,Regulier,Antonio Ruscito & Luigi Tozzi,antonio ruscito & luigi tozzi,artist_source,4,artist_00044,Antonio Ruscito & Luigi Tozzi
+reccgBpdiVHU8oxNs,CLOUD 8,2026-04-18,afro house,intern,Regulier,Andrea Oliva,andrea oliva,artist_source,1,artist_00036,Andrea Oliva
+reccgBpdiVHU8oxNs,CLOUD 8,2026-04-18,afro house,intern,Regulier,Cincity,cincity,artist_source,2,artist_00129,Cincity
+reccgBpdiVHU8oxNs,CLOUD 8,2026-04-18,afro house,intern,Regulier,Atmos Blaq,atmos blaq,artist_source,3,artist_00048,Atmos Blaq
+reccgBpdiVHU8oxNs,CLOUD 8,2026-04-18,afro house,intern,Regulier,LevyM,levym,artist_source,4,artist_00406,LevyM
+recLK62Cjnlufovpt,"Lofi by Speedy J: Claudio PRC b2b Isabel Soto, Megan Leber",2026-04-25,techno,intern,Regulier,Isabel Soto,isabel soto,artist_source,1,artist_00313,Isabel Soto
+recLK62Cjnlufovpt,"Lofi by Speedy J: Claudio PRC b2b Isabel Soto, Megan Leber",2026-04-25,techno,intern,Regulier,Speedy J,speedy j,artist_source,2,artist_00656,Speedy J
+recLK62Cjnlufovpt,"Lofi by Speedy J: Claudio PRC b2b Isabel Soto, Megan Leber",2026-04-25,techno,intern,Regulier,Claudio PRC,claudio prc,artist_source,3,artist_00134,Claudio PRC
+recLK62Cjnlufovpt,"Lofi by Speedy J: Claudio PRC b2b Isabel Soto, Megan Leber",2026-04-25,techno,intern,Regulier,Megan Leber,megan leber,artist_source,4,artist_00471,Megan Leber
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Bakio,bakio,artist_source,1,artist_00060,Bakio
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Hannecart,hannecart,artist_source,2,artist_00284,Hannecart
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Voigtmann,voigtmann,artist_source,3,artist_00740,Voigtmann
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,J:Me,j:me,artist_source,4,artist_00314,J:Me
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Benji,benji,artist_source,5,artist_00080,Benji
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Noach,noach,artist_source,6,artist_00511,Noach
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Marsolo,marsolo,artist_source,7,artist_00455,Marsolo
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Phil de Janeiro,phil de janeiro,artist_source,8,artist_00553,Phil de Janeiro
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Julian Anthony,julian anthony,artist_source,9,artist_00345,Julian Anthony
+rec4NzD3RxnWdnTST,Club Roto x Modern Funktion,2026-04-26,tech house,intern,Regulier,Job de Jong,job de jong,artist_source,10,artist_00332,Job de Jong
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,Mia Cecille,mia cecille,artist_source,1,artist_00475,Mia Cecille
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,Sugar Free,sugar free,artist_source,2,artist_00667,Sugar Free
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,Roza Terenzi,roza terenzi,artist_source,3,artist_00601,Roza Terenzi
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,Bashkka,bashkka,artist_source,4,artist_00068,Bashkka
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,HUNEE,hunee,artist_source,5,artist_00283,HUNEE
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,Bitter Babe,bitter babe,artist_source,6,artist_00089,Bitter Babe
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,D.Tiffany,d.tiffany,artist_source,7,artist_00164,D.Tiffany
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,Roi Perez,roi perez,artist_source,8,artist_00595,Roi Perez
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,Paquita Gordon,paquita gordon,artist_source,9,artist_00538,Paquita Gordon
+reconCBdzlrgvCYbl,FSTM - King’s Day,2026-04-27,left field house & techno,intern,Regulier,John Talabot,john talabot,artist_source,10,artist_00333,John Talabot
+recocJqxgLW68oB6l,Mind Against - All Night Long,2026-05-01,Melodic commercieel,intern,Regulier,Mind Against,mind against,artist_source,1,artist_00482,Mind Against
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Kerrie,kerrie,artist_source,1,artist_00370,Kerrie
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,LazerGazer,lazergazer,artist_source,2,artist_00401,LazerGazer
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,BLANKA,blanka,artist_source,3,artist_00056,BLANKA
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Zisko,zisko,artist_source,4,artist_00760,Zisko
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,SAMA,sama,artist_source,5,artist_00611,SAMA
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Wata Igarashi,wata igarashi,artist_source,6,artist_00741,Wata Igarashi
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Julia Maria,julia maria,artist_source,7,artist_00344,Julia Maria
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Sarkawt Hamad,sarkawt hamad,artist_source,8,artist_00628,Sarkawt Hamad
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Amotik,amotik,artist_source,9,artist_00035,Amotik
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Stojche,stojche,artist_source,10,artist_00664,Stojche
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Karina Schneider,karina schneider,artist_source,11,artist_00366,Karina Schneider
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Delano Legito,delano legito,artist_source,12,artist_00207,Delano Legito
+recWU1wN7uxhH55ZB,Patio - Courtyard Opening,2026-05-02,progressieve techno,intern,Regulier,Function,function,artist_source,13,artist_00267,Function
+recAvBBykgRYUJovc,Lofi w/ Hot Since 82,2026-05-08,tech house,intern,Regulier,Hot Since 82,hot since 82,artist_source,1,artist_00297,Hot Since 82
+recAvBBykgRYUJovc,Lofi w/ Hot Since 82,2026-05-08,tech house,intern,Regulier,Kim April,kim april,artist_source,2,artist_00376,Kim April
+recAvBBykgRYUJovc,Lofi w/ Hot Since 82,2026-05-08,tech house,intern,Regulier,Ranger Trucco,ranger trucco,artist_source,3,artist_00577,Ranger Trucco
+recAvBBykgRYUJovc,Lofi w/ Hot Since 82,2026-05-08,tech house,intern,Regulier,"""Ranger Trucco","""ranger trucco",artist_source,4,artist_00001,"""Ranger Trucco"
+recAvBBykgRYUJovc,Lofi w/ Hot Since 82,2026-05-08,tech house,intern,Regulier,"Kim April""","kim april""",artist_source,5,artist_00377,"Kim April"""
+recAvBBykgRYUJovc,Lofi w/ Hot Since 82,2026-05-08,tech house,intern,Regulier,Test Joël,test joël,artist_source,6,artist_00693,Test Joël
+recAvBBykgRYUJovc,Lofi w/ Hot Since 82,2026-05-08,tech house,intern,Regulier,Karel,karel,artist_source,7,artist_00365,Karel
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,DJ PAULÃO,dj paulão,artist_source,1,artist_00182,DJ PAULÃO
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,Coco Maria,coco maria,artist_source,2,artist_00141,Coco Maria
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,Musclecars,musclecars,artist_source,3,artist_00492,Musclecars
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,Kikiorix,kikiorix,artist_source,4,artist_00375,Kikiorix
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,Satoshi Tomiie,satoshi tomiie,artist_source,5,artist_00631,Satoshi Tomiie
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,Giles Peterson,giles peterson,artist_source,6,artist_00277,Giles Peterson
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,Antal,antal,artist_source,7,artist_00041,Antal
+recRB69zVgG0f2pPb,Rainbow Disco Club,2026-05-23,,intern,Regulier,Kléo,kléo,artist_source,8,artist_00378,Kléo
+recxWsoAJ1gXUnlwo,Marlon Hoffstadt,2026-06-04,Bounce / trance,intern,Regulier,Surf 2 Glory,surf 2 glory,artist_source,1,artist_00672,Surf 2 Glory
+recxWsoAJ1gXUnlwo,Marlon Hoffstadt,2026-06-04,Bounce / trance,intern,Regulier,Marlon Hoffstadt,marlon hoffstadt,artist_source,2,artist_00454,Marlon Hoffstadt
+rec0521emg6voDkf8,Marlon Hoffstadt,2026-06-07,Bounce / trance,intern,Regulier,Marlon Hoffstadt,marlon hoffstadt,artist_source,1,artist_00454,Marlon Hoffstadt
+rec0521emg6voDkf8,Marlon Hoffstadt,2026-06-07,Bounce / trance,intern,Regulier,CVNTS,cvnts,artist_source,2,artist_00111,CVNTS
+rec0521emg6voDkf8,Marlon Hoffstadt,2026-06-07,Bounce / trance,intern,Regulier,Sellout bonus Marlon,sellout bonus marlon,artist_source,3,artist_00636,Sellout bonus Marlon
+rec0521emg6voDkf8,Marlon Hoffstadt,2026-06-07,Bounce / trance,intern,Regulier,Saidah,saidah,artist_source,4,artist_00619,Saidah
+rec0521emg6voDkf8,Marlon Hoffstadt,2026-06-07,Bounce / trance,intern,Regulier,Benny2,benny2,artist_source,5,artist_00082,Benny2
+recFsgoBxrdNRHBjX,Agents Of Time - All night long,2026-11-20,Melodic commercieel,intern,Regulier,Agents of Time,agents of time,artist_source,1,artist_00022,Agents of Time
+recHBIrdYJhx6UJ9s,Quelza - All Night Long,2026-06-13,progressieve techno,intern,Regulier,Quelza,quelza,artist_source,1,artist_00572,Quelza
+recHBIrdYJhx6UJ9s,Quelza - All Night Long,2026-06-13,progressieve techno,intern,Regulier,Quelza,quelza,artist_source,2,artist_00572,Quelza
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,Schwesta P,schwesta p,artist_source,1,artist_00632,Schwesta P
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,Tjade,tjade,artist_source,2,artist_00704,Tjade
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,Herr Krank,herr krank,artist_source,3,artist_00289,Herr Krank
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,DJ Frank,dj frank,artist_source,4,artist_00172,DJ Frank
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,Kendal,kendal,artist_source,5,artist_00368,Kendal
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,NewTone,newtone,artist_source,6,artist_00507,Newtone
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,Bella Claxton,bella claxton,artist_source,7,artist_00075,Bella Claxton
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,Jenny Cara,jenny cara,artist_source,8,artist_00327,Jenny Cara
+rec3vcVmNGoKGDY5H,Agrio Club x Ritmo Fatale,2026-06-20,Bounce / trance,intern,Regulier,Olivia Lensen,olivia lensen,artist_source,9,artist_00523,Olivia Lensen
+rec8P1NKiF8yoHl58,Mindscape,2026-06-26,progressieve techno,intern,Regulier,nthng,nthng,artist_source,1,artist_00773,nthng
+rec8P1NKiF8yoHl58,Mindscape,2026-06-26,progressieve techno,intern,Regulier,VNTM,vntm,artist_source,2,artist_00723,VNTM
+rec8P1NKiF8yoHl58,Mindscape,2026-06-26,progressieve techno,intern,Regulier,Luna Ludmila,luna ludmila,artist_source,3,artist_00424,Luna Ludmila
+rec8P1NKiF8yoHl58,Mindscape,2026-06-26,progressieve techno,intern,Regulier,Andy Martin,andy martin,artist_source,4,artist_00038,Andy Martin
+rec8P1NKiF8yoHl58,Mindscape,2026-06-26,progressieve techno,intern,Regulier,VRIL,vril,artist_source,5,artist_00724,VRIL
+rec5qjtT14ggDxTds,Joris Voorn pres. Spectrum & A Trip To Galaxy,2026-06-27,techno,intern,Regulier,Cassian,cassian,artist_source,1,artist_00117,Cassian
+rec5qjtT14ggDxTds,Joris Voorn pres. Spectrum & A Trip To Galaxy,2026-06-27,techno,intern,Regulier,Stranger,stranger,artist_source,2,artist_00666,Stranger
+rec5qjtT14ggDxTds,Joris Voorn pres. Spectrum & A Trip To Galaxy,2026-06-27,techno,intern,Regulier,Re-Type,re-type,artist_source,3,artist_00579,Re-Type
+rec5qjtT14ggDxTds,Joris Voorn pres. Spectrum & A Trip To Galaxy,2026-06-27,techno,intern,Regulier,Tasha,tasha,artist_source,4,artist_00689,Tasha
+rec5qjtT14ggDxTds,Joris Voorn pres. Spectrum & A Trip To Galaxy,2026-06-27,techno,intern,Regulier,Brina Knauss,brina knauss,artist_source,5,artist_00099,Brina Knauss
+rec5qjtT14ggDxTds,Joris Voorn pres. Spectrum & A Trip To Galaxy,2026-06-27,techno,intern,Regulier,REZarin,rezarin,artist_source,6,artist_00574,REZarin
+rec5qjtT14ggDxTds,Joris Voorn pres. Spectrum & A Trip To Galaxy,2026-06-27,techno,intern,Regulier,Joris Voorn,joris voorn,artist_source,7,artist_00338,Joris Voorn
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,Spacer Woman,spacer woman,artist_source,1,artist_00655,Spacer Woman
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,CRYME,cryme,artist_source,2,artist_00110,CRYME
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,Matrixxman,matrixxman,artist_source,3,artist_00464,Matrixxman
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,Slimfit,slimfit,artist_source,4,artist_00649,Slimfit
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,The Lady Machine,the lady machine,artist_source,5,artist_00696,The Lady Machine
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,DJ Fuckoff,dj fuckoff,artist_source,6,artist_00173,DJ Fuckoff
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,SALOME,salome,artist_source,7,artist_00610,SALOME
+recN10ouPyL9IHAjc,Pornceptual,2026-07-04,progressieve techno,intern,Regulier,PORNCEPTUAL,pornceptual,artist_source,8,artist_00532,PORNCEPTUAL
+recfrnGVFtoeTQ4Jv,MoBlack Records,2026-07-11,afro house,intern,Regulier,Lilya Mandre,lilya mandre,artist_source,1,artist_00410,Lilya Mandre
+recfrnGVFtoeTQ4Jv,MoBlack Records,2026-07-11,afro house,intern,Regulier,KUKU,kuku,artist_source,2,artist_00356,KUKU
+recfrnGVFtoeTQ4Jv,MoBlack Records,2026-07-11,afro house,intern,Regulier,MoBlack,moblack,artist_source,3,artist_00483,MoBlack
+recfrnGVFtoeTQ4Jv,MoBlack Records,2026-07-11,afro house,intern,Regulier,Laolu,laolu,artist_source,4,artist_00394,Laolu
+recD1qTz0fhKFq1Aj,ÂME (DJ) x SAMA’ ABDULHADI - All Night Long,2026-07-24,Melodic,intern,Regulier,Âme,âme,artist_source,1,artist_00778,Âme
+recD1qTz0fhKFq1Aj,ÂME (DJ) x SAMA’ ABDULHADI - All Night Long,2026-07-24,Melodic,intern,Regulier,Samaʼ Abdulhadi,samaʼ abdulhadi,artist_source,2,artist_00622,Samaʼ Abdulhadi
+recD1qTz0fhKFq1Aj,ÂME (DJ) x SAMA’ ABDULHADI - All Night Long,2026-07-24,Melodic,intern,Regulier,Âme,âme,artist_source,3,artist_00778,Âme
+recD1qTz0fhKFq1Aj,ÂME (DJ) x SAMA’ ABDULHADI - All Night Long,2026-07-24,Melodic,intern,Regulier,Samaʼ Abdulhadi,samaʼ abdulhadi,artist_source,4,artist_00622,Samaʼ Abdulhadi
+recJ17MnDezJZZzPk,Hot Meal,2026-08-01,Bounce / trance,intern,Regulier,Moody Mehran,moody mehran,artist_source,1,artist_00485,Moody Mehran
+recJ17MnDezJZZzPk,Hot Meal,2026-08-01,Bounce / trance,intern,Regulier,Essy,essy,artist_source,2,artist_00243,Essy
+recb9RCkecHuWhT5c,Lofi w/ BIIANCO & Supergloss,2026-08-07,Bounce / trance,intern,Regulier,LSDXOXO,lsdxoxo,artist_source,1,artist_00389,LSDXOXO
+recb9RCkecHuWhT5c,Lofi w/ BIIANCO & Supergloss,2026-08-07,Bounce / trance,intern,Regulier,Fiene,fiene,artist_source,2,artist_00253,Fiene
+recb9RCkecHuWhT5c,Lofi w/ BIIANCO & Supergloss,2026-08-07,Bounce / trance,intern,Regulier,BIIANCO,biianco,artist_source,3,artist_00055,BIIANCO
+recb9RCkecHuWhT5c,Lofi w/ BIIANCO & Supergloss,2026-08-07,Bounce / trance,intern,Regulier,Supergloss,supergloss,artist_source,4,artist_00670,Supergloss
+recyy895BEtgXnGgB,Get Closer,2026-08-14,house,intern,Regulier,The Trip,the trip,artist_source,1,artist_00697,The Trip
+recyy895BEtgXnGgB,Get Closer,2026-08-14,house,intern,Regulier,Luuk van Dijk,luuk van dijk,artist_source,2,artist_00425,Luuk van Dijk
+recyy895BEtgXnGgB,Get Closer,2026-08-14,house,intern,Regulier,DJ Boring,dj boring,artist_source,3,artist_00169,DJ BORING
+recyy895BEtgXnGgB,Get Closer,2026-08-14,house,intern,Regulier,Merel Helderman,merel helderman,artist_source,4,artist_00473,Merel Helderman
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Tauceti,tauceti,artist_source,1,artist_00690,Tauceti
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Polar Inertia,polar inertia,artist_source,2,artist_00563,Polar Inertia
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,D.Dan,d.dan,artist_source,3,artist_00163,D.Dan
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Kangding Ray,kangding ray,artist_source,4,artist_00363,Kangding Ray
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Faustin,faustin,artist_source,5,artist_00251,Faustin
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,DJ Yazi,dj yazi,artist_source,6,artist_00189,DJ Yazi
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,JakoJako,jakojako,artist_source,7,artist_00320,JakoJako
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Kia,kia,artist_source,8,artist_00374,Kia
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Beatrice M.,beatrice m.,artist_source,9,artist_00072,Beatrice M.
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Luke Vibert,luke vibert,artist_source,10,artist_00422,Luke Vibert
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Monophonik,monophonik,artist_source,11,artist_00484,Monophonik
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Vlada,vlada,artist_source,12,artist_00739,Vlada
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Innersha,innersha,artist_source,13,artist_00310,Innersha
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Garcon,garcon,artist_source,14,artist_00271,Garcon
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Agonis,agonis,artist_source,15,artist_00023,Agonis
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Priori,priori,artist_source,16,artist_00568,Priori
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,oma totem,oma totem,artist_source,17,artist_00774,oma totem
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Spekki Webu,spekki webu,artist_source,18,artist_00657,Spekki Webu
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Sunju Hargun,sunju hargun,artist_source,19,artist_00669,Sunju Hargun
+recV2rYZ1OFuprJ2Z,Ratherlost 24 uurs,2026-08-15,progressieve techno,intern,Regulier,Decoder,decoder,artist_source,20,artist_00206,Decoder
+recarD9fePdX01I5f,Symfora,2026-09-05,afro house,intern,Regulier,Philou Louzolo,philou louzolo,artist_source,1,artist_00556,Philou Louzolo
+recarD9fePdX01I5f,Symfora,2026-09-05,afro house,intern,Regulier,Trikk,trikk,artist_source,2,artist_00713,Trikk
+recarD9fePdX01I5f,Symfora,2026-09-05,afro house,intern,Regulier,Yulia Niko,yulia niko,artist_source,3,artist_00757,Yulia Niko
+recarD9fePdX01I5f,Symfora,2026-09-05,afro house,intern,Regulier,LYLO,lylo,artist_source,4,artist_00391,LYLO
+recdrE2KvFbLTDARk,Massano - All Night Long,2026-09-12,Melodic commercieel,intern,Regulier,Massano,massano,artist_source,1,artist_00459,Massano
+recdrE2KvFbLTDARk,Massano - All Night Long,2026-09-12,Melodic commercieel,intern,Regulier,Sellout,sellout,artist_source,2,artist_00635,Sellout
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,AMORAL,amoral,artist_source,1,artist_00012,AMORAL
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,UFO95,ufo95,artist_source,2,artist_00716,UFO95
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Talismann,talismann,artist_source,3,artist_00686,Talismann
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,VIL,vil,artist_source,4,artist_00722,VIL
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Valody,valody,artist_source,5,artist_00726,Valody
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Tafkamp,tafkamp,artist_source,6,artist_00678,TAFKAMP
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Nick Moody,nick moody,artist_source,7,artist_00509,Nick Moody
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Mary Lake,mary lake,artist_source,8,artist_00458,Mary Lake
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Amanda Mussi,amanda mussi,artist_source,9,artist_00033,Amanda Mussi
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Toobris,toobris,artist_source,10,artist_00710,Toobris
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,BIANKA,bianka,artist_source,11,artist_00054,BIANKA
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Norbak,norbak,artist_source,12,artist_00512,Norbak
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Olivia Mendez,olivia mendez,artist_source,13,artist_00524,Olivia Mendez
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,Ignez,ignez,artist_source,14,artist_00307,Ignez
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,SECONDS (Setaoc Mass),seconds (setaoc mass),artist_source,15,artist_00614,SECONDS (Setaoc Mass)
+rec7zTQIFNeFOYoVu,Patio - Summer Closing,2026-09-19,progressieve techno,intern,Regulier,SECONDS (Phara),seconds (phara),artist_source,16,artist_00613,SECONDS (Phara)
+recp3GIx3ot4Was30,SHADOWPRINT,2026-09-25,commerciele old school techno,intern,Regulier,Bart Skils,bart skils,artist_source,1,artist_00066,Bart Skils
+recp3GIx3ot4Was30,SHADOWPRINT,2026-09-25,commerciele old school techno,intern,Regulier,Roger Geressen,roger geressen,artist_source,2,artist_00593,Roger Geressen
+recp3GIx3ot4Was30,SHADOWPRINT,2026-09-25,commerciele old school techno,intern,Regulier,Victor Ruiz,victor ruiz,artist_source,3,artist_00735,Victor Ruiz
+recp3GIx3ot4Was30,SHADOWPRINT,2026-09-25,commerciele old school techno,intern,Regulier,Oliver Huntemann,oliver huntemann,artist_source,4,artist_00522,Oliver Huntemann
+recp3GIx3ot4Was30,SHADOWPRINT,2026-09-25,commerciele old school techno,intern,Regulier,Hostingfee,hostingfee,artist_source,5,artist_00296,Hostingfee
+recED4PnOY2pAtvY6,Mindscape,2026-09-26,progressieve techno,intern,Regulier,Barker,barker,artist_source,1,artist_00064,Barker
+recED4PnOY2pAtvY6,Mindscape,2026-09-26,progressieve techno,intern,Regulier,Vera Logdanidi,vera logdanidi,artist_source,2,artist_00732,Vera Logdanidi
+recED4PnOY2pAtvY6,Mindscape,2026-09-26,progressieve techno,intern,Regulier,Arthur Rober,arthur rober,artist_source,3,artist_00046,Arthur Rober
+recED4PnOY2pAtvY6,Mindscape,2026-09-26,progressieve techno,intern,Regulier,Martinou,martinou,artist_source,4,artist_00456,Martinou
+recED4PnOY2pAtvY6,Mindscape,2026-09-26,progressieve techno,intern,Regulier,VNTM,vntm,artist_source,5,artist_00723,VNTM
+recrr5i30wY6Vb2Lp,VBX,2026-10-23,,intern,Regulier,Paquita Gordon,paquita gordon,artist_source,1,artist_00538,Paquita Gordon
+recrr5i30wY6Vb2Lp,VBX,2026-10-23,,intern,Regulier,Christian AB,christian ab,artist_source,2,artist_00128,Christian AB
+recrr5i30wY6Vb2Lp,VBX,2026-10-23,,intern,Regulier,Francesco Del Garda,francesco del garda,artist_source,3,artist_00262,Francesco del Garda
+recrr5i30wY6Vb2Lp,VBX,2026-10-23,,intern,Regulier,Marco Shuttle,marco shuttle,artist_source,4,artist_00448,Marco Shuttle
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,Entasia,entasia,artist_source,1,artist_00238,Entasia
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,DART,dart,artist_source,2,artist_00166,DART
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,Miamor,miamor,artist_source,3,artist_00476,Miamor
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,Tjade,tjade,artist_source,4,artist_00704,Tjade
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,Fiene,fiene,artist_source,5,artist_00253,Fiene
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,S3PPA,s3ppa,artist_source,6,artist_00609,S3PPA
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,NewTone,newtone,artist_source,7,artist_00507,Newtone
+recd9xwgmuepUsslV,Agrio Club - ADE,2026-10-24,Bounce / trance,intern,Regulier,THELMA,thelma,artist_source,8,artist_00680,THELMA
+reco2ZngrwzlkHrOp,Rush Hour - ADE,2026-10-24,,intern,Regulier,Ron Trent,ron trent,artist_source,1,artist_00597,Ron Trent
+reco2ZngrwzlkHrOp,Rush Hour - ADE,2026-10-24,,intern,Regulier,Antal,antal,artist_source,2,artist_00041,Antal
+recH5ziE42yCuCbam,Coda - ADE,2026-10-25,progressieve techno,intern,Regulier,Andy Martin,andy martin,artist_source,1,artist_00038,Andy Martin
+recic6dd9iCltnM17,Chaos in the CBD: In Dust We Trust,2026-11-07,left field house & techno,intern,Regulier,Ryan Elliot,ryan elliot,artist_source,1,artist_00605,Ryan Elliot
+recGtQzK4WvyUuowB,DAX J all night long,2026-11-28,techno,intern,Regulier,DAX J,dax j,artist_source,1,artist_00167,DAX J
+recIuowGbTmalVR39,Antal b2b Hunee - All Night Long,2026-12-18,,intern,Regulier,Antal,antal,artist_source,1,artist_00041,Antal
+recIuowGbTmalVR39,Antal b2b Hunee - All Night Long,2026-12-18,,intern,Regulier,Hunee,hunee,artist_source,2,artist_00283,HUNEE
