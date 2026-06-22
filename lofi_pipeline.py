@@ -982,6 +982,7 @@ def render_booking_signals(
     vdf: pd.DataFrame,
     nl_score: int,
     ra_df: pd.DataFrame,
+    meta: dict | None = None,
 ) -> None:
     """Three booking signals: GROWTH (XGBoost) + SCENE + LOFI FIT → composite."""
     aid = profile.get("artist_id") or ""
@@ -995,8 +996,9 @@ def render_booking_signals(
     # SCENE SIGNAL
     scene_score, scene_bd = _compute_scene_signal(vdf, nl_score, ra_df)
 
-    # LOFI FIT
-    feel = _feel(profile) if hasattr(profile, "get") else {}
+    # LOFI FIT — lofi_feel lives in artists table, not artist_chartmetric_flat
+    feel_src = meta if (meta and meta.get("lofi_feel")) else profile
+    feel = _feel(feel_src) if hasattr(feel_src, "get") else {}
     lofi_score = feel.get("score") if feel else None
 
     # Composite (redistribute weight when a component is missing)
@@ -1764,7 +1766,7 @@ def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame) -> None
             rows.append({
                 "Type":     _MILESTONE_LABELS.get(str(r.get("event_type","")), str(r.get("event_type",""))),
                 "Date":     str(r.get("event_date") or ""),
-                "Source":   "RA (detected)",
+                "Source":   str(r.get("source") or "RA (detected)"),
                 "Stars":    "",
                 "Confirmed": "✓" if r.get("confirmed") else "",
             })
@@ -2307,6 +2309,9 @@ def _render_artist_by_id(artist_list: pd.DataFrame, selected: str) -> None:
     nl_score_result = compute_nl_score(ra_df, pf_data, nl_venues, ext)
 
     render_header(profile, meta, ext)
+    st.divider()
+    render_five_scores(profile, ts_data)
+    render_booking_signals(profile, ts_data, load_xgboost_predictions(), vdf, nl_score_result[0], ra_df, meta)
     st.divider()
     render_nl_signal(ext, pf_data, ra_df, nl_venues, nl_score_result)
     st.divider()
@@ -3411,8 +3416,9 @@ def _load_catalogue_data() -> pd.DataFrame:
         return result
 
     def _fetch_ra():
-        rows = sb.schema("tinder").table("ra_events").select("artist_id").execute().data or []
-        return dict(Counter(str(r["artist_id"]) for r in rows))
+        # Server-side count across both ra_events and artist_ra.events JSONB
+        rows = sb.schema("tinder").rpc("get_ra_event_counts", {}).execute().data or []
+        return {str(r["artist_id"]): int(r["event_count"]) for r in rows}
 
     with ThreadPoolExecutor(max_workers=4) as _pool:
         _fp = _pool.submit(_fetch_preds)
