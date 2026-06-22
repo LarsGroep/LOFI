@@ -2196,18 +2196,19 @@ def _render_dashboard(artist_list: pd.DataFrame) -> None:
 
     # ── Pipeline KPIs ───────────────────────────────────────────────────────
     kpis = _load_dashboard_kpis()
-    kc = st.columns(4)
-    kc[0].metric("Artiesten gevolgd", kpis.get("total", 0))
-    kc[1].metric("Kandidaten",        kpis.get("candidate", 0))
-    kc[2].metric("Accepted",          kpis.get("accepted", 0))
-    kc[3].metric("Geboekt",           kpis.get("booked", 0))
+    kc = st.columns(5)
+    kc[0].metric("Gevolgd",    kpis.get("total", 0))
+    kc[1].metric("Pending",    kpis.get("pending", 0))
+    kc[2].metric("Kandidaat",  kpis.get("candidate", 0))
+    kc[3].metric("Accepted",   kpis.get("accepted", 0))
+    kc[4].metric("Geboekt",    kpis.get("booked", 0))
 
     st.write("")
 
     # ── Sort / filter bar ───────────────────────────────────────────────────
     fc1, fc2, fc3, _ = st.columns([2, 2, 2, 4])
     sort_by      = fc1.selectbox("Sorteren", ["Score (hoog→laag)", "Groei 90d ↓", "Groei 30d ↓", "A → Z", "Shows ↓"], label_visibility="collapsed", key="cat_sort")
-    status_f     = fc2.selectbox("Status", ["Alle", "Kandidaat", "Accepted", "Geboekt"], label_visibility="collapsed", key="cat_status")
+    status_f     = fc2.selectbox("Status", ["Alle", "Pending", "Kandidaat", "Accepted", "Geboekt"], label_visibility="collapsed", key="cat_status")
     n_show       = fc3.select_slider("Artiesten", options=[24, 48, 96, 200], value=48, key="cat_n")
 
     # ── Load and filter data ─────────────────────────────────────────────────
@@ -2215,7 +2216,7 @@ def _render_dashboard(artist_list: pd.DataFrame) -> None:
     if df.empty:
         st.info("Geen data beschikbaar."); return
 
-    _STATUS_MAP = {"Kandidaat": "candidate", "Accepted": "accepted", "Geboekt": "booked"}
+    _STATUS_MAP = {"Pending": "pending", "Kandidaat": "candidate", "Accepted": "accepted", "Geboekt": "booked"}
     if status_f != "Alle":
         df = df[df["candidate_status"].fillna("").str.lower() == _STATUS_MAP.get(status_f, "")]
 
@@ -2971,7 +2972,7 @@ def _load_dashboard_kpis() -> dict:
     rows = sb.schema("tinder").table("artist_chartmetric_flat").select(
         "candidate_status"
     ).execute().data or []
-    counts: dict = {"total": len(rows), "candidate": 0, "accepted": 0, "booked": 0}
+    counts: dict = {"total": len(rows), "pending": 0, "candidate": 0, "accepted": 0, "booked": 0}
     for r in rows:
         s = (r.get("candidate_status") or "").lower()
         if s in counts:
