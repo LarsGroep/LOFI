@@ -2022,19 +2022,22 @@ def main() -> None:
     if st.sidebar.button("Vernieuwen"):
         st.cache_data.clear(); st.rerun()
 
-    page = st.sidebar.radio(
-        "Navigatie",
-        ["Artiest Profiel", "Genre Trends"],
-        label_visibility="collapsed",
-    )
+    # page = st.sidebar.radio(
+    #     "Navigatie",
+    #     ["Artiest Profiel", "Genre Trends"],
+    #     label_visibility="collapsed",
+    # )
 
     _sidebar_add_artist()
     _sidebar_scraper_status()
 
-    if page == "Artiest Profiel":
-        _page_artiest_profiel()
-    else:
-        _page_genre_trends()
+    _page_artiest_profiel()
+
+    # Genre Trends — commented out, not needed yet
+    # if page == "Artiest Profiel":
+    #     _page_artiest_profiel()
+    # else:
+    #     _page_genre_trends()
 
 
 if __name__ == "__main__":
