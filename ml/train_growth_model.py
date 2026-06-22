@@ -151,7 +151,8 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     for col in list(METRIC_MAP.values()):
         first = df.groupby("artist_name")[col].transform("first")
-        df[col] = np.where(first != 0, df[col] / first * 100, df[col])
+        safe_first = first.replace(0, np.nan)  # avoid ZeroDivisionError in np.where
+        df[col] = np.where(first != 0, df[col] / safe_first * 100, df[col])
     return df
 
 
@@ -350,11 +351,104 @@ def train(output_dir: Path) -> None:
     print(f"Metadata saved to {meta_path}")
 
 
+def infer_artist(artist_id: str, output_dir: Path) -> float | None:
+    """
+    Run inference for a single artist using the saved model and append/update predictions.csv.
+    Returns the predicted 90d growth %, or None if the model is missing or data insufficient.
+    """
+    if not _HAS_XGB:
+        return None
+
+    model_path = output_dir / "growth_predictor.json"
+    meta_path  = output_dir / "model_meta.json"
+    pred_path  = output_dir / "predictions.csv"
+
+    if not model_path.exists() or not meta_path.exists():
+        return None
+
+    with open(meta_path) as f:
+        meta = json.load(f)
+    feature_cols: list[str] = meta["feature_cols"]
+
+    model = XGBRegressor()
+    model.load_model(str(model_path))
+
+    # Fetch only this artist's data
+    name_rows = (
+        sb.schema("tinder").table("artists")
+        .select("id, name").eq("id", artist_id).execute().data or []
+    )
+    if not name_rows:
+        return None
+    name_map = {name_rows[0]["id"]: name_rows[0]["name"]}
+
+    cm_rows = (
+        sb.schema("tinder").table("artist_chartmetric")
+        .select("artist_id, cm_timeseries")
+        .eq("artist_id", artist_id).execute().data or []
+    )
+    if not cm_rows or not (cm_rows[0].get("cm_timeseries") or {}):
+        return None
+
+    df = _expand_timeseries(cm_rows, name_map)
+    if df.empty:
+        return None
+
+    df = _normalize(df)
+    df["audience_index"] = df[TARGET_COL]
+    df["target_growth"]  = np.nan  # unknown for new artist
+    df, _ = _build_features(df)
+    df = df.replace([np.inf, -np.inf], np.nan)
+
+    latest_raw = df.sort_values("date").tail(1).copy()
+    missing_pct = float(latest_raw[feature_cols].isna().mean(axis=1).iloc[0] * 100)
+    available   = int((~latest_raw[feature_cols].isna()).sum(axis=1).iloc[0])
+
+    # Build aligned feature matrix — fill any column gaps with 0
+    X = pd.DataFrame(0.0, index=[0], columns=feature_cols)
+    for col in feature_cols:
+        if col in latest_raw.columns:
+            X[col] = latest_raw[col].fillna(0).values[0]
+
+    pred = float(model.predict(X.values)[0])
+
+    new_row = {
+        "artist_name":          name_map[artist_id],
+        "artist_id":            artist_id,
+        "date":                 str(latest_raw["date"].iloc[0].date()),
+        "predicted_growth_90d": round(pred, 4),
+        "missing_pct":          round(missing_pct, 1),
+        "available_features":   available,
+        "total_features":       len(feature_cols),
+    }
+
+    if pred_path.exists():
+        preds_df = pd.read_csv(pred_path)
+        preds_df = preds_df[preds_df["artist_id"] != artist_id]
+        preds_df = pd.concat([preds_df, pd.DataFrame([new_row])], ignore_index=True)
+    else:
+        preds_df = pd.DataFrame([new_row])
+
+    preds_df = preds_df.sort_values("predicted_growth_90d", ascending=False).reset_index(drop=True)
+    preds_df.to_csv(pred_path, index=False)
+    return pred
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", default="ml/models")
+    parser.add_argument("--artist-id", help="Inference-only for a single artist (skips training)")
     args = parser.parse_args()
-    train(Path(args.output_dir))
+
+    output_dir = Path(args.output_dir)
+    if args.artist_id:
+        pred = infer_artist(args.artist_id, output_dir)
+        if pred is not None:
+            print(f"Predicted 90d growth: {pred:+.1f}%")
+        else:
+            print("Could not infer: model missing or insufficient timeseries data.")
+    else:
+        train(output_dir)
 
 
 if __name__ == "__main__":

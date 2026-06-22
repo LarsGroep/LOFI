@@ -18,6 +18,12 @@ load_dotenv()
 
 _ROOT = Path(__file__).parent
 
+try:
+    from scrapers.chartmetric_client import search_artist as _cm_search, is_configured as _cm_configured, _refresh_token as _cm_refresh
+    _HAS_CM_SEARCH = True
+except Exception:
+    _HAS_CM_SEARCH = False
+
 st.set_page_config(page_title="LOFI Booking Intelligence", layout="wide")
 
 # ---------------------------------------------------------------------------
@@ -1444,6 +1450,17 @@ def _unique_slug(base: str) -> str:
     return f"{base}-{_uuid.uuid4().hex[:6]}"
 
 
+def _fmt_listeners(n) -> str:
+    if n is None:
+        return "?"
+    n = int(n)
+    if n >= 1_000_000:
+        return f"{n/1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n/1_000:.0f}k"
+    return str(n)
+
+
 def render_add_artist(query: str) -> None:
     """Show the 'Add artist' panel when search has no results."""
     st.info(f"Geen artiest genaamd **{query}** gevonden in de database.")
@@ -1461,26 +1478,75 @@ def render_add_artist(query: str) -> None:
             key="add_artist_status",
         )
 
-        if st.button(f"Toevoegen & scrapen →  {query}", type="primary", key="add_artist_btn"):
-            _run_add_and_scrape(query, status_choice)
+        cand_key = f"cm_cands_{query}"
+        candidates = st.session_state.get(cand_key)  # None = not yet searched
+
+        # ── Phase 2: disambiguation radio (only when multiple candidates found) ──
+        selected_cm_id: int | None = None
+        if candidates is not None and len(candidates) > 1:
+            st.info("Meerdere artiesten gevonden op Chartmetric — kies de juiste:")
+            options = {
+                f"{c['name']}  —  {_fmt_listeners(c.get('sp_monthly_listeners'))} listeners  "
+                f"(CM {c.get('cm_artist_score', 0):.0f})": c["id"]
+                for c in candidates
+            }
+            choice = st.radio("Welke artiest bedoel je?", list(options.keys()), key="cm_candidate_choice")
+            selected_cm_id = options[choice]
+            st.caption(f"Chartmetric ID: `{selected_cm_id}`")
+            btn_label = f"Bevestig & scrapen →  {choice.split(' — ')[0].strip()}"
+        elif candidates is not None and len(candidates) == 1:
+            selected_cm_id = candidates[0]["id"]
+            btn_label = f"Toevoegen & scrapen →  {query}"
+        else:
+            btn_label = f"Toevoegen & scrapen →  {query}"
+
+        # ── Phase 1 / confirm button ──────────────────────────────────────────
+        if st.button(btn_label, type="primary", key="add_artist_btn"):
+            if candidates is None and _HAS_CM_SEARCH and _cm_configured():
+                # First click: search Chartmetric, rerender to show candidates
+                try:
+                    _cm_refresh()
+                    results = _cm_search(query, limit=8)
+                    st.session_state[cand_key] = results
+                    if len(results) > 1:
+                        st.rerun()
+                        return
+                    selected_cm_id = results[0]["id"] if results else None
+                except Exception as e:
+                    st.warning(f"CM zoeken mislukt: {e}")
+            # Either confirmed selection or CM not configured — proceed
+            _run_add_and_scrape(query, status_choice, chartmetric_id=selected_cm_id)
+            st.session_state.pop(cand_key, None)
 
 
-def _run_add_and_scrape(name: str, candidate_status: str) -> None:
-    # 1. Insert artist row
-    slug = _unique_slug(_make_slug(name))
-    try:
-        result = sb.schema("tinder").table("artists").insert({
+def _run_add_and_scrape(name: str, candidate_status: str, chartmetric_id: int | None = None) -> None:
+    # 1. Check for existing artist (case-insensitive) before inserting
+    existing = sb.schema("tinder").table("artists").select("id, name").ilike("name", name).execute().data or []
+    if existing:
+        artist_id = existing[0]["id"]
+        st.info(f"Artiest **{existing[0]['name']}** bestaat al — scrape opnieuw gestart voor `{artist_id}`")
+        sb.schema("tinder").table("artists").update({"needs_scraping": True}).eq("id", artist_id).execute()
+        if chartmetric_id and not existing[0].get("chartmetric_id"):
+            sb.schema("tinder").table("artists").update(
+                {"chartmetric_id": str(chartmetric_id)}
+            ).eq("id", artist_id).execute()
+    else:
+        slug = _unique_slug(_make_slug(name))
+        row: dict = {
             "name":             name,
             "slug":             slug,
             "candidate_status": candidate_status,
             "needs_scraping":   True,
-        }).execute()
-        artist_id = result.data[0]["id"]
-    except Exception as e:
-        st.error(f"Could not create artist record: {e}")
-        return
-
-    st.success(f"Artist created — `{artist_id}`")
+        }
+        if chartmetric_id:
+            row["chartmetric_id"] = str(chartmetric_id)
+        try:
+            result = sb.schema("tinder").table("artists").insert(row).execute()
+            artist_id = result.data[0]["id"]
+        except Exception as e:
+            st.error(f"Could not create artist record: {e}")
+            return
+        st.success(f"Artiest aangemaakt — `{artist_id}`")
 
     # 2. Run scrape_flagged.py --artist-id <uuid> as subprocess, stream output
     scraper = str(_ROOT / "scrapers" / "scrape_flagged.py")
@@ -1832,19 +1898,66 @@ def _sidebar_add_artist() -> None:
     st.sidebar.markdown("**Artiest toevoegen**")
     name = st.sidebar.text_input("Naam", key="sidebar_add_name", label_visibility="collapsed",
                                  placeholder="Artiestnaam…")
-    if name and st.sidebar.button("Toevoegen & scrapen", key="sidebar_add_btn", type="primary"):
-        slug = _unique_slug(_make_slug(name))
-        try:
-            result = sb.schema("tinder").table("artists").insert({
-                "name":             name,
-                "slug":             slug,
-                "candidate_status": "candidate",
-                "needs_scraping":   True,
-            }).execute()
-            artist_id = result.data[0]["id"]
-        except Exception as e:
-            st.sidebar.error(f"Fout: {e}")
-            return
+    if not name:
+        # Clear stale search state when field is emptied
+        for k in [k for k in st.session_state if k.startswith("sb_cm_cands_")]:
+            del st.session_state[k]
+        return
+
+    cand_key = f"sb_cm_cands_{name}"
+    candidates = st.session_state.get(cand_key)  # None = not yet searched
+
+    # ── Phase 2: disambiguation (multiple results) ────────────────────────────
+    selected_cm_id: int | None = None
+    if candidates is not None and len(candidates) > 1:
+        st.sidebar.info("Meerdere artiesten gevonden — kies:")
+        options = {
+            f"{c['name']}  ({_fmt_listeners(c.get('sp_monthly_listeners'))} lst)": c["id"]
+            for c in candidates
+        }
+        choice = st.sidebar.radio("Artiest:", list(options.keys()), key="sb_cm_choice")
+        selected_cm_id = options[choice]
+        btn_label = "Bevestig & scrapen"
+    elif candidates is not None and len(candidates) == 1:
+        selected_cm_id = candidates[0]["id"]
+        btn_label = "Toevoegen & scrapen"
+    else:
+        btn_label = "Toevoegen & scrapen"
+
+    if st.sidebar.button(btn_label, key="sidebar_add_btn", type="primary"):
+        if candidates is None and _HAS_CM_SEARCH and _cm_configured():
+            # First click: search CM, rerender to show disambiguation if needed
+            try:
+                _cm_refresh()
+                results = _cm_search(name, limit=6)
+                st.session_state[cand_key] = results
+                if len(results) > 1:
+                    st.rerun()
+                    return
+                selected_cm_id = results[0]["id"] if results else None
+            except Exception as e:
+                st.sidebar.warning(f"CM zoeken mislukt: {e}")
+
+        existing = sb.schema("tinder").table("artists").select("id, name, chartmetric_id").ilike("name", name).execute().data or []
+        if existing:
+            artist_id = existing[0]["id"]
+            st.sidebar.info(f"Bestaat al — scrape opnieuw voor {existing[0]['name']}")
+            sb.schema("tinder").table("artists").update({"needs_scraping": True}).eq("id", artist_id).execute()
+            if selected_cm_id and not existing[0].get("chartmetric_id"):
+                sb.schema("tinder").table("artists").update(
+                    {"chartmetric_id": str(selected_cm_id)}
+                ).eq("id", artist_id).execute()
+        else:
+            slug = _unique_slug(_make_slug(name))
+            row: dict = {"name": name, "slug": slug, "candidate_status": "candidate", "needs_scraping": True}
+            if selected_cm_id:
+                row["chartmetric_id"] = str(selected_cm_id)
+            try:
+                result = sb.schema("tinder").table("artists").insert(row).execute()
+                artist_id = result.data[0]["id"]
+            except Exception as e:
+                st.sidebar.error(f"Fout: {e}")
+                return
 
         scraper = str(_ROOT / "scrapers" / "scrape_flagged.py")
         with st.sidebar.status("Scrapen…", expanded=True) as sb_status:
@@ -1869,6 +1982,7 @@ def _sidebar_add_artist() -> None:
                 return
         _verify_scrape(artist_id, name)
         st.cache_data.clear()
+        st.session_state.pop(cand_key, None)
         st.session_state["pending_artist"] = name
         st.rerun()
 
