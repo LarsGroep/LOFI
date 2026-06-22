@@ -146,6 +146,24 @@ def load_ra_events(artist_id: str) -> pd.DataFrame:
     rows = sb.schema("tinder").table("ra_events").select(
         "date, title, event_url, venue, city, country, venue_capacity, lineup_size, lineup"
     ).eq("artist_id", artist_id).order("date", desc=True).execute().data or []
+
+    if not rows:
+        # Fall back to artist_ra.events JSONB — same structure, populated by scrape_flagged.py.
+        # ra_events is only filled by the nightly scrape_ra_events.py run, so new artists
+        # won't have rows there until the next evening.
+        ra = sb.schema("tinder").table("artist_ra").select("events").eq(
+            "artist_id", artist_id
+        ).maybe_single().execute()
+        fallback = ((ra.data or {}) if ra else {}).get("events") or []
+        if fallback:
+            for ev in fallback:
+                # Normalise field names to match ra_events columns
+                ev.setdefault("event_url", ev.pop("url", None))
+                ev.setdefault("venue_capacity", ev.pop("capacity", None))
+                ev.setdefault("lineup_size", len(ev.get("lineup") or []))
+                ev.setdefault("title", "")
+            rows = sorted(fallback, key=lambda e: e.get("date") or "", reverse=True)
+
     df = pd.DataFrame(rows) if rows else pd.DataFrame()
     if not df.empty and "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"]).dt.date
