@@ -2208,10 +2208,11 @@ def _render_dashboard(artist_list: pd.DataFrame) -> None:
     st.write("")
 
     # ── Sort / filter bar ───────────────────────────────────────────────────
-    fc1, fc2, fc3, _ = st.columns([2, 2, 2, 4])
+    fc1, fc2, fc3, fc4 = st.columns([2, 2, 2, 2])
     sort_by      = fc1.selectbox("Sorteren", ["Score (hoog→laag)", "Groei 90d ↓", "Groei 30d ↓", "A → Z", "Shows ↓"], label_visibility="collapsed", key="cat_sort")
     status_f     = fc2.selectbox("Status", ["Alle", "Pending", "Kandidaat", "Accepted", "Geboekt"], label_visibility="collapsed", key="cat_status")
     n_show       = fc3.select_slider("Artiesten", options=[24, 48, 96, 200], value=48, key="cat_n")
+    min_ra_f     = fc4.selectbox("RA events", ["10+", "5+", "1+", "Alle"], label_visibility="collapsed", key="cat_min_ra")
 
     # ── Load and filter data ─────────────────────────────────────────────────
     df = _load_catalogue_data()
@@ -2221,6 +2222,11 @@ def _render_dashboard(artist_list: pd.DataFrame) -> None:
     _STATUS_MAP = {"Pending": "pending", "Kandidaat": "candidate", "Accepted": "accepted", "Geboekt": "booked"}
     if status_f != "Alle":
         df = df[df["candidate_status"].fillna("").str.lower() == _STATUS_MAP.get(status_f, "")]
+
+    _RA_MIN_MAP = {"10+": 10, "5+": 5, "1+": 1, "Alle": 0}
+    min_ra = _RA_MIN_MAP.get(min_ra_f, 10)
+    if min_ra > 0:
+        df = df[df["ra_count"] >= min_ra]
 
     _SORT_MAP = {
         "Score (hoog→laag)": ("cm_artist_score",      False),
@@ -2618,130 +2624,151 @@ def _page_genre_trends() -> None:
     agg["avg_growth"] = agg["avg_growth"].fillna(0).round(1)
     agg["avg_listeners"] = agg["avg_listeners"].fillna(0)
     agg["Trend"] = agg["avg_growth"].apply(
-        lambda x: "🚀 Stijgend" if x >= 5 else ("⚖️ Stabiel" if x >= -5 else "📉 Dalend")
+        lambda x: "Stijgend" if x >= 5 else ("Stabiel" if x >= -5 else "Dalend")
     )
     agg = agg.sort_values("avg_growth", ascending=False)
 
     # --- KPI row ---
-    n_rising = int((agg["avg_growth"] >= 5).sum())
-    n_stable = int(((agg["avg_growth"] >= -5) & (agg["avg_growth"] < 5)).sum())
+    n_rising  = int((agg["avg_growth"] >= 5).sum())
+    n_stable  = int(((agg["avg_growth"] >= -5) & (agg["avg_growth"] < 5)).sum())
     n_falling = int((agg["avg_growth"] < -5).sum())
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     kpi1.metric("Genres gevolgd", len(agg))
-    kpi2.metric("🚀 Stijgend", n_rising)
-    kpi3.metric("⚖️ Stabiel", n_stable)
-    kpi4.metric("📉 Dalend", n_falling)
+    kpi2.metric("Stijgend", n_rising)
+    kpi3.metric("Stabiel",  n_stable)
+    kpi4.metric("Dalend",   n_falling)
 
-    # --- Momentum scatter — hero chart ---
-    st.subheader("Genre momentum")
+    st.divider()
 
-    # Guard: log scale requires positive listener values — replace zeros with a small floor
-    scatter_df = agg.copy()
-    scatter_df["avg_listeners"] = scatter_df["avg_listeners"].clip(lower=1)
+    # --- Two-column layout: scatter left, top-growth bar right ---
+    col_scatter, col_bars = st.columns([3, 2])
 
-    scatter = (
-        alt.Chart(scatter_df)
-        .mark_circle()
-        .encode(
+    with col_scatter:
+        st.subheader("Genre momentum")
+        st.caption("X = gemiddeld aantal Spotify-luisteraars (log), Y = verwachte groei 90d. Grootte = aantal gevolgde artiesten.")
+
+        scatter_df = agg.copy()
+        scatter_df["avg_listeners"] = scatter_df["avg_listeners"].clip(lower=1)
+
+        base = alt.Chart(scatter_df).encode(
             x=alt.X(
                 "avg_listeners:Q",
                 scale=alt.Scale(type="log"),
-                title="Gem. Spotify Luisteraars (log)",
+                title="Gem. Spotify Luisteraars (log-schaal)",
+                axis=alt.Axis(labelColor="#9ca3af", titleColor="#9ca3af", gridColor="#1f2937"),
             ),
-            y=alt.Y("avg_growth:Q", title="Verwachte groei 90d (%)"),
+            y=alt.Y(
+                "avg_growth:Q",
+                title="Verwachte groei 90d (%)",
+                axis=alt.Axis(labelColor="#9ca3af", titleColor="#9ca3af", gridColor="#1f2937"),
+            ),
+        )
+
+        scatter = base.mark_circle(opacity=0.85).encode(
             size=alt.Size(
                 "artist_count:Q",
-                scale=alt.Scale(range=[60, 600]),
-                title="Artiesten gevolgd",
+                scale=alt.Scale(range=[80, 700]),
+                legend=alt.Legend(title="Artiesten", labelColor="#9ca3af", titleColor="#9ca3af"),
             ),
             color=alt.Color(
                 "Trend:N",
                 scale=alt.Scale(
-                    domain=["🚀 Stijgend", "⚖️ Stabiel", "📉 Dalend"],
+                    domain=["Stijgend", "Stabiel", "Dalend"],
                     range=["#1DB954", "#6366F1", "#ef4444"],
                 ),
+                legend=alt.Legend(title="Trend", labelColor="#9ca3af", titleColor="#9ca3af"),
             ),
             tooltip=[
-                alt.Tooltip("genre:N", title="Genre"),
+                alt.Tooltip("genre:N",        title="Genre"),
                 alt.Tooltip("artist_count:Q", title="Artiesten"),
-                alt.Tooltip("avg_growth:Q", format=".1f", title="Groei (%)"),
-                alt.Tooltip("pct_growing:Q", format=".0f", title="% Groeiend"),
-                alt.Tooltip("avg_listeners:Q", format=".0f", title="Gem. Luisteraars"),
+                alt.Tooltip("avg_growth:Q",   format=".1f", title="Groei (%)"),
+                alt.Tooltip("pct_growing:Q",  format=".0f", title="% Groeiend"),
+                alt.Tooltip("avg_listeners:Q", format=",.0f", title="Gem. Luisteraars"),
             ],
         )
-        .properties(height=480)
-    )
 
-    text = (
-        alt.Chart(scatter_df)
-        .mark_text(dx=8, fontSize=10, color="#d1d5db")
-        .encode(
-            x=alt.X("avg_listeners:Q", scale=alt.Scale(type="log")),
-            y=alt.Y("avg_growth:Q"),
-            text=alt.Text("genre:N"),
+        labels = base.mark_text(
+            dx=10, dy=-4, fontSize=10, color="#d1d5db", align="left"
+        ).encode(text=alt.Text("genre:N"))
+
+        zero_line = (
+            alt.Chart(scatter_df)
+            .mark_rule(color="#4b5563", strokeDash=[5, 3], strokeWidth=1)
+            .encode(y=alt.datum(0))
         )
-    )
 
-    rule = (
-        alt.Chart(scatter_df)
-        .mark_rule(color="#6b7280", strokeDash=[4, 4])
-        .encode(y=alt.datum(0))
-    )
+        st.altair_chart(
+            alt.layer(zero_line, scatter, labels)
+            .properties(height=420)
+            .configure_view(strokeWidth=0, fill="#0e1117")
+            .configure(background="#0e1117")
+            .interactive(),
+            use_container_width=True,
+        )
 
-    st.altair_chart(
-        alt.layer(scatter, text, rule).interactive(),
-        use_container_width=True,
-    )
-
-    # --- Two-column bar charts ---
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Top 10 snelst groeiende genres")
-        top10 = agg.nlargest(10, "avg_growth")
+    with col_bars:
+        st.subheader("Snelst groeiend")
+        top12 = agg.nlargest(12, "avg_growth")
         bar_growth = (
-            alt.Chart(top10)
-            .mark_bar()
+            alt.Chart(top12)
+            .mark_bar(cornerRadiusTopRight=3, cornerRadiusBottomRight=3)
             .encode(
-                x=alt.X("avg_growth:Q", title="Groei (%)"),
-                y=alt.Y("genre:N", sort="-x", title=""),
+                x=alt.X(
+                    "avg_growth:Q",
+                    title="Groei (%)",
+                    axis=alt.Axis(labelColor="#9ca3af", titleColor="#9ca3af", gridColor="#1f2937"),
+                ),
+                y=alt.Y(
+                    "genre:N", sort="-x", title="",
+                    axis=alt.Axis(labelColor="#d1d5db", labelLimit=140),
+                ),
                 color=alt.condition(
                     alt.datum.avg_growth > 0,
                     alt.value("#1DB954"),
                     alt.value("#ef4444"),
                 ),
                 tooltip=[
-                    alt.Tooltip("genre:N", title="Genre"),
-                    alt.Tooltip("avg_growth:Q", format=".1f", title="Groei (%)"),
+                    alt.Tooltip("genre:N",        title="Genre"),
+                    alt.Tooltip("avg_growth:Q",   format=".1f", title="Groei (%)"),
                     alt.Tooltip("artist_count:Q", title="Artiesten"),
                 ],
             )
-            .properties(height=320)
+            .properties(height=200)
+            .configure_view(strokeWidth=0, fill="#0e1117")
+            .configure(background="#0e1117")
         )
         st.altair_chart(bar_growth, use_container_width=True)
 
-    with col2:
-        st.subheader("Top 10 grootste genres")
-        top10_count = agg.nlargest(10, "artist_count")
+        st.subheader("Grootste genres")
+        top12_count = agg.nlargest(12, "artist_count")
         bar_count = (
-            alt.Chart(top10_count)
-            .mark_bar()
+            alt.Chart(top12_count)
+            .mark_bar(cornerRadiusTopRight=3, cornerRadiusBottomRight=3)
             .encode(
-                x=alt.X("artist_count:Q", title="Artiesten"),
-                y=alt.Y("genre:N", sort="-x", title=""),
+                x=alt.X(
+                    "artist_count:Q",
+                    title="Artiesten",
+                    axis=alt.Axis(labelColor="#9ca3af", titleColor="#9ca3af", gridColor="#1f2937"),
+                ),
+                y=alt.Y(
+                    "genre:N", sort="-x", title="",
+                    axis=alt.Axis(labelColor="#d1d5db", labelLimit=140),
+                ),
                 color=alt.condition(
                     alt.datum.avg_growth > 0,
                     alt.value("#1DB954"),
                     alt.value("#6366F1"),
                 ),
                 tooltip=[
-                    alt.Tooltip("genre:N", title="Genre"),
+                    alt.Tooltip("genre:N",        title="Genre"),
                     alt.Tooltip("artist_count:Q", title="Artiesten"),
-                    alt.Tooltip("avg_growth:Q", format=".1f", title="Groei (%)"),
+                    alt.Tooltip("avg_growth:Q",   format=".1f", title="Groei (%)"),
                 ],
             )
-            .properties(height=320)
+            .properties(height=200)
+            .configure_view(strokeWidth=0, fill="#0e1117")
+            .configure(background="#0e1117")
         )
         st.altair_chart(bar_count, use_container_width=True)
 
@@ -3023,7 +3050,7 @@ def _load_upcoming_nl_events(limit: int = 30) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=1800)
-def _load_recent_milestones(days: int = 180, limit: int = 40) -> list[dict]:
+def _load_recent_milestones(days: int = 30, limit: int = 40) -> list[dict]:
     """Return recent validation_events sorted by priority + recency, with artist image."""
     since = (pd.Timestamp.now() - pd.Timedelta(days=days)).date().isoformat()
     rows = (
@@ -3106,76 +3133,59 @@ def _load_recent_milestones(days: int = 180, limit: int = 40) -> list[dict]:
 
 
 def _render_milestone_strip(milestones: list[dict]) -> None:
-    """Horizontal scrolling milestone banner — one chip per recent achievement."""
+    """Milestone row — up to 6 most recent, each column clickable to artist profile."""
     if not milestones:
         return
 
-    chips_html = []
-    for m in milestones:
-        name  = m["artist_name"]
-        label = m["label"]
-        color = m["color"]
-        date  = m["date"][5:] if len(m["date"]) == 10 else m["date"]  # MM-DD
-        venue = m["venue"]
-        img   = m["image_url"]
-
-        if img and isinstance(img, str) and img.startswith("http"):
-            avatar = f"<img src='{img}' style='width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid {color}44;'>"
-        else:
-            initial = name[0].upper() if name and name != "—" else "?"
-            avatar = (
-                f"<div style='width:36px;height:36px;border-radius:50%;background:#1e2130;"
-                f"display:flex;align-items:center;justify-content:center;"
-                f"font-size:0.9rem;color:{color};font-weight:700;flex-shrink:0;"
-                f"border:2px solid {color}44;'>{initial}</div>"
-            )
-
-        def _h(s: str) -> str:
-            return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&#39;")
-
-        name_h  = _h(name)
-        venue_h = _h(venue) if venue else ""
-        label_h = _h(label)
-
-        chips_html.append(f"""
-<div style='
-    display:flex;align-items:center;gap:0.5rem;
-    background:#16192a;
-    border:1px solid {color}33;
-    border-left:3px solid {color};
-    border-radius:8px;
-    padding:0.4rem 0.65rem;
-    min-width:190px;max-width:220px;
-    flex-shrink:0;
-'>
-  {avatar}
-  <div style='min-width:0;'>
-    <div style='font-weight:700;font-size:0.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;color:#f3f4f6'>{name_h}</div>
-    <div style='font-size:0.68rem;color:{color};font-weight:600;white-space:nowrap'>{label_h}</div>
-    <div style='font-size:0.6rem;color:#6b7280;white-space:nowrap'>{date}{(" · " + venue_h) if venue_h else ""}</div>
-  </div>
-</div>""")
-
-    strip_html = f"""
-<div style='
-    display:flex;
-    gap:0.6rem;
-    overflow-x:auto;
-    padding:0.5rem 0 0.6rem 0;
-    scrollbar-width:thin;
-    scrollbar-color:#6366F144 transparent;
-    -webkit-overflow-scrolling:touch;
-'>
-{"".join(chips_html)}
-</div>"""
+    def _esc(s: str) -> str:
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&#39;")
 
     st.markdown(
         "<div style='font-size:0.7rem;font-weight:700;letter-spacing:0.08em;"
-        "color:#6b7280;text-transform:uppercase;margin-bottom:0.25rem'>"
-        "Recente mijlpalen</div>",
+        "color:#6b7280;text-transform:uppercase;margin-bottom:0.4rem'>"
+        "Recente mijlpalen (afgelopen 30 dagen)</div>",
         unsafe_allow_html=True,
     )
-    st.markdown(strip_html, unsafe_allow_html=True)
+
+    items = milestones[:6]
+    cols  = st.columns(len(items))
+    for col, m in zip(cols, items):
+        name  = m["artist_name"]
+        label = m["label"]
+        color = m["color"]
+        date  = m["date"]
+        img   = m.get("image_url") or ""
+
+        safe_name = _esc(name)
+        initial   = name[0].upper() if name and name != "—" else "?"
+
+        if img and img.startswith("http"):
+            avatar_html = (
+                f"<img src='{img}' style='width:44px;height:44px;border-radius:50%;"
+                f"object-fit:cover;border:2px solid {color}66;display:block;margin:0 auto;'>"
+            )
+        else:
+            avatar_html = (
+                f"<div style='width:44px;height:44px;border-radius:50%;background:#1e2130;"
+                f"border:2px solid {color}66;margin:0 auto;"
+                f"font-size:1rem;color:{color};font-weight:700;"
+                f"line-height:44px;text-align:center;'>{initial}</div>"
+            )
+
+        with col:
+            st.markdown(
+                f"<div style='text-align:center;margin-bottom:0.2rem;'>{avatar_html}</div>"
+                f"<div style='font-size:0.6rem;font-weight:700;color:{color};"
+                f"text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'>"
+                f"{_esc(label)}</div>"
+                f"<div style='font-size:0.58rem;color:#6b7280;text-align:center;'>{date}</div>",
+                unsafe_allow_html=True,
+            )
+            btn_label = (safe_name[:16] + "…") if len(name) > 16 else safe_name
+            if st.button(btn_label, key=f"ms_{name}_{date}", use_container_width=True):
+                st.session_state["_pending_search"] = name
+                st.rerun()
+
     st.write("")
 
 
@@ -3365,7 +3375,7 @@ def _render_discovery_queue(items: list[dict]) -> None:
     if not items:
         return
 
-    with st.expander(f"🔍 Discovery queue — {len(items)} onbekende artiest{'en' if len(items) != 1 else ''} gevonden in trending video's", expanded=False):
+    with st.expander(f"Discovery queue — {len(items)} onbekende artiest{'en' if len(items) != 1 else ''} gevonden in trending video's", expanded=False):
         for item in items:
             ctx    = item.get("context") or {}
             source = item.get("source", "").replace("youtube_", "").replace("_", " ").title()
@@ -3725,7 +3735,7 @@ def _render_yt_card(row: dict) -> None:
     else:
         views_fmt = f"{views} views" if views else ""
 
-    vel_txt = f"· 🔥 {velocity:,.0f} v/u" if is_trending and velocity > 0 else (
+    vel_txt = f"· {velocity:,.0f} v/u TRENDING" if is_trending and velocity > 0 else (
               f"· {velocity:,.0f} v/u" if velocity > 0 else "")
 
     trending_html = (
