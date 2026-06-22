@@ -52,6 +52,17 @@ try:
 except ImportError:
     _HAS_HTTPX = False
 
+_HAS_PF_LIVE = False
+if _HAS_HTTPX:
+    try:
+        from scrapers.scrape_partyflock import (
+            _scrape_profile as _pf_scrape_profile,
+            _scrape_archive as _pf_scrape_archive,
+        )
+        _HAS_PF_LIVE = True
+    except Exception:
+        pass
+
 
 # ── Resident Advisor ──────────────────────────────────────────────────────────
 
@@ -373,8 +384,32 @@ def main() -> None:
                         ).eq("id", artist_id).execute()
                     except Exception as cm_id_e:
                         if "duplicate key" in str(cm_id_e):
-                            print(f"    CM: id {cm_id} already mapped to another artist — skipping CM data")
-                            cm_id = None
+                            # Another artist row already owns this chartmetric_id.
+                            # Copy their artist_chartmetric row to this artist_id so the
+                            # profile appears without a full re-scrape.
+                            print(f"    CM: id {cm_id} already mapped — copying existing CM data")
+                            try:
+                                owner = sb.schema("tinder").table("artists").select("id").eq(
+                                    "chartmetric_id", cm_id
+                                ).maybe_single().execute()
+                                if owner and owner.data:
+                                    src = sb.schema("tinder").table("artist_chartmetric").select("*").eq(
+                                        "artist_id", owner.data["id"]
+                                    ).maybe_single().execute()
+                                    if src and src.data:
+                                        copy_row = dict(src.data)
+                                        copy_row["artist_id"] = artist_id
+                                        copy_row["updated_at"] = datetime.now(timezone.utc).isoformat()
+                                        sb.schema("tinder").table("artist_chartmetric").upsert(
+                                            copy_row, on_conflict="artist_id"
+                                        ).execute()
+                                        ts = copy_row.get("cm_timeseries") or {}
+                                        genres_raw = copy_row.get("genres") or []
+                                        genres = genres_raw if isinstance(genres_raw, list) else []
+                                        print(f"    CM: copied from {owner.data['id']}")
+                            except Exception as copy_e:
+                                print(f"    CM: copy failed: {copy_e}")
+                            cm_id = None  # don't re-scrape, data already copied
                         else:
                             raise
 
@@ -518,11 +553,36 @@ def main() -> None:
 
             # ── Partyflock ───────────────────────────────────────────────────
             pf = _lookup_partyflock(name)
+            pf_extra: dict = {}
+
+            if not pf and _HAS_PF_LIVE:
+                # Offline JSONL miss — try live HTTP scrape (works locally, 403 in CI is expected)
+                try:
+                    with httpx.Client() as _pf_client:
+                        _prof = _pf_scrape_profile(_pf_client, name)
+                        if _prof:
+                            _evs: list = []
+                            if _prof.get("pf_artist_id"):
+                                _evs = _pf_scrape_archive(_pf_client, _prof["pf_artist_id"])
+                            pf = {
+                                "pf_artist_id": _prof.get("pf_artist_id"),
+                                "pf_fans":      _prof.get("pf_fans"),
+                                "events":       _evs,
+                            }
+                            pf_extra = {k: v for k, v in _prof.items()
+                                        if k not in ("pf_artist_id", "pf_fans") and v is not None}
+                            print(f"    PF live: {len(_evs)} events, fans={_prof.get('pf_fans')}")
+                        else:
+                            print(f"    PF live: not found")
+                except Exception as _pf_e:
+                    print(f"    PF live fallback error: {_pf_e}")
+
             if pf:
                 pf_row: dict = {
                     "artist_id":  artist_id,
                     "events":     pf["events"],
                     "updated_at": datetime.now(timezone.utc).isoformat(),
+                    **pf_extra,
                 }
                 if pf.get("pf_artist_id"):
                     pf_row["pf_artist_id"] = pf["pf_artist_id"]
@@ -560,6 +620,36 @@ def main() -> None:
                 "updated_at":   datetime.now(timezone.utc).isoformat(),
             }, on_conflict="artist_id").execute()
             print(f"    embed: ok")
+
+            # ── Milestone detection (from RA events just written) ─────────────
+            if ra:
+                try:
+                    from scrapers.detect_validation_events import _detect_from_ra_events
+                    milestones = _detect_from_ra_events(artist_id, name, ra["events"])
+                    for m in milestones:
+                        try:
+                            sb.schema("tinder").table("validation_events").upsert(
+                                {k: v for k, v in m.items() if v is not None},
+                                on_conflict="artist_id,event_type",
+                            ).execute()
+                        except Exception:
+                            pass
+                    if milestones:
+                        print(f"    milestones: {len(milestones)} detected "
+                              f"({', '.join(m['event_type'] for m in milestones[:3])})")
+                except Exception as _ms_e:
+                    print(f"    milestone detection: {_ms_e}")
+
+            # ── XGBoost inference (updates predictions.csv with new artist) ──
+            try:
+                from ml.train_growth_model import infer_artist
+                _pred = infer_artist(artist_id, _ROOT / "ml" / "models")
+                if _pred is not None:
+                    print(f"    XGBoost: predicted growth {_pred:+.1f}%")
+                else:
+                    print(f"    XGBoost: skipped (model not trained yet)")
+            except Exception as _xgb_e:
+                print(f"    XGBoost: {_xgb_e}")
 
             # ── Clear flag ───────────────────────────────────────────────────
             sb.schema("tinder").table("artists").update({
