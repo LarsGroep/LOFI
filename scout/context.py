@@ -26,10 +26,25 @@ def _predictions() -> dict:
     return load_predictions()
 
 
+def _trim_feedback(rows: list[dict] | None, limit: int = 10) -> list[dict]:
+    out = []
+    for r in (rows or [])[:limit]:
+        out.append({
+            "type": r.get("field_key") or r.get("feedback_type"),
+            "value": r.get("field_value"),
+            "note": r.get("notes"),
+            "date": r.get("created_at"),
+        })
+    return out
+
+
 def build_artist_view(artist_id: str, name: str, profile: dict,
-                      ml: dict | None) -> dict:
+                      ml: dict | None, booker_feedback: list[dict] | None = None) -> dict:
     """Allow-listed view of one artist for the LLM (data minimisation)."""
     scores = compute_five_scores(profile or {}, ml or {})
+    if booker_feedback is None:
+        from scout.feedback import load_feedback
+        booker_feedback = load_feedback(artist_id)
     return {
         "artist_id": artist_id,
         "name": name,
@@ -47,6 +62,8 @@ def build_artist_view(artist_id: str, name: str, profile: dict,
             "cm_artist_score": (profile or {}).get("cm_artist_score"),
             "cm_artist_rank": (profile or {}).get("cm_artist_rank"),
         },
+        # booker-in-the-loop — LOFI's most trustworthy, non-scrapeable signal
+        "booker_feedback": _trim_feedback(booker_feedback),
         # second world (Airtable) — [] until configured; gage-approved (option 1)
         "booking_history": load_booking_history(name),
         "comparables": load_comparables(name, profile or {}),
