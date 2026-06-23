@@ -248,6 +248,15 @@ def load_artist_list() -> pd.DataFrame:
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
+@st.cache_data(ttl=300)
+def _load_all_artist_names() -> list[dict]:
+    """All artists from the master table — includes artists with no chartmetric row yet."""
+    rows = sb.schema("tinder").table("artists").select(
+        "id, name"
+    ).order("name").limit(10000).execute().data or []
+    return [{"artist_id": r["id"], "artist_name": r["name"]} for r in rows]
+
+
 def _safe(r) -> dict:
     """Extract .data from a supabase maybe_single() result, guarding against None response."""
     return (r.data if r is not None else None) or {}
@@ -2300,8 +2309,8 @@ def _page_artiest_profiel() -> None:
     artist_list = load_artist_list()
     if artist_list.empty:
         st.warning("Geen artiestdata beschikbaar."); return
-
-    names = sorted(artist_list["artist_name"].dropna().unique().tolist())
+    all_names_rows = _load_all_artist_names()
+    names = sorted({r["artist_name"] for r in all_names_rows if r.get("artist_name")})
     query = st.text_input("Zoek artiest", placeholder="bijv. Estella Boersma")
     if not query:
         st.info("Typ een artiestnaam hierboven om te beginnen."); return
@@ -2331,8 +2340,16 @@ def _page_artiest_profiel() -> None:
 
 def _render_artist_by_id(artist_list: pd.DataFrame, selected: str) -> None:
     """Load and render the full artist profile for the selected artist name."""
-    artist_row = artist_list[artist_list["artist_name"] == selected].iloc[0]
-    artist_id  = str(artist_row["artist_id"])
+    match = artist_list[artist_list["artist_name"] == selected]
+    if not match.empty:
+        artist_id = str(match.iloc[0]["artist_id"])
+    else:
+        # Artist exists in master table but not in chartmetric view yet
+        all_rows = _load_all_artist_names()
+        id_map = {r["artist_name"]: r["artist_id"] for r in all_rows}
+        artist_id = id_map.get(selected)
+        if not artist_id:
+            st.error(f"Artiest '{selected}' niet gevonden."); return
 
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=7) as _pool:
@@ -2393,14 +2410,13 @@ def _page_overzicht() -> None:
     if pending_search:
         st.session_state["overzicht_search"] = pending_search
 
-    names = sorted(artist_list["artist_name"].dropna().unique().tolist())
+    # Name list for search comes from master artists table — includes every artist
+    # regardless of whether they have a chartmetric row yet.
+    all_names_rows = _load_all_artist_names()
+    names = sorted({r["artist_name"] for r in all_names_rows if r.get("artist_name")})
 
     # Search bar — CSS pins this as a fixed floating bar centered on the page
-    scol, rcol = st.columns([20, 1])
-    with rcol:
-        if st.button("↺", key="refresh_artist_list", help="Artiestlijst verversen"):
-            load_artist_list.clear()
-            st.rerun()
+    scol, = st.columns([1])
     with scol:
         query = st.text_input(
             "Artiest",
