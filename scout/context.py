@@ -8,6 +8,7 @@ Framework-agnostic (no Streamlit) so it can be unit-tested.
 """
 from __future__ import annotations
 
+import datetime as _dt
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -53,8 +54,90 @@ def _similar_artists(profile: dict, ext: dict) -> dict:
             "chartmetric": [n for n in cm_names if n][:25]}
 
 
+_NL_CITIES = {"amsterdam", "rotterdam", "utrecht", "eindhoven", "groningen",
+              "nijmegen", "haarlem", "tilburg", "arnhem", "maastricht",
+              "den haag", "the hague"}
+_NL_COUNTRIES = {"NL", "NETHERLANDS", "NEDERLAND", "BE", "BELGIUM"}
+
+
+def _iter_rows(df_or_list):
+    """Accept a pandas DataFrame or a list of dicts (keeps this testable)."""
+    if df_or_list is None:
+        return []
+    if hasattr(df_or_list, "iterrows"):
+        if getattr(df_or_list, "empty", False):
+            return []
+        return [row for _, row in df_or_list.iterrows()]
+    return list(df_or_list)
+
+
+def _is_nl(city, country) -> bool:
+    return (str(country or "").upper().strip() in _NL_COUNTRIES
+            or str(city or "").lower().strip() in _NL_CITIES)
+
+
+def _show_summary(ra_df, pf_data: dict | None) -> dict:
+    """Live-performance history — the signal that identifies DJ-led artists and
+    NL/Amsterdam draw, from RA events + Partyflock."""
+    pf = pf_data or {}
+    rows = _iter_rows(ra_df)
+    summary = {
+        "ra_events_loaded": len(rows),
+        "pf_past_performances": pf.get("pf_past_performances"),
+        "pf_upcoming_performances": pf.get("pf_upcoming_performances"),
+        "pf_total_performances": pf.get("pf_total_performances"),
+    }
+    if not rows:
+        return summary
+    today = _dt.date.today().isoformat()
+    past = upcoming = nl = ams = 0
+    recent = []
+    for row in rows:
+        d = row.get("date")
+        ds = d.isoformat() if isinstance(d, _dt.date) else str(d or "")[:10]
+        if ds and ds >= today:
+            upcoming += 1
+        else:
+            past += 1
+        city, country, venue = row.get("city"), row.get("country"), row.get("venue")
+        if _is_nl(city, country):
+            nl += 1
+            if "amsterdam" in str(city or "").lower():
+                ams += 1
+        if len(recent) < 8 and venue:
+            recent.append(f"{venue}" + (f" ({city})" if city else ""))
+    summary.update({
+        "ra_past_shows": past, "ra_upcoming_shows": upcoming,
+        "ra_nl_shows": nl, "ra_amsterdam_shows": ams,
+        "recent_venues": recent,
+    })
+    return summary
+
+
+def _nl_signal(nl_score, pf_data: dict | None) -> dict:
+    pf = pf_data or {}
+    return {
+        "nl_audience_score": nl_score,         # 0-100, computed by the dashboard
+        "partyflock_fans": pf.get("pf_fans"),  # NL-platform following
+    }
+
+
+def _milestones(vdf, limit: int = 8) -> list[dict]:
+    out = []
+    for r in _iter_rows(vdf)[:limit]:
+        out.append({
+            "type": r.get("event_type"),
+            "date": str(r.get("event_date") or ""),
+            "confirmed": r.get("confirmed"),
+            "details": r.get("details"),
+        })
+    return out
+
+
 def build_artist_view(artist_id: str, name: str, profile: dict,
                       ml: dict | None, ext: dict | None = None,
+                      ra_df=None, pf_data: dict | None = None, vdf=None,
+                      nl_score=None,
                       booker_feedback: list[dict] | None = None) -> dict:
     """Allow-listed view of one artist for the LLM (data minimisation)."""
     scores = compute_five_scores(profile or {}, ml or {})
@@ -82,6 +165,10 @@ def build_artist_view(artist_id: str, name: str, profile: dict,
         "booker_feedback": _trim_feedback(booker_feedback),
         # scene adjacency we already load (Last.fm + Chartmetric) — grounds comparables
         "similar_artists": _similar_artists(profile or {}, ext or {}),
+        # live-performance history — identifies DJ-led artists + NL/Amsterdam draw
+        "show_history": _show_summary(ra_df, pf_data),
+        "nl_signal": _nl_signal(nl_score, pf_data),
+        "milestones": _milestones(vdf),
         # second world (Airtable) — [] until configured; gage-approved (option 1)
         "booking_history": load_booking_history(name),
         "comparables": load_comparables(name, profile or {}),

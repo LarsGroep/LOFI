@@ -169,6 +169,10 @@ def _chat_system(artist_view: dict) -> str:
         "word-of-mouth, live reputation — digital metrics UNDERESTIMATE them. "
         "Never write off a DJ-led artist for low Spotify or few releases; weight "
         "shows, venues and scene signals instead.",
+        "Use `show_history` (RA + Partyflock show counts, recent venues) and "
+        "`nl_signal` (NL audience score, Partyflock fans) to make this call: many "
+        "shows and strong venue / Partyflock presence with modest Spotify = "
+        "DJ-led.",
         "",
         "How to reason:",
         "- Ground every claim in the provided data and name the signal it rests "
@@ -183,6 +187,9 @@ def _chat_system(artist_view: dict) -> str:
         "benchmarking. Never invent names you were not given.",
         "- Weight qualitative booker feedback highly (real-world > scraped) when "
         "it is present.",
+        "- Use `show_history`, `nl_signal` and `milestones` as live-history "
+        "evidence for draw, NL/Amsterdam demand, and trajectory — these are facts "
+        "you have, not ticket predictions.",
         "",
         "Honesty (critical — the team does not fully trust the data yet):",
         "- NEVER invent ticket numbers, gages, comparable names, or facts. If you "
@@ -199,7 +206,9 @@ def _chat_system(artist_view: dict) -> str:
         lines.append(
             "- NOTE: No LOFI booking data (Airtable) is connected yet, so you "
             "cannot give gage indications, ticket predictions, or claims about "
-            "past LOFI bookings. Say that explicitly when asked.")
+            "past LOFI bookings — say that when asked. You CAN still speak to "
+            "live draw and NL/Amsterdam demand from `show_history` and "
+            "`nl_signal`.")
     lines += ["", _taxonomy_block(),
               "", "Artist data (JSON):",
               json.dumps(artist_view, ensure_ascii=False)]

@@ -67,7 +67,9 @@ def _feedback_intake(artist_id: str, name: str, feedback_count: int) -> None:
 
 
 def render_artist_chat(artist_id: str, name: str, profile: dict,
-                       ml: dict | None, ext: dict | None = None) -> None:
+                       ml: dict | None, ext: dict | None = None,
+                       ra_df=None, pf_data: dict | None = None, vdf=None,
+                       nl_score=None) -> None:
     st.divider()
     st.subheader("AI assistant")
 
@@ -81,7 +83,8 @@ def render_artist_chat(artist_id: str, name: str, profile: dict,
 
     feedback = _cached_feedback(artist_id)
     view = build_artist_view(artist_id, name, profile, ml, ext=ext,
-                             booker_feedback=feedback)
+                             ra_df=ra_df, pf_data=pf_data, vdf=vdf,
+                             nl_score=nl_score, booker_feedback=feedback)
     if not view["booking_history"] and not view["comparables"]:
         st.caption("Airtable booking data not connected yet — I can't answer "
                    "fee/ticket questions.")
