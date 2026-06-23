@@ -30,7 +30,7 @@ MODEL = os.environ.get("LOFI_LLM_MODEL", "claude-opus-4-8")
 # "us" = deterministic US (1.1x), cleaner to document for SCCs than "global".
 INFERENCE_GEO = os.environ.get("LOFI_LLM_INFERENCE_GEO", "us")
 MAX_TOKENS = 8000
-LANG = os.environ.get("LOFI_LLM_LANG", "nl")  # "nl" | "en" (stakeholders want EN)
+LANG = os.environ.get("LOFI_LLM_LANG", "en")  # "en" | "nl"
 
 
 def _lang_line() -> str:
@@ -267,14 +267,77 @@ def generate_rationales(candidates: list[dict]) -> dict[str, dict]:
     }
 
 
+# ── Booker-in-the-loop: structure free-text feedback ─────────────────────────
+
+_FEEDBACK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "category": {"type": "string",
+                     "enum": ["performance", "correction", "intelligence", "other"]},
+        "field_key": {"type": "string"},
+        "field_value": {"type": "string"},
+        "event_ref": {"type": "string"},
+        "summary": {"type": "string"},
+    },
+    "required": ["category", "field_key", "field_value", "event_ref", "summary"],
+    "additionalProperties": False,
+}
+
+_FEEDBACK_SYSTEM = "\n".join([
+    "You structure a LOFI booker's free-text feedback about an artist into one "
+    "record. Classify the category:",
+    "- performance: real-world results (tickets sold, crowd response, sold out, "
+    "room emptied, support over/under-delivered).",
+    "- correction: the model/data is wrong (similar artists off, momentum too "
+    "high, LOFI fit wrong, wrong Chartmetric profile).",
+    "- intelligence: forward-looking, non-scrapeable industry info (upcoming "
+    "release, agency switch, collab, festival booking).",
+    "- other: anything else.",
+    "field_key: a short snake_case slug (e.g. ticket_sales, crowd_response, "
+    "agency_switch, momentum_too_high).",
+    "field_value: the key extracted value, concise (e.g. '300 @ BRET', "
+    "'switching to WME', 'too high').",
+    "event_ref: the venue/event/date if mentioned, else an empty string.",
+    "summary: one clean sentence capturing the feedback.",
+    "Extract only what is stated; never invent details.",
+])
+
+
+def _fallback_feedback(raw_text: str) -> dict:
+    return {"category": "other", "field_key": "booker_note",
+            "field_value": raw_text.strip()[:120], "event_ref": "",
+            "summary": raw_text.strip()}
+
+
+def structure_feedback(raw_text: str) -> dict:
+    """Classify + extract a booker's note. MOCK mode (or refusal) stores it as a
+    plain note so capture always works; LIVE mode adds structure."""
+    if not is_live():
+        return _fallback_feedback(raw_text)
+    resp = _create(
+        max_tokens=1000,
+        system=_FEEDBACK_SYSTEM,
+        output_config={"format": {"type": "json_schema",
+                                  "schema": _FEEDBACK_SCHEMA}},
+        messages=[{"role": "user", "content": raw_text}],
+    )
+    if getattr(resp, "stop_reason", None) == "refusal":
+        return _fallback_feedback(raw_text)
+    text = next((b.text for b in resp.content if b.type == "text"), "")
+    try:
+        return json.loads(text)
+    except Exception:
+        return _fallback_feedback(raw_text)
+
+
 # ── Per-artist chat (streaming) ──────────────────────────────────────────────
 
 def chat_stream(artist_view: dict, history: list[dict], user_msg: str):
     """Yields text chunks. MOCK mode yields a clearly-labelled placeholder."""
     if not is_live():
-        yield ("[Voorbeeldmodus] De AI-assistent staat nog uit. Zodra Claude is "
-               "ingeschakeld beantwoord ik hier je vraag over "
-               f"{artist_view.get('name', 'deze artiest')}.")
+        yield ("[Preview mode] The AI assistant is off. Once Claude is enabled "
+               "I'll answer your question about "
+               f"{artist_view.get('name', 'this artist')} here.")
         return
 
     client = _client()
