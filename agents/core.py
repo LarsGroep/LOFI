@@ -132,16 +132,40 @@ _SCOUT_SYSTEM = (
 
 
 def _chat_system(artist_view: dict) -> str:
-    return (
-        "Je bent de artiest-assistent van LOFI (tech-house/house boekingen). "
-        "Beantwoord vragen over UITSLUITEND deze ene artiest, in helder Nederlands, "
-        "voor een niet-technisch boekingsteam. Vergelijk met de referentie-"
-        "artiesten waar nuttig, geef een onderbouwd boekingsoordeel, en zeg het "
-        "eerlijk als je iets niet uit de data kunt afleiden.\n\n"
-        + _taxonomy_block()
-        + "\n\nGegevens van deze artiest (JSON):\n"
-        + json.dumps(artist_view, ensure_ascii=False)
-    )
+    has_bookings = bool(artist_view.get("booking_history")
+                        or artist_view.get("comparables"))
+    lines = [
+        "Je bent de artiest-adviseur van LOFI, een boekingsbureau voor tech-house "
+        "en house. Je helpt het (niet-technische) boekingsteam beslissen over "
+        "ÉÉN artiest, in helder en bondig Nederlands.",
+        "",
+        "Waar je mee helpt:",
+        "- Een onderbouwd boekingsoordeel (ja / nee / twijfel) op basis van "
+        "genre-fit, groei, momentum, potentieel, forecast en datadekking.",
+        "- Uitleggen waarom een artiest groeit of juist afvlakt, in gewone taal.",
+        "- Vergelijken met de referentie-artiesten en met eerdere LOFI-boekingen.",
+        "- Een realistische gage-indicatie geven op basis van vergelijkbare "
+        "eerdere boekingen — alleen als die boekingsdata is meegegeven.",
+        "- Risico's benoemen (dalende forecast, weinig data, genre buiten profiel).",
+        "- Een korte interne notitie of pitch schrijven.",
+        "",
+        "Regels:",
+        "- Gebruik UITSLUITEND de aangeleverde gegevens; verzin geen cijfers, "
+        "gages of boekingen.",
+        "- Noem kort waar een claim op rust (welke score, metric of boeking).",
+        "- Wees eerlijk over onzekerheid en ontbrekende data.",
+        "- Een hoge groei-score met een negatieve forecast is een tegenstrijdig "
+        "signaal — benoem dat in plaats van het te negeren.",
+    ]
+    if not has_bookings:
+        lines.append(
+            "- LET OP: er is nog GEEN LOFI-boekingsdata (Airtable) gekoppeld. "
+            "Geef dus geen gage-bedragen of uitspraken over eerdere boekingen; "
+            "zeg dat die data nog niet beschikbaar is.")
+    lines += ["", _taxonomy_block(),
+              "", "Gegevens van deze artiest (JSON):",
+              json.dumps(artist_view, ensure_ascii=False)]
+    return "\n".join(lines)
 
 
 # ── Scout rationales (structured output) ─────────────────────────────────────

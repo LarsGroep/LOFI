@@ -1574,6 +1574,9 @@ def _page_artiest_profiel() -> None:
     render_growth_forecast(profile, ts_data)
     render_feedback_form(artist_id, selected)
 
+    from scout.chat import render_artist_chat
+    render_artist_chat(artist_id, selected, profile, ts_data.get("ml_features") or {})
+
 
 @st.cache_data(ttl=1800)
 def _load_genre_cluster_data() -> pd.DataFrame:
