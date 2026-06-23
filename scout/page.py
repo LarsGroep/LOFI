@@ -163,6 +163,9 @@ def render_scout_page() -> None:
         ["Scout-score", "Groei", "Potentieel", "Momentum", "Forecast"],
     )
     query = f[3].text_input("Zoek artiest", placeholder="naam…")
+    core_only = st.checkbox(
+        "Alleen kerngenres (tech house / house e.d.)", value=False,
+        help="Toon alleen artiesten met een kern- of aanverwant genre")
 
     sort_map = {
         "Scout-score": "rank", "Groei": "growth", "Potentieel": "future_potential",
@@ -171,7 +174,7 @@ def render_scout_page() -> None:
     ranked = rank_candidates(
         candidates, taxonomy,
         genres=sel_genres, min_confidence=float(min_conf),
-        query=query, sort_by=sort_map[sort_label],
+        query=query, core_only=core_only, sort_by=sort_map[sort_label],
     )
 
     if not ranked:
@@ -217,16 +220,14 @@ def render_scout_page() -> None:
         on_select="rerun",
         selection_mode="single-row",
         key="scout_table",
-        column_order=["Artiest", "Score", "Groei", "Potentieel", "Momentum",
-                      "Marktpositie", "Data", "Forecast", "Genres", "Waarom"],
+        column_order=["Artiest", "Score", "Groei", "Potentieel",
+                      "Forecast", "Genres", "Waarom"],
         column_config={
-            "Artiest": st.column_config.TextColumn(width="medium"),
+            "Artiest": st.column_config.TextColumn("Artiest", width="medium",
+                                                   pinned=True),
             "Score": prog("Scout-score"),
             "Groei": prog("Groei"),
             "Potentieel": prog("Potentieel"),
-            "Momentum": prog("Momentum"),
-            "Marktpositie": prog("Marktpositie"),
-            "Data": prog("Data"),
             "Forecast": st.column_config.NumberColumn("Forecast 90d", format="%.0f%%"),
             "Genres": st.column_config.TextColumn(width="medium"),
             "Waarom": st.column_config.TextColumn("Waarom", width="large"),
