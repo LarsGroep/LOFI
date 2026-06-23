@@ -120,7 +120,7 @@ st.markdown("""
     }
 
     /* Hide the label of the overzicht search input (it's collapsed already, but belt+braces) */
-    [data-testid="stTextInput"]:has(input[placeholder="Zoek artiest..."]) label {
+    [data-testid="stTextInput"]:has(input[placeholder="Search artist..."]) label {
         display: none !important;
     }
 
@@ -130,7 +130,7 @@ st.markdown("""
     }
 
     /* Fixed centered search bar — pinned below Streamlit's own header */
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Zoek artiest..."]) {
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Search artist..."]) {
         position: fixed !important;
         top: 2.9rem !important;
         left: 50% !important;
@@ -148,14 +148,14 @@ st.markdown("""
     }
 
     /* Override Streamlit's columns gap inside the fixed bar */
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Zoek artiest..."]) > div {
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Search artist..."]) > div {
         flex: 1 !important;
         width: 100% !important;
         min-width: 0 !important;
     }
 
     /* Style the input itself */
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Zoek artiest..."]) input {
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Search artist..."]) input {
         font-size: 0.92rem !important;
         height: 2.2rem !important;
         background: transparent !important;
@@ -164,13 +164,13 @@ st.markdown("""
         box-shadow: none !important;
         padding: 0.3rem 0.5rem !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Zoek artiest..."]) input:focus {
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Search artist..."]) input:focus {
         box-shadow: none !important;
         border: none !important;
     }
 
     /* Remove the border Streamlit draws around the text input wrapper inside the bar */
-    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Zoek artiest..."]) [data-testid="stTextInput"] > div {
+    div[data-testid="stHorizontalBlock"]:has(input[placeholder="Search artist..."]) [data-testid="stTextInput"] > div {
         border: none !important;
         box-shadow: none !important;
         background: transparent !important;
@@ -756,8 +756,8 @@ def render_header(profile: dict, meta: dict, ext: dict) -> None:
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     cms = profile.get("cm_artist_score")
     c1.metric("CM Score",     f"{float(cms):.1f}" if cms is not None else "-")
-    c2.metric("CM Rang",      _fmt(profile.get("cm_artist_rank")))
-    c3.metric("SP Luisteraars", _fmt(profile.get("spotify_listeners")))
+    c2.metric("CM Rank",      _fmt(profile.get("cm_artist_rank")))
+    c3.metric("SP Listeners", _fmt(profile.get("spotify_listeners")))
     c4.metric("Instagram",    _fmt(profile.get("instagram_followers")))
     c5.metric("TikTok",       _fmt(profile.get("tiktok_followers")))
     c6.metric("Last.fm",      _fmt(profile.get("lfm_listeners")))
@@ -774,7 +774,7 @@ def render_nl_signal(
     nl_venues: list[dict],
     nl_score_result: tuple[int, dict] | None = None,
 ) -> None:
-    st.subheader("NL / Amsterdam Publiek")
+    st.subheader("NL / Amsterdam Audience")
 
     ig     = ext.get("instagram_audience") or {}
     tk     = ext.get("tiktok_audience") or {}
@@ -805,23 +805,23 @@ def render_nl_signal(
     )
     row1[0].markdown(f":{nc}[{'▓' * max(1, composite_nl // 20)}]")
     row1[1].metric(
-        "Ams. events",
+        "Amsterdam events",
         str(nl_bd["ams_event_count"]),
         help="Unieke datums met Amsterdam-event (RA + PF gecombineerd)",
     )
     row1[2].metric(
-        "NL events totaal",
+        "Total NL events",
         str(nl_bd["nl_event_count"]),
-        help="Alle NL/BE events (RA + PF, gededupliceerd op datum)",
+        help="All NL/BE events (RA + PF, gededupliceerd op datum)",
     )
     row1[3].metric(
         "NL Instagram %",
-        f"{nl_ig:.1f}%" if nl_ig is not None else "geen data",
+        f"{nl_ig:.1f}%" if nl_ig is not None else "no data",
         help="% Instagram volgers uit Nederland",
     )
     row1[4].metric(
         "NL TikTok %",
-        f"{nl_tk:.1f}%" if nl_tk is not None else "geen data",
+        f"{nl_tk:.1f}%" if nl_tk is not None else "no data",
     )
     if ams_ig:
         pct_val = float(ams_ig.get("percent") or 0)
@@ -835,7 +835,7 @@ def render_nl_signal(
 
     if not nl_bd["has_demographics"]:
         st.caption(
-            "Social demographics niet beschikbaar — NL-score gebaseerd op venue-aanwezigheid. "
+            "Social demographics unavailable — NL score based on venue presence. "
             "Demographics verschijnen na `scrape_cm_extended`."
         )
 
@@ -913,8 +913,8 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
     bd = scores.get("breakdown") or {}
 
     score_defs = [
-        ("momentum",         "Momentum",      "Groeit de buzz nu?"),
-        ("growth",           "Groei",         "Gaat de groei omhoog?"),
+        ("momentum",         "Momentum",      "Growtht de buzz nu?"),
+        ("growth",           "Growth",         "Gaat de groei omhoog?"),
         ("market_relevance", "Marktpositie",  "Hoe groot is de artiest?"),
         ("future_potential", "Potentieel",    "Waar gaat dit naartoe?"),
         ("confidence",       "Data",          "Hoeveel data hebben we?"),
@@ -945,7 +945,7 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
 
         def _pct_line(v, label):
             if v is None:
-                return f"- {label}: *geen data*"
+                return f"- {label}: *no data*"
             arrow = "omhoog" if v > 0 else "omlaag"
             return f"- {label}: **{v:+.1f}%** ({arrow})"
 
@@ -954,12 +954,12 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
         if xpm is not None:
             st.markdown(f"- Over alle platforms: **{xpm:+.1f}%**")
         if plat_g is not None:
-            st.markdown(f"- Groeit op **{int(plat_g)} van 5** platforms")
+            st.markdown(f"- Growtht op **{int(plat_g)} van 5** platforms")
 
-        st.markdown("**Groei — gaat het sneller of langzamer?**")
+        st.markdown("**Growth — gaat het sneller of langzamer?**")
         if accel is not None:
             direction = "sneller" if accel > 0 else "langzamer"
-            st.markdown(f"- Groei gaat **{direction}** (versnelling: {accel:+.1f}%)")
+            st.markdown(f"- Growth gaat **{direction}** (versnelling: {accel:+.1f}%)")
         st.markdown(_pct_line(sp30, "Spotify trend 30 dagen"))
         st.markdown(_pct_line(sp90, "Spotify trend 90 dagen"))
 
@@ -1033,10 +1033,10 @@ def render_booking_signals(
     low_conf = missing_pct is not None and missing_pct > 40
 
     booking_label = (
-        "Boeken" if (composite or 0) >= 65 else
-        "Veelbelovend" if (composite or 0) >= 45 else
-        "Twijfelachtig" if (composite or 0) >= 30 else
-        "Niet aanbevolen"
+        "Book" if (composite or 0) >= 65 else
+        "Promising" if (composite or 0) >= 45 else
+        "Uncertain" if (composite or 0) >= 30 else
+        "Not recommended"
     )
     # Indigo palette — no traffic light colors
     verdict_color = (
@@ -1046,7 +1046,7 @@ def render_booking_signals(
         "#334155"                                    # slate-700
     )
 
-    st.subheader("Booking Signalen")
+    st.subheader("Booking Signals")
 
     # Left: signal bar chart  |  Right: verdict card
     chart_col, verdict_col = st.columns([3, 1])
@@ -1055,7 +1055,7 @@ def render_booking_signals(
         signals = [
             {"Signaal": "LOFI Fit",      "Score": float(lofi_score   or 0), "Gewicht": "25%",  "Missing": lofi_score   is None},
             {"Signaal": "Scene",         "Score": float(scene_score  or 0), "Gewicht": "35%",  "Missing": False},
-            {"Signaal": "Groei (XGB)",   "Score": float(growth_score or 0), "Gewicht": "40%",  "Missing": growth_score is None},
+            {"Signaal": "Growth (XGB)",   "Score": float(growth_score or 0), "Gewicht": "40%",  "Missing": growth_score is None},
         ]
         df_sig = pd.DataFrame(signals)
 
@@ -1089,7 +1089,7 @@ def render_booking_signals(
                 y=alt.Y("Signaal:N", sort=None),
                 text=alt.condition(
                     alt.datum.Missing,
-                    alt.value("geen data"),
+                    alt.value("no data"),
                     alt.Text("Score:Q", format=".0f"),
                 ),
             )
@@ -1100,7 +1100,7 @@ def render_booking_signals(
         ).configure_axis(domainColor="#1e293b", gridColor="#1e293b")
 
         if low_conf:
-            st.caption(f"Lage data-betrouwbaarheid — {missing_pct:.0f}% XGBoost features ontbreken")
+            st.caption(f"Low data reliability — {missing_pct:.0f}% XGBoost features ontbreken")
         st.altair_chart(sig_chart, use_container_width=True)
 
         # Scene sub-caption
@@ -1111,7 +1111,7 @@ def render_booking_signals(
         st.caption("Scene: " + "  ·  ".join(scene_hints))
 
         if pred is not None:
-            st.caption(f"Groei: verwachte CPP verandering {pred:+.0f}% (90 dagen)")
+            st.caption(f"Growth: verwachte CPP verandering {pred:+.0f}% (90 dagen)")
 
     with verdict_col:
         score_display = f"{composite}/100" if composite is not None else "—"
@@ -1120,7 +1120,7 @@ def render_booking_signals(
             f"border:2px solid {verdict_color};border-radius:10px;'>"
             f"<div style='font-size:2rem;font-weight:700;color:{verdict_color};'>"
             f"{score_display}</div>"
-            f"<div style='font-size:0.85rem;color:#94a3b8;margin-top:0.2rem;'>composiet</div>"
+            f"<div style='font-size:0.85rem;color:#94a3b8;margin-top:0.2rem;'>composite</div>"
             f"<div style='font-size:1.1rem;font-weight:600;color:{verdict_color};"
             f"margin-top:0.5rem;'>{booking_label}</div>"
             f"</div>",
@@ -1128,9 +1128,9 @@ def render_booking_signals(
         )
 
     lofi_matched = feel.get("matched") or [] if feel else []
-    with st.expander("Signaal breakdown"):
+    with st.expander("Signal breakdown"):
         st.markdown(
-            f"**Groei (40%):** {growth_score}/100"
+            f"**Growth (40%):** {growth_score}/100"
             + (f" — {pred:+.0f}% CPP groei" if pred is not None else " — geen model data")
         )
         st.markdown(
@@ -1197,18 +1197,18 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
     meta_path  = _ROOT / "ml" / "models" / "model_meta.json"
     pred_path  = _ROOT / "ml" / "models" / "predictions.csv"
 
-    st.subheader("Wat verwachten we?")
+    st.subheader("What do we expect?")
 
     aid = profile.get("artist_id") or ""
 
     # Train button and per-artist re-inference button — always shown
     train_col, infer_col, _ = st.columns([3, 3, 2])
     with train_col:
-        btn_label = "Model opnieuw trainen" if model_path.exists() else "Model trainen"
+        btn_label = "Retrain model" if model_path.exists() else "Train model"
         if st.button(btn_label, key="train_xgb",
                      help="Traint op alle artiesten in de database — duurt ~2 minuten"):
             trainer = str(_ROOT / "ml" / "train_growth_model.py")
-            with st.status("Model trainen...", expanded=True) as status_box:
+            with st.status("Train model...", expanded=True) as status_box:
                 log_placeholder = st.empty()
                 proc = subprocess.Popen(
                     [sys.executable, trainer],
@@ -1229,9 +1229,9 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
 
     with infer_col:
         if model_path.exists() and aid:
-            if st.button("Herbereken voorspelling", key="infer_xgb",
+            if st.button("Recalculate prediction", key="infer_xgb",
                          help="Herberekent de voorspelling voor deze artiest en slaat op in Supabase"):
-                with st.spinner("Voorspelling herberekenen..."):
+                with st.spinner("Recalculating prediction..."):
                     try:
                         import sys as _sys
                         _ml_dir = str(_ROOT / "ml")
@@ -1244,7 +1244,7 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
                             artist_name=profile.get("artist_name", ""),
                         )
                         if _pred is not None:
-                            st.success(f"Nieuwe voorspelling: {_pred:+.1f}%")
+                            st.success(f"New prediction: {_pred:+.1f}%")
                         else:
                             st.warning("Kon niet herberekenen — model of data ontbreekt.")
                     except Exception as _ie:
@@ -1253,7 +1253,7 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
                 st.rerun()
 
     if not model_path.exists():
-        st.info("Nog geen model getraind. Klik hierboven op **Model trainen** (~2 min).")
+        st.info("No model has been trained yet. Klik hierboven op **Train model** (~2 min).")
         return
 
     # Read pre-computed predictions from Supabase (with CSV fallback).
@@ -1292,20 +1292,20 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
                 rank_row_index = rank_row.index[0]
 
         if pred is None:
-            st.info("Geen voorspelling beschikbaar — klik **Herbereken voorspelling** om er een te genereren.")
+            st.info("Geen voorspelling beschikbaar — klik **Recalculate prediction** om er een te genereren.")
             return
 
         s_hex = "#1DB954" if pred >= 12 else ("#FF9900" if pred >= -5 else "#e05252")
 
         mc1, mc2 = st.columns(2)
         mc1.metric(
-            "Verwachte CPP groei (90 dagen)",
+            "Expected CPP growth (90 days)",
             f"{pred:+.1f}%",
             help="XGBoost voorspelling van Chartmetric CPP score groei. "
                  "Getraind op 200K+ historische datapunten van 760 artiesten met 100 features.",
         )
         mc2.metric(
-            "Modelonzekerheid (±)",
+            "Model uncertainty (±)",
             f"~20%",
             help="Typische modelfout is ~12%. Marge dekt ruwweg 1,5 standaardafwijkingen.",
         )
@@ -1436,10 +1436,10 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
                         x=alt.X("predicted_growth_90d:Q",
                                 bin=alt.Bin(maxbins=30),
                                 title="Verwachte groei 90d (%)"),
-                        y=alt.Y("count()", title="Artiesten"),
+                        y=alt.Y("count()", title="Artists"),
                         tooltip=[
-                            alt.Tooltip("predicted_growth_90d:Q", bin=True, title="Groei %"),
-                            alt.Tooltip("count()", title="Artiesten"),
+                            alt.Tooltip("predicted_growth_90d:Q", bin=True, title="Growth %"),
+                            alt.Tooltip("count()", title="Artists"),
                         ],
                     )
                 )
@@ -1468,13 +1468,13 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
                     rank = int((preds_df["predicted_growth_90d"] > pred).sum()) + 1
                 pct_rank = round((1 - rank / total_artists) * 100)
                 above = total_artists - rank
-                st.metric("Positie in database", f"#{rank} / {total_artists}")
-                st.metric("Beter dan", f"{pct_rank}% van artiesten")
+                st.metric("Position in database", f"#{rank} / {total_artists}")
+                st.metric("Better than", f"{pct_rank}% van artiesten")
                 st.caption(f"{above} artiesten met lagere voorspelde groei.")
 
         if feature_importances:
             ranked = sorted(feature_importances.items(), key=lambda x: -x[1])
-            st.markdown("**Wat drijft deze voorspelling:**")
+            st.markdown("**What drives this prediction:**")
             for feat_key, _imp in ranked[:5]:
                 label = _FEATURE_LABELS.get(feat_key, feat_key.replace("_", " ").title())
                 st.markdown(f"- {label}")
@@ -1504,7 +1504,7 @@ def render_growth_forecast(profile: dict, ts_data: dict) -> None:
 def render_growth_signals(ts_data: dict) -> None:
     ml = ts_data.get("ml_features") or {}
     ts = ts_data.get("cm_timeseries") or {}
-    st.subheader("Groei")
+    st.subheader("Growth")
 
     if ml:
         sp30  = ml.get("sp_listeners_30d_pct")
@@ -1582,7 +1582,7 @@ def render_growth_signals(ts_data: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def render_platform_stats(profile: dict, ml: dict) -> None:
-    st.subheader("Platformen")
+    st.subheader("Platforms")
     def _d(key): v = ml.get(key); return f"{v:+.1f}%" if v is not None else None
     c1,c2,c3,c4 = st.columns(4); c5,c6,c7,c8 = st.columns(4)
     c1.metric("Spotify Volgers",       _fmt(profile.get("spotify_followers")),    delta=_d("sp_followers_30d_pct"))
@@ -1644,12 +1644,12 @@ def render_audience_demographics(ext: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFrame) -> None:
-    st.subheader("Nummers & Playlists")
-    t1, t2 = st.tabs(["Nummers", "Playlists"])
+    st.subheader("Tracks & Playlists")
+    t1, t2 = st.tabs(["Tracks", "Playlists"])
 
     with t1:
         if tracks_df.empty:
-            st.info("Nog geen nummers gevonden.")
+            st.info("No tracks found yet.")
         else:
             disp = tracks_df.copy()
             if "spotify_streams" in disp.columns:
@@ -1664,10 +1664,10 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
                 if col in disp.columns:
                     disp[col] = disp[col].apply(lambda x: str(int(x)) if pd.notna(x) and x else "-")
             st.dataframe(
-                disp.rename(columns={"track_name":"Naam","release_date":"Uitgebracht",
+                disp.rename(columns={"track_name":"Name","release_date":"Released",
                                      "spotify_streams":"SP Streams","spotify_popularity":"SP Pop.",
                                      "peak_spotify_chart":"SP Chart","peak_beatport_chart":"BP Chart",
-                                     "playlist_count":"Afspeellijsten"}),
+                                     "playlist_count":"Playlists"}),
                 use_container_width=True, hide_index=True,
             )
             if "spotify_streams" not in disp.columns or disp["spotify_streams"].eq("-").all():
@@ -1675,7 +1675,7 @@ def render_tracks_and_playlists(tracks_df: pd.DataFrame, playlists_df: pd.DataFr
 
     with t2:
         if playlists_df.empty:
-            st.info("Geen playlist plaatsingen.")
+            st.info("No playlist placements.")
         else:
             disp = playlists_df.copy()
             if "playlist_followers" in disp.columns:
@@ -1750,7 +1750,7 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                         f"{row['date']} — {row.get('venue','?')} ({row.get('city','')})"
                         for _, row in events_with_lineup.iterrows()
                     ]
-                    sel = st.selectbox("Selecteer event", sel_opts, key="ra_lineup_sel")
+                    sel = st.selectbox("Select event", sel_opts, key="ra_lineup_sel")
                     if sel:
                         idx = sel_opts.index(sel)
                         row = events_with_lineup.iloc[idx]
@@ -1783,7 +1783,7 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
                     nl_df[cols_nl].rename(columns={"start_date":"Date","event_name":"Event","venue":"Venue","city":"City"}),
                     use_container_width=True, hide_index=True,
                 )
-                with st.expander("Alle events (incl. internationaal)"):
+                with st.expander("All events (incl. internationaal)"):
                     cols_all = [c for c in ["start_date","event_name","venue","city","country"] if c in ev_df.columns]
                     if "start_date" in ev_df.columns: ev_df = ev_df.sort_values("start_date", ascending=False)
                     st.dataframe(ev_df[cols_all] if cols_all else ev_df, use_container_width=True, hide_index=True)
@@ -1810,13 +1810,13 @@ def render_show_history(ra_df: pd.DataFrame, pf_data: dict, ext: dict) -> None:
 
 @st.fragment
 def render_milestones(vdf: pd.DataFrame, ext: dict, ra_df: pd.DataFrame) -> None:
-    st.subheader("Mijlpalen")
+    st.subheader("Milestones")
 
     cm_milestones = ext.get("milestones") or []
     noteworthy    = ext.get("noteworthy_insights") or []
     co_performers = get_co_performers(ra_df)
 
-    tab_labels = ["Mijlpalen"]
+    tab_labels = ["Milestones"]
     if co_performers:
         tab_labels.append("Opgetreden Met")
     if noteworthy:
@@ -1908,7 +1908,7 @@ def render_similar_artists(profile: dict, ext: dict) -> None:
     if not lfm_names and not cm_names:
         return
 
-    st.subheader("Vergelijkbare artiesten")
+    st.subheader("Similar artists")
     # Merge — show unique names from both sources in one list
     all_names = list(dict.fromkeys(lfm_names + cm_names))  # preserve order, dedupe
     shown = all_names[:20]
@@ -1937,8 +1937,8 @@ def render_discography(ext: dict) -> None:
         if df_a.empty: return
         cols = [c for c in ["name","release_date","type","track_count"] if c in df_a.columns]
         with st.expander("Albums & Releases"):
-            st.dataframe(df_a[cols].rename(columns={"name":"Titel","release_date":"Uitgebracht",
-                                                     "type":"Type","track_count":"Nummers"}),
+            st.dataframe(df_a[cols].rename(columns={"name":"Titel","release_date":"Released",
+                                                     "type":"Type","track_count":"Tracks"}),
                          use_container_width=True, hide_index=True)
     except Exception:
         pass
@@ -1949,7 +1949,7 @@ def render_discography(ext: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def render_feedback_form(artist_id: str, artist_name: str) -> None:
-    with st.expander("Label / Feedback Toevoegen"):
+    with st.expander("Add label / feedback"):
         st.caption(
             "Labels worden opgeslagen in `tinder.artist_feedback` en gebruikt om scoring te verbeteren. "
             "Bevestigde mijlpalen, venue-tiers en agency-data zijn bijzonder waardevol."
@@ -1964,7 +1964,7 @@ def render_feedback_form(artist_id: str, artist_name: str) -> None:
         fb_ref   = st.text_input("Event ref (URL or date, optional)", key="fb_ref")
         fb_notes = st.text_area("Notes (optional)", key="fb_notes", height=60)
 
-        if st.button("Label opslaan", key="fb_submit"):
+        if st.button("Save label", key="fb_submit"):
             if not fb_key or not fb_value:
                 st.error("Field and Value are required.")
             else:
@@ -1984,7 +1984,7 @@ def render_feedback_form(artist_id: str, artist_name: str) -> None:
 
     fb_df = load_existing_feedback(artist_id)
     if not fb_df.empty:
-        with st.expander(f"Bestaande labels ({len(fb_df)})"):
+        with st.expander(f"Existing labels ({len(fb_df)})"):
             st.dataframe(fb_df.drop(columns=["id","artist_id"], errors="ignore"),
                          use_container_width=True, hide_index=True)
 
@@ -2005,10 +2005,10 @@ def render_genre_radar() -> None:
     with c1:
         bar = (
             alt.Chart(top15).mark_bar()
-            .encode(x=alt.X("artist_count:Q",title="Artiesten in systeem"),
+            .encode(x=alt.X("artist_count:Q",title="Artists in systeem"),
                     y=alt.Y("tag:N",sort="-x",title=""),
                     tooltip=["tag","artist_count","avg_listeners"])
-            .properties(height=380, title="Artiesten per genre-tag")
+            .properties(height=380, title="Artists per genre-tag")
         )
         st.altair_chart(bar, use_container_width=True)
     with c2:
@@ -2021,10 +2021,10 @@ def render_genre_radar() -> None:
         )
         st.altair_chart(scatter, use_container_width=True)
 
-    st.subheader("Alle genres")
-    st.dataframe(genre_df.rename(columns={"tag":"Genre","artist_count":"Artiesten","avg_listeners":"Gem. Luisteraars"}),
+    st.subheader("All genres")
+    st.dataframe(genre_df.rename(columns={"tag":"Genre","artist_count":"Artists","avg_listeners":"Avg. listeners"}),
                  use_container_width=True, hide_index=True,
-                 column_config={"Gem. Luisteraars": st.column_config.NumberColumn(format="%.0f")})
+                 column_config={"Avg. listeners": st.column_config.NumberColumn(format="%.0f")})
     st.caption("Volledige versie met NL-specifieke vraag en genre-momentum over tijd — Fase 5.")
 
 
@@ -2078,16 +2078,16 @@ def _fmt_listeners(n) -> str:
 
 def render_add_artist(query: str) -> None:
     """Show the 'Add artist' panel when search has no results."""
-    st.info(f"Geen artiest genaamd **{query}** gevonden in de database.")
+    st.info(f"No artist named **{query}** found in the database.")
 
-    with st.expander("➕ Artiest toevoegen en direct scrapen", expanded=True):
+    with st.expander("➕ Add artist en direct scrapen", expanded=True):
         st.caption(
             "Maakt het artiestrecord aan en start direct een volledige Chartmetric + RA + "
             "Partyflock + Last.fm scrape (~60–90 s). "
             "Het profiel wordt weergegeven zodra dit klaar is."
         )
         status_choice = st.radio(
-            "Kandidaatstatus instellen",
+            "Candidatestatus instellen",
             ["candidate", "booked", "rejected"],
             horizontal=True,
             key="add_artist_status",
@@ -2111,9 +2111,9 @@ def render_add_artist(query: str) -> None:
             btn_label = f"Bevestig & scrapen →  {choice.split(' — ')[0].strip()}"
         elif candidates is not None and len(candidates) == 1:
             selected_cm_id = candidates[0]["id"]
-            btn_label = f"Toevoegen & scrapen →  {query}"
+            btn_label = f"Add and scrape →  {query}"
         else:
-            btn_label = f"Toevoegen & scrapen →  {query}"
+            btn_label = f"Add and scrape →  {query}"
 
         # ── Phase 1 / confirm button ──────────────────────────────────────────
         if st.button(btn_label, type="primary", key="add_artist_btn"):
@@ -2205,7 +2205,7 @@ def _verify_scrape(artist_id: str, name: str) -> None:
         ("Chartmetric profiel",  "artist_chartmetric",      "artist_id"),
         ("Tijdreeksdata",        "artist_chartmetric",      "cm_timeseries"),
         ("ML groeicijfers",      "artist_chartmetric",      "ml_features"),
-        ("Uitgebreide data",     "artist_cm_extended",      "artist_id"),
+        ("Extendede data",     "artist_cm_extended",      "artist_id"),
         ("RA events",            "artist_ra",               "artist_id"),
         ("Partyflock",           "artist_partyflock",       "artist_id"),
         ("Last.fm",              "artist_lastfm",           "artist_id"),
@@ -2227,7 +2227,7 @@ def _verify_scrape(artist_id: str, name: str) -> None:
             {"Check": "Chartmetric profiel", "Status": "OK" if cm else "Ontbreekt"},
             {"Check": "Tijdreeksdata",       "Status": "OK" if cm.get("cm_timeseries") else "Leeg"},
             {"Check": "ML groeicijfers",     "Status": "OK" if cm.get("ml_features") else "Leeg"},
-            {"Check": "Uitgebreide data",    "Status": "OK" if _has("artist_cm_extended") else "Ontbreekt"},
+            {"Check": "Extendede data",    "Status": "OK" if _has("artist_cm_extended") else "Ontbreekt"},
             {"Check": "RA events",           "Status": "OK" if _has("artist_ra") else "Ontbreekt"},
             {"Check": "Partyflock",          "Status": "OK" if _has("artist_partyflock") else "Ontbreekt"},
             {"Check": "Last.fm",             "Status": "OK" if _has("artist_lastfm") else "Ontbreekt"},
@@ -2265,40 +2265,40 @@ def _render_dashboard(artist_list: pd.DataFrame) -> None:
     # ── Pipeline KPIs ───────────────────────────────────────────────────────
     kpis = _load_dashboard_kpis()
     kc = st.columns(5)
-    kc[0].metric("Gevolgd",    kpis.get("total", 0))
+    kc[0].metric("Tracked",    kpis.get("total", 0))
     kc[1].metric("Pending",    kpis.get("pending", 0))
-    kc[2].metric("Kandidaat",  kpis.get("candidate", 0))
+    kc[2].metric("Candidate",  kpis.get("candidate", 0))
     kc[3].metric("Accepted",   kpis.get("accepted", 0))
-    kc[4].metric("Geboekt",    kpis.get("booked", 0))
+    kc[4].metric("Booked",    kpis.get("booked", 0))
 
     st.write("")
 
     # ── Sort / filter bar ───────────────────────────────────────────────────
     fc1, fc2, fc3, fc4 = st.columns([2, 2, 2, 2])
-    sort_by      = fc1.selectbox("Sorteren", ["Score (hoog→laag)", "Groei 90d ↓", "Groei 30d ↓", "A → Z", "Shows ↓"], label_visibility="collapsed", key="cat_sort")
-    status_f     = fc2.selectbox("Status", ["Alle", "Pending", "Kandidaat", "Accepted", "Geboekt"], label_visibility="collapsed", key="cat_status")
-    n_show       = fc3.select_slider("Artiesten", options=[24, 48, 96, 200], value=48, key="cat_n")
-    min_ra_f     = fc4.selectbox("RA events", ["10+", "5+", "1+", "Alle"], label_visibility="collapsed", key="cat_min_ra")
+    sort_by      = fc1.selectbox("Sort", ["Score (high→low)", "90d Growth ↓", "30d Growth ↓", "A to Z", "Shows ↓"], label_visibility="collapsed", key="cat_sort")
+    status_f     = fc2.selectbox("Status", ["All", "Pending", "Candidate", "Accepted", "Booked"], label_visibility="collapsed", key="cat_status")
+    n_show       = fc3.select_slider("Artists", options=[24, 48, 96, 200], value=48, key="cat_n")
+    min_ra_f     = fc4.selectbox("RA events", ["10+", "5+", "1+", "All"], label_visibility="collapsed", key="cat_min_ra")
 
     # ── Load and filter data ─────────────────────────────────────────────────
     df = _load_catalogue_data()
     if df.empty:
-        st.info("Geen data beschikbaar."); return
+        st.info("No data available."); return
 
-    _STATUS_MAP = {"Pending": "pending", "Kandidaat": "candidate", "Accepted": "accepted", "Geboekt": "booked"}
-    if status_f != "Alle":
+    _STATUS_MAP = {"Pending": "pending", "Candidate": "candidate", "Accepted": "accepted", "Booked": "booked"}
+    if status_f != "All":
         df = df[df["candidate_status"].fillna("").str.lower() == _STATUS_MAP.get(status_f, "")]
 
-    _RA_MIN_MAP = {"10+": 10, "5+": 5, "1+": 1, "Alle": 0}
+    _RA_MIN_MAP = {"10+": 10, "5+": 5, "1+": 1, "All": 0}
     min_ra = _RA_MIN_MAP.get(min_ra_f, 10)
     if min_ra > 0:
         df = df[df["ra_count"] >= min_ra]
 
     _SORT_MAP = {
-        "Score (hoog→laag)": ("cm_artist_score",      False),
-        "Groei 90d ↓":       ("predicted_growth_90d", False),
-        "Groei 30d ↓":       ("sp_30d",               False),
-        "A → Z":             ("artist_name",           True),
+        "Score high to low": ("cm_artist_score",      False),
+        "90d growth ↓":       ("predicted_growth_90d", False),
+        "30d growth ↓":       ("sp_30d",               False),
+        "A to Z":             ("artist_name",           True),
         "Shows ↓":           ("ra_count",              False),
     }
     sort_col, sort_asc = _SORT_MAP.get(sort_by, ("predicted_growth_90d", False))
@@ -2320,12 +2320,12 @@ def _page_artiest_profiel() -> None:
     """Artist profile page — used when accessed directly via sidebar (not via overzicht search)."""
     artist_list = load_artist_list()
     if artist_list.empty:
-        st.warning("Geen artiestdata beschikbaar."); return
+        st.warning("No artist data available."); return
     all_names_rows = _load_all_artist_names()
     names = sorted({r["artist_name"] for r in all_names_rows if r.get("artist_name")})
-    query = st.text_input("Zoek artiest", placeholder="bijv. Estella Boersma")
+    query = st.text_input("Search artist", placeholder="bijv. Estella Boersma")
     if not query:
-        st.info("Typ een artiestnaam hierboven om te beginnen."); return
+        st.info("Type an artist name above to start."); return
 
     pending = st.session_state.pop("pending_artist", None)
     filtered_names = [n for n in names if query.lower() in n.lower()][:20]
@@ -2335,16 +2335,16 @@ def _page_artiest_profiel() -> None:
 
     if len(filtered_names) == 1 or (pending and pending in filtered_names):
         selected = pending if (pending and pending in filtered_names) else filtered_names[0]
-        st.caption(f"Weergave: {selected}")
+        st.caption(f"Showing: {selected}")
     else:
-        selected = st.selectbox("Selecteer", filtered_names, label_visibility="collapsed")
+        selected = st.selectbox("Select", filtered_names, label_visibility="collapsed")
 
     if query.lower() not in [n.lower() for n in filtered_names]:
-        with st.expander(f"Artiest niet gevonden? Voeg '{query}' toe als nieuw"):
+        with st.expander(f"Artist not found? Add '{query}' as new"):
             st.caption("Maakt het artiestrecord aan en start direct een volledige scrape (~60–90 s).")
-            status_choice = st.radio("Kandidaatstatus instellen", ["candidate","booked","rejected"],
+            status_choice = st.radio("Candidatestatus instellen", ["candidate","booked","rejected"],
                                      horizontal=True, key="add_partial_status")
-            if st.button(f"Toevoegen & scrapen →  {query}", key="add_partial_btn"):
+            if st.button(f"Add and scrape →  {query}", key="add_partial_btn"):
                 _run_add_and_scrape(query, status_choice)
 
     _render_artist_by_id(artist_list, selected)
@@ -2414,7 +2414,7 @@ def _page_overzicht() -> None:
     """Main landing page: sticky centered search + dashboard or artist profile."""
     artist_list = load_artist_list()
     if artist_list.empty:
-        st.warning("Geen artiestdata beschikbaar."); return
+        st.warning("No artist data available."); return
 
     # Apply any pending programmatic search (set before the widget renders to avoid
     # Streamlit's restriction on setting widget-bound keys after render).
@@ -2432,7 +2432,7 @@ def _page_overzicht() -> None:
     with scol:
         query = st.text_input(
             "Artiest",
-            placeholder="Zoek artiest...",
+            placeholder="Search artist...",
             label_visibility="collapsed",
             key="overzicht_search",
         )
@@ -2451,16 +2451,16 @@ def _page_overzicht() -> None:
     with scol:
         if len(filtered_names) == 1 or (pending and pending in filtered_names):
             selected = pending if (pending and pending in filtered_names) else filtered_names[0]
-            st.caption(f"Weergave: {selected}")
+            st.caption(f"Showing: {selected}")
         else:
-            selected = st.selectbox("Selecteer artiest", filtered_names, label_visibility="collapsed")
+            selected = st.selectbox("Select artiest", filtered_names, label_visibility="collapsed")
 
     if query.lower() not in [n.lower() for n in filtered_names]:
-        with st.expander(f"Artiest niet gevonden? Voeg '{query}' toe als nieuw"):
+        with st.expander(f"Artist not found? Add '{query}' as new"):
             st.caption("Maakt het artiestrecord aan en start direct een volledige scrape (~60–90 s).")
-            status_choice = st.radio("Kandidaatstatus instellen", ["candidate","booked","rejected"],
+            status_choice = st.radio("Candidatestatus instellen", ["candidate","booked","rejected"],
                                      horizontal=True, key="overzicht_add_status")
-            if st.button(f"Toevoegen & scrapen →  {query}", key="overzicht_add_btn"):
+            if st.button(f"Add and scrape →  {query}", key="overzicht_add_btn"):
                 _run_add_and_scrape(query, status_choice)
 
     _render_artist_by_id(artist_list, selected)
@@ -2683,7 +2683,7 @@ def _load_genre_cluster_data() -> pd.DataFrame:
 
 def _page_genre_trends() -> None:
     st.title("Genre Trends")
-    st.caption("Welke genres groeien? Gebaseerd op 90-dag XGBoost voorspellingen voor alle gevolgde artiesten.")
+    st.caption("Which genres are growing? Gebaseerd op 90-dag XGBoost voorspellingen voor alle gevolgde artiesten.")
 
     df = _load_genre_cluster_data()
     if df.empty:
@@ -2701,7 +2701,7 @@ def _page_genre_trends() -> None:
     agg["avg_growth"] = agg["avg_growth"].fillna(0).round(1)
     agg["avg_listeners"] = agg["avg_listeners"].fillna(0)
     agg["Trend"] = agg["avg_growth"].apply(
-        lambda x: "Stijgend" if x >= 5 else ("Stabiel" if x >= -5 else "Dalend")
+        lambda x: "Rising" if x >= 5 else ("Stable" if x >= -5 else "Declining")
     )
     agg = agg.sort_values("avg_growth", ascending=False)
 
@@ -2711,10 +2711,10 @@ def _page_genre_trends() -> None:
     n_falling = int((agg["avg_growth"] < -5).sum())
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Genres gevolgd", len(agg))
-    kpi2.metric("Stijgend", n_rising)
-    kpi3.metric("Stabiel",  n_stable)
-    kpi4.metric("Dalend",   n_falling)
+    kpi1.metric("Tracked genres", len(agg))
+    kpi2.metric("Rising", n_rising)
+    kpi3.metric("Stable",  n_stable)
+    kpi4.metric("Declining",   n_falling)
 
     st.divider()
 
@@ -2746,22 +2746,22 @@ def _page_genre_trends() -> None:
             size=alt.Size(
                 "artist_count:Q",
                 scale=alt.Scale(range=[80, 700]),
-                legend=alt.Legend(title="Artiesten", labelColor="#9ca3af", titleColor="#9ca3af"),
+                legend=alt.Legend(title="Artists", labelColor="#9ca3af", titleColor="#9ca3af"),
             ),
             color=alt.Color(
                 "Trend:N",
                 scale=alt.Scale(
-                    domain=["Stijgend", "Stabiel", "Dalend"],
+                    domain=["Rising", "Stable", "Declining"],
                     range=["#1DB954", "#6366F1", "#ef4444"],
                 ),
                 legend=alt.Legend(title="Trend", labelColor="#9ca3af", titleColor="#9ca3af"),
             ),
             tooltip=[
                 alt.Tooltip("genre:N",        title="Genre"),
-                alt.Tooltip("artist_count:Q", title="Artiesten"),
-                alt.Tooltip("avg_growth:Q",   format=".1f", title="Groei (%)"),
-                alt.Tooltip("pct_growing:Q",  format=".0f", title="% Groeiend"),
-                alt.Tooltip("avg_listeners:Q", format=",.0f", title="Gem. Luisteraars"),
+                alt.Tooltip("artist_count:Q", title="Artists"),
+                alt.Tooltip("avg_growth:Q",   format=".1f", title="Growth (%)"),
+                alt.Tooltip("pct_growing:Q",  format=".0f", title="% Growthend"),
+                alt.Tooltip("avg_listeners:Q", format=",.0f", title="Avg. listeners"),
             ],
         )
 
@@ -2785,7 +2785,7 @@ def _page_genre_trends() -> None:
         )
 
     with col_bars:
-        st.subheader("Snelst groeiend")
+        st.subheader("Fastest growing")
         top12 = agg.nlargest(12, "avg_growth")
         bar_growth = (
             alt.Chart(top12)
@@ -2793,7 +2793,7 @@ def _page_genre_trends() -> None:
             .encode(
                 x=alt.X(
                     "avg_growth:Q",
-                    title="Groei (%)",
+                    title="Growth (%)",
                     axis=alt.Axis(labelColor="#9ca3af", titleColor="#9ca3af", gridColor="#1f2937"),
                 ),
                 y=alt.Y(
@@ -2807,8 +2807,8 @@ def _page_genre_trends() -> None:
                 ),
                 tooltip=[
                     alt.Tooltip("genre:N",        title="Genre"),
-                    alt.Tooltip("avg_growth:Q",   format=".1f", title="Groei (%)"),
-                    alt.Tooltip("artist_count:Q", title="Artiesten"),
+                    alt.Tooltip("avg_growth:Q",   format=".1f", title="Growth (%)"),
+                    alt.Tooltip("artist_count:Q", title="Artists"),
                 ],
             )
             .properties(height=200)
@@ -2817,7 +2817,7 @@ def _page_genre_trends() -> None:
         )
         st.altair_chart(bar_growth, use_container_width=True)
 
-        st.subheader("Grootste genres")
+        st.subheader("Largest genres")
         top12_count = agg.nlargest(12, "artist_count")
         bar_count = (
             alt.Chart(top12_count)
@@ -2825,7 +2825,7 @@ def _page_genre_trends() -> None:
             .encode(
                 x=alt.X(
                     "artist_count:Q",
-                    title="Artiesten",
+                    title="Artists",
                     axis=alt.Axis(labelColor="#9ca3af", titleColor="#9ca3af", gridColor="#1f2937"),
                 ),
                 y=alt.Y(
@@ -2839,8 +2839,8 @@ def _page_genre_trends() -> None:
                 ),
                 tooltip=[
                     alt.Tooltip("genre:N",        title="Genre"),
-                    alt.Tooltip("artist_count:Q", title="Artiesten"),
-                    alt.Tooltip("avg_growth:Q",   format=".1f", title="Groei (%)"),
+                    alt.Tooltip("artist_count:Q", title="Artists"),
+                    alt.Tooltip("avg_growth:Q",   format=".1f", title="Growth (%)"),
                 ],
             )
             .properties(height=200)
@@ -2850,9 +2850,9 @@ def _page_genre_trends() -> None:
         st.altair_chart(bar_count, use_container_width=True)
 
     # --- Genre drilldown ---
-    st.subheader("Inzoomen op een genre")
+    st.subheader("Drill down into a genre")
     all_genres = sorted(agg["genre"].tolist())
-    selected_genre = st.selectbox("Kies een genre", all_genres)
+    selected_genre = st.selectbox("Choose a genre", all_genres)
     if selected_genre:
         genre_artists = (
             df[df["genre"] == selected_genre]
@@ -2877,18 +2877,18 @@ def _page_genre_trends() -> None:
                 col.metric(label=name, value=value, delta=delta)
 
     # --- Full table ---
-    with st.expander("Alle genres (volledig overzicht)"):
+    with st.expander("All genres (volledig overzicht)"):
         display_df = agg[["genre", "artist_count", "avg_growth", "pct_growing", "avg_listeners", "Trend"]].copy()
-        display_df.columns = ["Genre", "Artiesten", "Groei (%)", "% Groeiend", "Gem. Luisteraars", "Trend"]
-        display_df = display_df.sort_values("Groei (%)", ascending=False)
+        display_df.columns = ["Genre", "Artists", "Growth (%)", "% Growthend", "Avg. listeners", "Trend"]
+        display_df = display_df.sort_values("Growth (%)", ascending=False)
         st.dataframe(
             display_df,
             use_container_width=True,
             hide_index=True,
             column_config={
-                "Groei (%)":        st.column_config.NumberColumn(format="%.1f%%"),
-                "% Groeiend":       st.column_config.NumberColumn(format="%.0f%%"),
-                "Gem. Luisteraars": st.column_config.NumberColumn(format="%d"),
+                "Growth (%)":        st.column_config.NumberColumn(format="%.1f%%"),
+                "% Growthend":       st.column_config.NumberColumn(format="%.0f%%"),
+                "Avg. listeners": st.column_config.NumberColumn(format="%d"),
             },
         )
 
@@ -2933,9 +2933,9 @@ def _load_scraper_status() -> dict:
 
 def _sidebar_add_artist() -> None:
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**Artiest toevoegen**")
-    name = st.sidebar.text_input("Naam", key="sidebar_add_name", label_visibility="collapsed",
-                                 placeholder="Artiestnaam…")
+    st.sidebar.markdown("**Add artist**")
+    name = st.sidebar.text_input("Name", key="sidebar_add_name", label_visibility="collapsed",
+                                 placeholder="Artist name...")
     if not name:
         # Clear stale search state when field is emptied
         for k in [k for k in st.session_state if k.startswith("sb_cm_cands_")]:
@@ -2958,9 +2958,9 @@ def _sidebar_add_artist() -> None:
         btn_label = "Bevestig & scrapen"
     elif candidates is not None and len(candidates) == 1:
         selected_cm_id = candidates[0]["id"]
-        btn_label = "Toevoegen & scrapen"
+        btn_label = "Add and scrape"
     else:
-        btn_label = "Toevoegen & scrapen"
+        btn_label = "Add and scrape"
 
     if st.sidebar.button(btn_label, key="sidebar_add_btn", type="primary"):
         if candidates is None and _HAS_CM_SEARCH and _cm_configured():
@@ -3040,13 +3040,13 @@ def _sidebar_scraper_status() -> None:
         filled = int(pct * 10)
         return f"{'█' * filled}{'░' * (10 - filled)} {n}/{total}"
 
-    st.sidebar.caption(f"Laatste scrape: {s.get('last_scrape', '—')}")
+    st.sidebar.caption(f"Last scrape: {s.get('last_scrape', '—')}")
     if s.get("needs_scrape"):
-        st.sidebar.caption(f"In wachtrij: {s['needs_scrape']} artiesten")
+        st.sidebar.caption(f"In queue: {s['needs_scrape']} artiesten")
 
     for label, key in [
         ("Chartmetric", "has_cm"),
-        ("Uitgebreid",  "has_ext"),
+        ("Extended",  "has_ext"),
         ("RA events",   "has_ra"),
         ("Partyflock",  "has_pf"),
         ("Last.fm",     "has_lfm"),
@@ -3556,9 +3556,9 @@ def _render_catalogue_card(row: pd.Series) -> None:
     listeners = row.get("spotify_listeners")
 
     _SC = {
-        "booked":       ("#7c3aed", "Geboekt"),
+        "booked":       ("#7c3aed", "Booked"),
         "accepted":     ("#16a34a", "Geaccepteerd"),
-        "candidate":    ("#d97706", "Kandidaat"),
+        "candidate":    ("#d97706", "Candidate"),
         "pending":      ("#3b82f6", "Pending"),
         "watching":     ("#0ea5e9", "Watching"),
         "hot":          ("#f97316", "Hot"),
@@ -3656,28 +3656,28 @@ def _render_catalogue_card(row: pd.Series) -> None:
 
 
 def _page_xgboost_leaderboard() -> None:
-    st.title("Groei Leaderboard")
+    st.title("Growth Leaderboard")
     st.caption(
-        "Artiesten gerangschikt op verwachte Chartmetric CPP score groei (90 dagen). "
+        "Artists gerangschikt op verwachte Chartmetric CPP score groei (90 dagen). "
         "Groen = doorbraak verwacht · Oranje = solide groei · Grijs = stabiel · Rood = dalend."
     )
 
     hdr_c1, hdr_c2, hdr_c3 = st.columns([2, 2, 4])
     with hdr_c1:
-        if st.button("Vernieuwen", key="lb_refresh"):
+        if st.button("Refresh", key="lb_refresh"):
             st.cache_data.clear()
             st.rerun()
 
     df = _load_leaderboard_df()
     if df.empty:
-        st.warning("Geen voorspellingsdata. Run eerst het XGBoost model of klik Vernieuwen.")
+        st.warning("Geen voorspellingsdata. Run eerst het XGBoost model of klik Refresh.")
         return
 
     # Filters
     fc1, fc2, fc3 = st.columns(3)
     with fc1:
-        status_opts = ["Alle"] + sorted(df["candidate_status"].dropna().unique().tolist()) \
-            if "candidate_status" in df.columns else ["Alle"]
+        status_opts = ["All"] + sorted(df["candidate_status"].dropna().unique().tolist()) \
+            if "candidate_status" in df.columns else ["All"]
         status_f = st.selectbox("Status", status_opts, key="lb_status")
     with fc2:
         min_cm = st.slider("Min CM Score", 0, 100, 0, key="lb_mincm")
@@ -3685,7 +3685,7 @@ def _page_xgboost_leaderboard() -> None:
         growth_min = st.slider("Min groei (%)", -50, 150, -10, key="lb_growth_min")
 
     fdf = df.copy()
-    if status_f != "Alle" and "candidate_status" in fdf.columns:
+    if status_f != "All" and "candidate_status" in fdf.columns:
         fdf = fdf[fdf["candidate_status"] == status_f]
     if "cm_artist_score" in fdf.columns:
         fdf = fdf[fdf["cm_artist_score"].fillna(0) >= min_cm]
@@ -3704,7 +3704,7 @@ def _page_xgboost_leaderboard() -> None:
                               "prediction_date"] if c in fdf.columns]
     rename_map = {
         "artist_name":           "Artiest",
-        "predicted_growth_90d":  "Groei 90d (%)",
+        "predicted_growth_90d":  "Growth 90d (%)",
         "cm_artist_score":       "CM Score",
         "spotify_listeners":     "Spotify",
         "candidate_status":      "Status",
@@ -3730,7 +3730,7 @@ def _page_xgboost_leaderboard() -> None:
             return "background-color: rgba(120,120,120,0.1)"
         return "background-color: rgba(224,82,82,0.2)"
 
-    gcol = "Groei 90d (%)"
+    gcol = "Growth 90d (%)"
     if gcol in display.columns:
         styled = (
             display.style
@@ -3859,13 +3859,13 @@ def _page_youtube_sets() -> None:
 
     fc1, fc2, fc3 = st.columns([2, 3, 1])
     channel_label = fc1.selectbox(
-        "Kanaal", ["Alle"] + list(_YT_PLATFORM_LABELS.values()), key="yt_channel"
+        "Channel", ["All"] + list(_YT_PLATFORM_LABELS.values()), key="yt_channel"
     )
-    search_q     = fc2.text_input("Zoek op titel of artiest", key="yt_search")
+    search_q     = fc2.text_input("Search by title or artist", key="yt_search")
     trending_only = fc3.checkbox("Trending", key="yt_trending", value=False)
 
     platform_filter = None
-    if channel_label != "Alle":
+    if channel_label != "All":
         platform_filter = next(k for k, v in _YT_PLATFORM_LABELS.items() if v == channel_label)
 
     rows = _load_yt_sets(platform=platform_filter, trending_only=trending_only)
@@ -3880,7 +3880,7 @@ def _page_youtube_sets() -> None:
         ]
 
     if not rows:
-        st.info("Geen sets gevonden.")
+        st.info("No sets found.")
         return
 
     # KPI row
@@ -3889,9 +3889,9 @@ def _page_youtube_sets() -> None:
     matched_n   = sum(1 for r in rows if r.get("matched_artist_names"))
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Sets", len(rows))
-    k2.metric("Totaal views", f"{total_views/1_000:.0f}K" if total_views >= 1000 else str(total_views))
-    k3.metric("Trending nu", trending_n)
-    k4.metric("Bekende artiesten", matched_n)
+    k2.metric("Total views", f"{total_views/1_000:.0f}K" if total_views >= 1000 else str(total_views))
+    k3.metric("Trending now", trending_n)
+    k4.metric("Known artists", matched_n)
 
     st.divider()
 
