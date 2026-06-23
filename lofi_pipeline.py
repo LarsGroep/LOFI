@@ -3918,7 +3918,7 @@ def main() -> None:
         if _has_option_menu:
             page = _option_menu(
                 menu_title=None,
-                options=["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
+                options=["Overview", "Growth Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
                 icons=["house", "trophy", "music-note-list", "shuffle", "youtube"],
                 default_index=0,
                 styles={
@@ -3942,23 +3942,23 @@ def main() -> None:
         else:
             page = st.radio(
                 "Navigatie",
-                ["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
+                ["Overview", "Growth Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
                 label_visibility="collapsed",
             )
 
         st.divider()
 
-        if st.button("Vernieuwen", use_container_width=True):
+        if st.button("Refresh", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
 
     _sidebar_add_artist()
     _sidebar_scraper_status()
 
-    if page == "Overzicht":
+    if page == "Overview":
         _page_overzicht()
 
-    elif page == "Groei Leaderboard":
+    elif page == "Growth Leaderboard":
         _page_xgboost_leaderboard()
 
     elif page == "Genre Trends":
