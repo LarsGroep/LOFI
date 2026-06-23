@@ -195,4 +195,10 @@ def _introspect() -> None:
 
 
 if __name__ == "__main__":
+    try:
+        from pathlib import Path as _Path
+        from dotenv import load_dotenv
+        load_dotenv(_Path(__file__).parent.parent / ".env")
+    except Exception:
+        pass
     _introspect()
