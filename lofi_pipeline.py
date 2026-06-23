@@ -240,7 +240,7 @@ def _load_taxonomy() -> dict:
 # Data layer
 # ---------------------------------------------------------------------------
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def load_artist_list() -> pd.DataFrame:
     rows = sb.schema("tinder").table("artist_chartmetric_flat").select(
         "artist_id, artist_name, cm_artist_score, career_status, genres"
@@ -2396,7 +2396,11 @@ def _page_overzicht() -> None:
     names = sorted(artist_list["artist_name"].dropna().unique().tolist())
 
     # Search bar — CSS pins this as a fixed floating bar centered on the page
-    scol, = st.columns([1])
+    scol, rcol = st.columns([20, 1])
+    with rcol:
+        if st.button("↺", key="refresh_artist_list", help="Artiestlijst verversen"):
+            load_artist_list.clear()
+            st.rerun()
     with scol:
         query = st.text_input(
             "Artiest",
