@@ -13,6 +13,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from agents.core import compliance_status, generate_rationales
 from scout.data import load_flat_profiles, load_ml_features, make_client
 from scout.ranking import (
     build_candidates,
@@ -74,7 +75,8 @@ def _candidates_and_taxonomy():
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def _to_dataframe(ranked: list[dict]) -> pd.DataFrame:
+def _to_dataframe(ranked: list[dict], ai: dict | None = None) -> pd.DataFrame:
+    ai = ai or {}
     return pd.DataFrame([{
         "artist_id": c["artist_id"],
         "Artiest": c["artist_name"],
@@ -86,7 +88,7 @@ def _to_dataframe(ranked: list[dict]) -> pd.DataFrame:
         "Data": c["confidence"],
         "Forecast": c.get("forecast_90d"),
         "Genres": ", ".join(c["genres"][:3]),
-        "Waarom": c["waarom"],
+        "Waarom": ai.get(c["artist_id"], {}).get("rationale_nl") or c["waarom"],
     } for c in ranked])
 
 
@@ -186,8 +188,26 @@ def render_scout_page() -> None:
     k[3].metric("Gem. potentieel",
                 f"{sum(c['future_potential'] for c in ranked) / len(ranked):.0f}/100")
 
+    # ── AI-toelichting (Claude, of voorbeeldmodus) ───────────────────────────
+    status = compliance_status()
+    bc = st.columns([1, 3])
+    if bc[0].button("Genereer AI-toelichting", type="primary"):
+        with st.spinner("Toelichting genereren…"):
+            try:
+                st.session_state["scout_ai"] = generate_rationales(ranked[:25])
+            except Exception as e:  # noqa: BLE001 — surface LLM/config errors
+                st.error(f"AI-toelichting mislukt: {e}")
+    if status["mode"] == "live":
+        bc[1].caption(
+            f"AI actief — {status['model']}, regio {status['inference_geo']}.")
+    else:
+        bc[1].caption(
+            f"Voorbeeldmodus — {status['reason']}. De 'Waarom' is nu de "
+            "datagedreven toelichting; AI vult dit later aan.")
+    ai = st.session_state.get("scout_ai")
+
     # ── ranked table ─────────────────────────────────────────────────────────
-    df = _to_dataframe(ranked)
+    df = _to_dataframe(ranked, ai)
     prog = lambda label: st.column_config.ProgressColumn(  # noqa: E731
         label, min_value=0, max_value=100, format="%d")
     event = st.dataframe(
