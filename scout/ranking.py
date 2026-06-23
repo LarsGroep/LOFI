@@ -11,6 +11,7 @@ the ranking + filters here remain the deterministic backbone.
 from __future__ import annotations
 
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -66,24 +67,30 @@ def parse_genres(g) -> list[str]:
     return []
 
 
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(s).lower())
+
+
 def genre_match(genres: list[str], taxonomy: dict) -> dict:
-    """Returns {tier1: [...], tier2: [...], disqualifying: [...]}."""
+    """Normalised genre matching. Tiers match on normalised equality; the
+    disqualifying set matches as a substring, so spelled/combined variants
+    (hip-hop, hyperpop, k-pop, "korean hip-hop/rap") are still caught."""
     g = taxonomy.get("genres", {})
-    t1, t2, dq = set(g.get("tier_1", [])), set(g.get("tier_2", [])), set(
-        g.get("disqualifying", []))
-    gs = set(genres)
+    t1 = {_norm(x) for x in g.get("tier_1", [])}
+    t2 = {_norm(x) for x in g.get("tier_2", [])}
+    dq = {_norm(x) for x in g.get("disqualifying", [])}
+    pairs = [(_norm(x), x) for x in genres if x]
     return {
-        "tier1": sorted(gs & t1),
-        "tier2": sorted(gs & t2),
-        "disqualifying": sorted(gs & dq),
+        "tier1": [o for n, o in pairs if n in t1],
+        "tier2": [o for n, o in pairs if n in t2],
+        "disqualifying": [o for n, o in pairs if any(d and d in n for d in dq)],
     }
 
 
 def is_disqualified(genres: list[str], taxonomy: dict) -> bool:
-    """Skip artists whose only genre tags are disqualifying (pop/hiphop/edm…)."""
+    """Off-feel: has a disqualifying genre and no core/adjacent match."""
     m = genre_match(genres, taxonomy)
-    return bool(genres) and bool(m["disqualifying"]) and not (
-        m["tier1"] or m["tier2"]) and len(m["disqualifying"]) == len(set(genres))
+    return bool(m["disqualifying"]) and not (m["tier1"] or m["tier2"])
 
 
 # ── Candidate construction ───────────────────────────────────────────────────
@@ -138,26 +145,32 @@ def explain_nl(c: dict, taxonomy: dict) -> str:
     if c["growth"] >= 70:
         reasons.append("sterke groeiversnelling")
     elif c["growth"] >= 55:
-        reasons.append("groeit gestaag")
+        reasons.append("gestage groei")
 
+    if c["momentum"] >= 75:
+        reasons.append("hoog momentum")
+
+    if c["future_potential"] >= 75 and not any("groei" in r for r in reasons):
+        reasons.append("hoog potentieel")
+
+    # Forecast — honest about direction, so a decline isn't hidden.
     fc = c.get("forecast_90d")
-    if fc is not None and fc >= 25:
-        reasons.append(f"verwachte groei +{fc:.0f}%")
-
-    if c["momentum"] >= 70:
-        reasons.append("hoog momentum nu")
-
-    if c["future_potential"] >= 70 and "sterke groeiversnelling" not in reasons:
-        reasons.append("sterk lange-termijn potentieel")
+    if fc is not None:
+        if fc >= 25:
+            reasons.append(f"forecast +{fc:.0f}%")
+        elif fc <= -15:
+            reasons.append(f"let op: forecast {fc:.0f}%")
 
     m = genre_match(c["genres"], taxonomy)
     if m["tier1"]:
         reasons.append(f"kerngenre ({m['tier1'][0]})")
     elif m["tier2"]:
-        reasons.append(f"aanverwant genre ({m['tier2'][0]})")
+        reasons.append(f"aanverwant ({m['tier2'][0]})")
+    elif c["genres"]:
+        reasons.append("genre buiten kernprofiel")
 
     if not reasons:
-        reasons.append("nog niet geboekt, past in het profiel")
+        reasons.append("nog niet geboekt, in profiel")
 
     text = ", ".join(reasons[:4])
     return text[0].upper() + text[1:] + "."
@@ -168,6 +181,7 @@ def rank_candidates(candidates: list[dict], taxonomy: dict, *,
                     min_confidence: float = 30.0,
                     query: str | None = None,
                     drop_disqualified: bool = True,
+                    core_only: bool = False,
                     sort_by: str = "rank",
                     top_n: int | None = None) -> list[dict]:
     """Filter + sort, attaching `rank` and `waarom` to each surviving candidate."""
@@ -180,6 +194,10 @@ def rank_candidates(candidates: list[dict], taxonomy: dict, *,
             continue
         if drop_disqualified and is_disqualified(c["genres"], taxonomy):
             continue
+        if core_only:
+            m = genre_match(c["genres"], taxonomy)
+            if not (m["tier1"] or m["tier2"]):
+                continue
         if sel_genres and not (set(c["genres"]) & sel_genres):
             continue
         if q and q not in c["artist_name"].lower():
