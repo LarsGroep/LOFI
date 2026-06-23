@@ -1,44 +1,82 @@
 """
-Read-only Airtable access for LOFI booking history (Phase 3).
+Read-only Airtable — LOFI booking history + comparables for the AI chat.
 
-This is the "second world": Lofi's own bookings — gages, events, outcomes —
-which ground the chat's verdicts and gage benchmarking. Gage data into the LLM
-was approved by Lofi (option 1).
+The "second world": Lofi's own bookings (gages, events, outcomes) ground the
+chat's fee/draw reasoning. Gage data into the LLM is option-1 approved.
 
-Status: INTERFACE READY, queries pending the real schema. Until the table/field
-names are configured the loaders return [] so the chat degrades gracefully and
-never invents booking or gage data. `httpx` is imported lazily so importing this
-module never hard-fails.
+Field names vary per base, so the mapping is configurable via env (set after
+running the introspector: `python -m scout.airtable`). Everything is read-only
+and graceful-empty: if not configured or on any error, loaders return [].
 
-Configure via env once the schema is known:
-    AIRTABLE_TOKEN, AIRTABLE_BASE_ID,
-    AIRTABLE_BOOKINGS_TABLE, and the field-name mapping below.
+    AIRTABLE_TOKEN, AIRTABLE_BASE_ID, AIRTABLE_BOOKINGS_TABLE   (required)
+    AIRTABLE_F_ARTIST / _GAGE / _DATE / _EVENT / _VENUE / _GENRE / _OUTCOME
+        (field-name overrides; defaults below)
 """
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 
 _API_ROOT = "https://api.airtable.com/v0"
+_META_ROOT = "https://api.airtable.com/v0/meta"
+
+_DEFAULT_FIELDS = {
+    "artist": "Artist", "event": "Event", "venue": "Venue", "date": "Date",
+    "gage": "Fee", "genre": "Genre", "outcome": "Tickets sold",
+}
+
+
+def _token() -> str:
+    return os.environ.get("AIRTABLE_TOKEN", "")
+
+
+def _base() -> str:
+    return os.environ.get("AIRTABLE_BASE_ID", "")
+
+
+def _bookings_table() -> str:
+    return os.environ.get("AIRTABLE_BOOKINGS_TABLE", "")
 
 
 def _configured() -> bool:
-    return bool(os.environ.get("AIRTABLE_TOKEN")
-               and os.environ.get("AIRTABLE_BASE_ID")
-               and os.environ.get("AIRTABLE_BOOKINGS_TABLE"))
+    return bool(_token() and _base() and _bookings_table())
 
 
-def _norm(s: str) -> str:
+def _mapping() -> dict:
+    return {k: os.environ.get(f"AIRTABLE_F_{k.upper()}", v)
+            for k, v in _DEFAULT_FIELDS.items()}
+
+
+def _norm(s) -> str:
     return "".join(ch for ch in str(s).lower() if ch.isalnum())
 
 
-def _fetch_records(table: str) -> list[dict]:
-    """Paginated read of an Airtable table. Returns raw {id, fields} records."""
-    import httpx  # lazy — only needed when actually configured
+def _parse_genres(g) -> set[str]:
+    if isinstance(g, list):
+        return {_norm(x) for x in g if x}
+    if isinstance(g, str):
+        return {_norm(x) for x in g.replace(";", ",").split(",") if x.strip()}
+    return set()
 
-    token = os.environ["AIRTABLE_TOKEN"]
-    base = os.environ["AIRTABLE_BASE_ID"]
-    url = f"{_API_ROOT}/{base}/{table}"
-    headers = {"Authorization": f"Bearer {token}"}
+
+def _value(v):
+    """Flatten Airtable values (linked records / attachments come as lists)."""
+    if isinstance(v, list):
+        names = []
+        for x in v:
+            names.append(x.get("name") or x.get("id") or "" if isinstance(x, dict)
+                         else str(x))
+        return ", ".join(n for n in names if n)
+    return v
+
+
+# ── fetch + parse ────────────────────────────────────────────────────────────
+
+def _fetch_records(table: str) -> list[dict]:
+    import httpx  # lazy — only when configured
+
+    url = f"{_API_ROOT}/{_base()}/{table}"
+    headers = {"Authorization": f"Bearer {_token()}"}
     out, offset = [], None
     with httpx.Client(timeout=30.0) as client:
         while True:
@@ -55,22 +93,106 @@ def _fetch_records(table: str) -> list[dict]:
     return out
 
 
-# ── public loaders (used by the chat) ────────────────────────────────────────
-# These return [] until the schema mapping is finalised — see the TODO below.
+def _record_to_booking(rec: dict, m: dict) -> dict:
+    f = rec.get("fields", {})
+    return {k: _value(f.get(m[k])) for k in _DEFAULT_FIELDS}
 
-def load_booking_history(artist_name: str) -> list[dict]:
+
+@lru_cache(maxsize=1)
+def _all_bookings() -> tuple:
+    """Parsed bookings, cached for the session (read-only reference data)."""
+    if not _configured():
+        return ()
+    try:
+        m = _mapping()
+        return tuple(_record_to_booking(r, m)
+                     for r in _fetch_records(_bookings_table()))
+    except Exception:
+        return ()
+
+
+# ── public loaders (used by scout/context.build_artist_view) ─────────────────
+
+def load_booking_history(artist_name: str, limit: int = 20,
+                         bookings=None) -> list[dict]:
     """Past LOFI bookings of THIS artist (gage, event, date, outcome)."""
-    if not _configured():
-        return []
-    # TODO(schema): fetch _fetch_records(AIRTABLE_BOOKINGS_TABLE), match on the
-    # artist-name field (via _norm), map gage/event/date/outcome fields.
-    return []
+    src = bookings if bookings is not None else _all_bookings()
+    key = _norm(artist_name)
+    return [b for b in src if _norm(b.get("artist", "")) == key][:limit]
 
 
-def load_comparables(artist_name: str, profile: dict, limit: int = 5) -> list[dict]:
-    """Similar past bookings (genre/popularity tier) for gage benchmarking."""
-    if not _configured():
-        return []
-    # TODO(schema): rank past bookings by genre + popularity similarity to
-    # `profile`, return the top `limit` with their gages.
-    return []
+def load_comparables(artist_name: str, profile: dict, limit: int = 5,
+                     bookings=None) -> list[dict]:
+    """Similar past bookings (genre overlap) for fee/draw benchmarking."""
+    src = bookings if bookings is not None else _all_bookings()
+    key = _norm(artist_name)
+    genres = _parse_genres((profile or {}).get("genres"))
+
+    scored = []
+    for b in src:
+        if _norm(b.get("artist", "")) == key:
+            continue  # exclude the artist themselves
+        overlap = len(genres & _parse_genres(b.get("genre"))) if genres else 0
+        if genres and overlap == 0:
+            continue  # when we know the genres, only genre-matched comparables
+        scored.append((overlap, b))
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return [b for _, b in scored[:limit]]
+
+
+# ── introspection (run locally to discover the schema) ───────────────────────
+
+def _introspect() -> None:
+    """`python -m scout.airtable` — prints bases/tables/fields so we can map
+    them. Prints field NAMES + truncated sample values only."""
+    import httpx
+
+    if not _token():
+        print("Set AIRTABLE_TOKEN (and ideally AIRTABLE_BASE_ID) in your .env first.")
+        return
+    headers = {"Authorization": f"Bearer {_token()}"}
+
+    with httpx.Client(timeout=30.0) as client:
+        if not _base():
+            r = client.get(f"{_META_ROOT}/bases", headers=headers)
+            if r.status_code != 200:
+                print(f"Could not list bases ({r.status_code}). Set "
+                      "AIRTABLE_BASE_ID and re-run."); return
+            print("Bases the token can see (set one as AIRTABLE_BASE_ID):")
+            for b in r.json().get("bases", []):
+                print(f"  {b['id']}   {b['name']}")
+            return
+
+        # Try the metadata API (full schema) first.
+        r = client.get(f"{_META_ROOT}/bases/{_base()}/tables", headers=headers)
+        if r.status_code == 200:
+            print(f"Tables + fields in base {_base()}:\n")
+            for t in r.json().get("tables", []):
+                print(f"TABLE: {t['name']}")
+                for fld in t.get("fields", []):
+                    print(f"    - {fld['name']}  ({fld.get('type')})")
+                print()
+            print("Pick the bookings table → AIRTABLE_BOOKINGS_TABLE, then paste "
+                  "this output back.")
+            return
+
+        # Fallback: sample the configured bookings table (needs only data scope).
+        table = _bookings_table()
+        if not table:
+            print(f"Metadata API unavailable ({r.status_code}). Set "
+                  "AIRTABLE_BOOKINGS_TABLE and re-run to sample its fields.")
+            return
+        recs = _fetch_records(table)[:3]
+        print(f"Sample of '{table}' ({len(recs)} rows) — field: value(truncated):\n")
+        seen = set()
+        for rec in recs:
+            for k, v in rec.get("fields", {}).items():
+                if k in seen:
+                    continue
+                seen.add(k)
+                print(f"    - {k}: {str(_value(v))[:40]}")
+        print("\nPaste this back so I can map the fields.")
+
+
+if __name__ == "__main__":
+    _introspect()
