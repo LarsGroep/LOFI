@@ -244,7 +244,7 @@ def _load_taxonomy() -> dict:
 def load_artist_list() -> pd.DataFrame:
     rows = sb.schema("tinder").table("artist_chartmetric_flat").select(
         "artist_id, artist_name, cm_artist_score, career_status, genres"
-    ).order("artist_name").execute().data or []
+    ).order("artist_name").limit(5000).execute().data or []
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
@@ -3448,18 +3448,18 @@ def _load_catalogue_data() -> pd.DataFrame:
     def _fetch_preds():
         return sb.schema("tinder").table("xgboost_predictions").select(
             "artist_id, artist_name, predicted_growth_90d"
-        ).execute().data or []
+        ).limit(5000).execute().data or []
 
     def _fetch_flat():
         return sb.schema("tinder").table("artist_chartmetric_flat").select(
             "artist_id, candidate_status, spotify_listeners, cm_artist_score"
-        ).execute().data or []
+        ).limit(5000).execute().data or []
 
     def _fetch_cm():
         # image_url + sp_30d from ml_features
         rows = sb.schema("tinder").table("artist_chartmetric").select(
             "artist_id, image_url, ml_features"
-        ).execute().data or []
+        ).limit(5000).execute().data or []
         result = {}
         for r in rows:
             mf = r.get("ml_features") or {}
