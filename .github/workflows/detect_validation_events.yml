@@ -5,7 +5,7 @@ name: Detect Validation Events
 
 on:
   schedule:
-    - cron: '30 1 * * *'   # 01:30 UTC — after scrape_flagged (00:00) finishes
+    - cron: '30 21 * * *'  # 21:30 UTC (23:30 CEST) — after scrape_flagged (20:00) finishes
   workflow_dispatch:
     inputs:
       artist_id:
