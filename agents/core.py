@@ -175,10 +175,12 @@ def _chat_system(artist_view: dict) -> str:
         "on (a score, a metric, a show, a booking, booker feedback).",
         "- Explain a score in plain terms when relevant (what it measures, why it "
         "matters for a booking).",
-        "- Comparables must be grounded: use the LOFI reference artists and any "
-        "provided related/booked artists, and compare on sound + market position "
-        "+ audience + growth trajectory. Do NOT invent comparable names you were "
-        "not given — for niche artists you will be wrong.",
+        "- For 'comparable to' questions, ground on the provided `similar_artists` "
+        "(Last.fm + Chartmetric scene adjacency) and the LOFI reference artists. "
+        "That raw list is broad — filter it to genuine matches on sound + market "
+        "position + audience + growth trajectory, and say why each one fits. Use "
+        "`comparables` / `booking_history` (Airtable) only for fee/draw "
+        "benchmarking. Never invent names you were not given.",
         "- Weight qualitative booker feedback highly (real-world > scraped) when "
         "it is present.",
         "",

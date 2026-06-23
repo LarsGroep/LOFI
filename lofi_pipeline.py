@@ -2410,7 +2410,8 @@ def _render_artist_by_id(artist_list: pd.DataFrame, selected: str) -> None:
     render_feedback_form(artist_id, selected)
 
     from scout.chat import render_artist_chat
-    render_artist_chat(artist_id, selected, profile, ts_data.get("ml_features") or {})
+    render_artist_chat(artist_id, selected, profile, ts_data.get("ml_features") or {},
+                       ext=ext)
 
 
 def _page_overzicht() -> None:
