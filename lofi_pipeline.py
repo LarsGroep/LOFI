@@ -250,11 +250,23 @@ def load_artist_list() -> pd.DataFrame:
 
 @st.cache_data(ttl=300)
 def _load_all_artist_names() -> list[dict]:
-    """All artists from the master table — includes artists with no chartmetric row yet."""
-    rows = sb.schema("tinder").table("artists").select(
-        "id, name"
-    ).order("name").limit(10000).execute().data or []
-    return [{"artist_id": r["id"], "artist_name": r["name"]} for r in rows]
+    """All artists from the master table — paginates to bypass PostgREST 1000-row cap."""
+    result = []
+    page = 1000
+    offset = 0
+    while True:
+        rows = (
+            sb.schema("tinder").table("artists")
+            .select("id, name")
+            .order("name")
+            .range(offset, offset + page - 1)
+            .execute().data or []
+        )
+        result.extend(rows)
+        if len(rows) < page:
+            break
+        offset += page
+    return [{"artist_id": r["id"], "artist_name": r["name"]} for r in result]
 
 
 def _safe(r) -> dict:
