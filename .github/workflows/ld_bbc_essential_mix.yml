@@ -1,0 +1,23 @@
+name: "[LD] BBC Essential Mix"
+on:
+  schedule:
+    - cron: "0 9 * * 0"   # Sundays at 09:00 UTC (show airs Saturday night)
+  workflow_dispatch:
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scrapers/live_detection/bbc_essential_mix/requirements.txt
+      - run: pip install -r scrapers/live_detection/bbc_essential_mix/requirements.txt
+      - name: Scrape BBC Essential Mix
+        working-directory: scrapers/live_detection/bbc_essential_mix
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python scraper.py

@@ -7,7 +7,7 @@ name: Score LOFI Feel
 
 on:
   schedule:
-    - cron: '0 23 * * *'
+    - cron: '0 19 * * *'  # 19:00 UTC (21:00 CEST)
   workflow_dispatch:
     inputs:
       status:

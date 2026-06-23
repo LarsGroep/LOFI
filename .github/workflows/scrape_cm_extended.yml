@@ -8,7 +8,7 @@ name: Scrape CM Extended
 
 on:
   schedule:
-    - cron: '30 3 * * *'   # 03:30 UTC -- 3.5 hours after scrape_flagged (00:00)
+    - cron: '30 23 * * *'  # 23:30 UTC (01:30 CEST) — done by ~03:10 UTC (05:10 CEST)
   workflow_dispatch:
     inputs:
       artist_id:

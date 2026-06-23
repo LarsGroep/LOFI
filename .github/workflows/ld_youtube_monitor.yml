@@ -1,0 +1,24 @@
+name: "[LD] YouTube Monitor"
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scrapers/live_detection/youtube_monitor/requirements.txt
+      - run: pip install -r scrapers/live_detection/youtube_monitor/requirements.txt
+      - name: Poll YouTube channels
+        working-directory: scrapers/live_detection/youtube_monitor
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          SUPABASE_URL:    ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:    ${{ secrets.SUPABASE_KEY }}
+        run: python monitor.py
