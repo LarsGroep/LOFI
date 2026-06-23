@@ -858,10 +858,10 @@ def _score_color(v: float | None) -> str:
     if v is None:
         return "gray"
     if v >= 70:
-        return "green"
+        return "blue"
     if v >= 45:
-        return "orange"
-    return "red"
+        return "violet"
+    return "gray"
 
 
 def _score_label(v: float | None) -> str:
@@ -899,63 +899,19 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
         ("confidence",       "Data",          "Hoeveel data hebben we?"),
     ]
 
-    rows = []
-    for key, label, desc in score_defs:
-        v = scores.get(key)
-        rows.append({
-            "Categorie": label,
-            "Score":     float(v) if v is not None else 0.0,
-            "Label":     _score_label(v),
-            "Desc":      desc,
-            "Missing":   v is None,
-        })
-
-    df_scores = pd.DataFrame(rows)
-
-    # Color: slate-500 for low → indigo-400 → indigo-600 for high
-    bar = (
-        alt.Chart(df_scores)
-        .mark_bar(cornerRadiusEnd=5, height=18)
-        .encode(
-            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 100]), title=None,
-                    axis=alt.Axis(grid=False, labels=False, ticks=False)),
-            y=alt.Y("Categorie:N", sort=None, title=None,
-                    axis=alt.Axis(labelColor="#cbd5e1", labelFontSize=13, ticks=False)),
-            color=alt.Color(
-                "Score:Q",
-                scale=alt.Scale(domain=[0, 50, 100],
-                                range=["#475569", "#818cf8", "#4f46e5"]),
-                legend=None,
-            ),
-            tooltip=[
-                alt.Tooltip("Categorie:N", title="Score"),
-                alt.Tooltip("Score:Q", format=".0f"),
-                alt.Tooltip("Label:N"),
-                alt.Tooltip("Desc:N", title="Uitleg"),
-            ],
-        )
-    )
-
-    text = (
-        alt.Chart(df_scores)
-        .mark_text(align="left", dx=6, color="#e2e8f0", fontSize=12)
-        .encode(
-            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 100])),
-            y=alt.Y("Categorie:N", sort=None),
-            text=alt.condition(
-                alt.datum.Missing,
-                alt.value("geen data"),
-                alt.Text("Score:Q", format=".0f"),
-            ),
-        )
-    )
-
-    chart = (bar + text).properties(height=140).configure_view(strokeWidth=0).configure_axis(
-        domainColor="#1e293b", gridColor="#1e293b"
-    )
-
     st.subheader("Scores")
-    st.altair_chart(chart, use_container_width=True)
+    cols = st.columns(5)
+    for col, (key, label, desc) in zip(cols, score_defs):
+        v = scores.get(key)
+        with col:
+            color = _score_color(v)
+            st.markdown(f"**:{color}[{label}]**")
+            if v is not None:
+                st.progress(v / 100.0)
+                st.markdown(f"**{v:.0f}/100** — {_score_label(v)}")
+            else:
+                st.markdown("**—** — Geen data")
+            st.caption(desc)
 
     with st.expander("Hoe zijn deze scores opgebouwd?"):
         sp30  = ml.get("sp_listeners_30d_pct")
