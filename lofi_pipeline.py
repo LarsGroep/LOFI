@@ -2411,7 +2411,8 @@ def _render_artist_by_id(artist_list: pd.DataFrame, selected: str) -> None:
 
     from scout.chat import render_artist_chat
     render_artist_chat(artist_id, selected, profile, ts_data.get("ml_features") or {},
-                       ext=ext)
+                       ext=ext, ra_df=ra_df, pf_data=pf_data, vdf=vdf,
+                       nl_score=nl_score_result[0])
 
 
 def _page_overzicht() -> None:
