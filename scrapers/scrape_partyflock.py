@@ -177,9 +177,9 @@ def main() -> None:
         )
     else:
         # Queue: artists with no PF row (NULL updated_at) or oldest updated_at
+        # NOTE: sb.rpc() must be top-level (public schema) — tinder schema RPC is invalid
         rows = (
-            sb.schema("tinder")
-            .rpc("get_partyflock_queue", {"p_limit": args.limit})
+            sb.rpc("get_partyflock_queue", {"p_limit": args.limit})
             .execute().data or []
         )
 

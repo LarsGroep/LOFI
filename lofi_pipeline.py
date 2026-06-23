@@ -891,28 +891,71 @@ def render_five_scores(profile: dict, ts_data: dict) -> None:
     scores = compute_five_scores(profile, ml)
     bd = scores.get("breakdown") or {}
 
-    st.subheader("Scores")
-    st.caption("0 tot 100. Groen = goed, oranje = opletten, rood = zwak.")
-
     score_defs = [
-        ("momentum",         "Momentum",       "Groeit de buzz nu?"),
-        ("growth",           "Groei",          "Gaat de groei omhoog?"),
-        ("market_relevance", "Marktpositie",   "Hoe groot is de artiest?"),
-        ("future_potential", "Potentieel",     "Waar gaat dit naartoe?"),
-        ("confidence",       "Data",           "Hoeveel data hebben we?"),
+        ("momentum",         "Momentum",      "Groeit de buzz nu?"),
+        ("growth",           "Groei",         "Gaat de groei omhoog?"),
+        ("market_relevance", "Marktpositie",  "Hoe groot is de artiest?"),
+        ("future_potential", "Potentieel",    "Waar gaat dit naartoe?"),
+        ("confidence",       "Data",          "Hoeveel data hebben we?"),
     ]
-    cols = st.columns(5)
-    for col, (key, label, desc) in zip(cols, score_defs):
+
+    rows = []
+    for key, label, desc in score_defs:
         v = scores.get(key)
-        with col:
-            color = _score_color(v)
-            st.markdown(f"**:{color}[{label}]**")
-            if v is not None:
-                st.progress(v / 100.0)
-                st.markdown(f"**{v:.0f}/100** — {_score_label(v)}")
-            else:
-                st.markdown("**—** — Geen data")
-            st.caption(desc)
+        rows.append({
+            "Categorie": label,
+            "Score":     float(v) if v is not None else 0.0,
+            "Label":     _score_label(v),
+            "Desc":      desc,
+            "Missing":   v is None,
+        })
+
+    df_scores = pd.DataFrame(rows)
+
+    # Color: slate-500 for low → indigo-400 → indigo-600 for high
+    bar = (
+        alt.Chart(df_scores)
+        .mark_bar(cornerRadiusEnd=5, height=18)
+        .encode(
+            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 100]), title=None,
+                    axis=alt.Axis(grid=False, labels=False, ticks=False)),
+            y=alt.Y("Categorie:N", sort=None, title=None,
+                    axis=alt.Axis(labelColor="#cbd5e1", labelFontSize=13, ticks=False)),
+            color=alt.Color(
+                "Score:Q",
+                scale=alt.Scale(domain=[0, 50, 100],
+                                range=["#475569", "#818cf8", "#4f46e5"]),
+                legend=None,
+            ),
+            tooltip=[
+                alt.Tooltip("Categorie:N", title="Score"),
+                alt.Tooltip("Score:Q", format=".0f"),
+                alt.Tooltip("Label:N"),
+                alt.Tooltip("Desc:N", title="Uitleg"),
+            ],
+        )
+    )
+
+    text = (
+        alt.Chart(df_scores)
+        .mark_text(align="left", dx=6, color="#e2e8f0", fontSize=12)
+        .encode(
+            x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 100])),
+            y=alt.Y("Categorie:N", sort=None),
+            text=alt.condition(
+                alt.datum.Missing,
+                alt.value("geen data"),
+                alt.Text("Score:Q", format=".0f"),
+            ),
+        )
+    )
+
+    chart = (bar + text).properties(height=140).configure_view(strokeWidth=0).configure_axis(
+        domainColor="#1e293b", gridColor="#1e293b"
+    )
+
+    st.subheader("Scores")
+    st.altair_chart(chart, use_container_width=True)
 
     with st.expander("Hoe zijn deze scores opgebouwd?"):
         sp30  = ml.get("sp_listeners_30d_pct")
@@ -1010,71 +1053,117 @@ def render_booking_signals(
     else:
         composite = None
 
-    def _sig_color(v: int | None) -> str:
-        if v is None: return "gray"
-        return "green" if v >= 65 else ("orange" if v >= 40 else "red")
-
     low_conf = missing_pct is not None and missing_pct > 40
 
+    booking_label = (
+        "Boeken" if (composite or 0) >= 65 else
+        "Veelbelovend" if (composite or 0) >= 45 else
+        "Twijfelachtig" if (composite or 0) >= 30 else
+        "Niet aanbevolen"
+    )
+    # Indigo palette — no traffic light colors
+    verdict_color = (
+        "#4f46e5" if (composite or 0) >= 65 else    # indigo-600
+        "#818cf8" if (composite or 0) >= 45 else    # indigo-400
+        "#64748b" if (composite or 0) >= 30 else    # slate-500
+        "#334155"                                    # slate-700
+    )
+
     st.subheader("Booking Signalen")
-    if low_conf:
-        st.caption(f":orange[⚠ Lage data-betrouwbaarheid — {missing_pct:.0f}% XGBoost features ontbreken]")
 
-    c1, c2, c3, c4 = st.columns(4)
+    # Left: signal bar chart  |  Right: verdict card
+    chart_col, verdict_col = st.columns([3, 1])
 
-    with c1:
-        gc = _sig_color(growth_score)
-        st.metric("GROEI SIGNAAL", f"{growth_score}/100" if growth_score is not None else "—",
-                  help="XGBoost 90d CPP groeivoorspelling → 0-100 (0%→50, +50%→100)")
-        if growth_score is not None:
-            st.markdown(f":{gc}[{('▓' * max(1, growth_score // 20))}◻◻◻◻◻]"[:20])
-            if pred is not None:
-                st.caption(f"Verwachte CPP groei: {pred:+.0f}%")
-        else:
-            st.caption("Nog geen XGBoost voorspelling")
+    with chart_col:
+        signals = [
+            {"Signaal": "LOFI Fit",      "Score": float(lofi_score   or 0), "Gewicht": "25%",  "Missing": lofi_score   is None},
+            {"Signaal": "Scene",         "Score": float(scene_score  or 0), "Gewicht": "35%",  "Missing": False},
+            {"Signaal": "Groei (XGB)",   "Score": float(growth_score or 0), "Gewicht": "40%",  "Missing": growth_score is None},
+        ]
+        df_sig = pd.DataFrame(signals)
 
-    with c2:
-        sc = _sig_color(scene_score)
-        st.metric("SCENE SIGNAAL", f"{scene_score}/100",
-                  help="Validatie-events (Ibiza, Boiler Room, …) + NL-aanwezigheid + RA-events")
-        st.markdown(f":{sc}[{('▓' * max(1, scene_score // 20))}]")
-        if scene_bd.get("validation_hits"):
-            st.caption(", ".join(scene_bd["validation_hits"][:3]))
-
-    with c3:
-        lc = _sig_color(lofi_score)
-        st.metric("LOFI FIT", f"{lofi_score}/100" if lofi_score is not None else "—",
-                  help="Genre/label/agency match + embedding centroid + netwerksignaal")
-        if lofi_score is not None:
-            st.markdown(f":{lc}[{('▓' * max(1, lofi_score // 20))}]")
-
-    with c4:
-        cc = _sig_color(composite)
-        booking_label = (
-            "Boek" if (composite or 0) >= 65 else
-            "Veelbelovend" if (composite or 0) >= 45 else
-            "Twijfelachtig" if (composite or 0) >= 30 else
-            "Niet aanbevolen"
+        bars = (
+            alt.Chart(df_sig)
+            .mark_bar(cornerRadiusEnd=5, height=22)
+            .encode(
+                x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 100]), title=None,
+                        axis=alt.Axis(grid=False, labels=False, ticks=False)),
+                y=alt.Y("Signaal:N", sort=None, title=None,
+                        axis=alt.Axis(labelColor="#cbd5e1", labelFontSize=13, ticks=False)),
+                color=alt.Color(
+                    "Score:Q",
+                    scale=alt.Scale(domain=[0, 50, 100],
+                                    range=["#334155", "#818cf8", "#4f46e5"]),
+                    legend=None,
+                ),
+                tooltip=[
+                    alt.Tooltip("Signaal:N"),
+                    alt.Tooltip("Score:Q", format=".0f", title="Score / 100"),
+                    alt.Tooltip("Gewicht:N", title="Weging"),
+                ],
+            )
         )
-        st.metric("COMPOSIET", f"{composite}/100" if composite is not None else "—",
-                  help="0.40 × Groei + 0.35 × Scene + 0.25 × LOFI Fit")
-        if composite is not None:
-            st.markdown(f":{cc}[**{booking_label}**]")
 
-    with st.expander("Breakdown"):
+        labels = (
+            alt.Chart(df_sig)
+            .mark_text(align="left", dx=6, color="#e2e8f0", fontSize=12)
+            .encode(
+                x=alt.X("Score:Q", scale=alt.Scale(domain=[0, 100])),
+                y=alt.Y("Signaal:N", sort=None),
+                text=alt.condition(
+                    alt.datum.Missing,
+                    alt.value("geen data"),
+                    alt.Text("Score:Q", format=".0f"),
+                ),
+            )
+        )
+
+        sig_chart = (bars + labels).properties(height=110).configure_view(
+            strokeWidth=0
+        ).configure_axis(domainColor="#1e293b", gridColor="#1e293b")
+
+        if low_conf:
+            st.caption(f"Lage data-betrouwbaarheid — {missing_pct:.0f}% XGBoost features ontbreken")
+        st.altair_chart(sig_chart, use_container_width=True)
+
+        # Scene sub-caption
+        scene_hints = []
+        if scene_bd.get("validation_hits"):
+            scene_hints.append(", ".join(scene_bd["validation_hits"][:3]))
+        scene_hints.append(f"{scene_bd.get('ra_count', 0)} RA events")
+        st.caption("Scene: " + "  ·  ".join(scene_hints))
+
+        if pred is not None:
+            st.caption(f"Groei: verwachte CPP verandering {pred:+.0f}% (90 dagen)")
+
+    with verdict_col:
+        score_display = f"{composite}/100" if composite is not None else "—"
         st.markdown(
-            f"**Groei:** {growth_score}/100"
+            f"<div style='text-align:center;padding:1.2rem 0.5rem;"
+            f"border:2px solid {verdict_color};border-radius:10px;'>"
+            f"<div style='font-size:2rem;font-weight:700;color:{verdict_color};'>"
+            f"{score_display}</div>"
+            f"<div style='font-size:0.85rem;color:#94a3b8;margin-top:0.2rem;'>composiet</div>"
+            f"<div style='font-size:1.1rem;font-weight:600;color:{verdict_color};"
+            f"margin-top:0.5rem;'>{booking_label}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+
+    lofi_matched = feel.get("matched") or [] if feel else []
+    with st.expander("Signaal breakdown"):
+        st.markdown(
+            f"**Groei (40%):** {growth_score}/100"
             + (f" — {pred:+.0f}% CPP groei" if pred is not None else " — geen model data")
         )
         st.markdown(
-            f"**Scene:** {scene_score}/100 — "
+            f"**Scene (35%):** {scene_score}/100 — "
             f"validatie {scene_bd['validation_score']}/100, "
             f"NL {scene_bd['nl_score']}/100, "
             f"RA {scene_bd['ra_count']} events"
         )
-        lofi_matched = feel.get("matched") or [] if feel else []
         st.markdown(
-            f"**LOFI Fit:** {lofi_score}/100"
+            f"**LOFI Fit (25%):** {lofi_score}/100"
             + (f" — {', '.join(lofi_matched[:3])}" if lofi_matched else "")
         )
 
