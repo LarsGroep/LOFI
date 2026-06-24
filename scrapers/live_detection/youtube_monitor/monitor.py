@@ -18,6 +18,9 @@ import logging
 import os
 import sys
 import time
+import re
+import unicodedata
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -175,6 +178,82 @@ def load_artist_names() -> list[str]:
     )
     return [r["artist_name"] for r in rows if r.get("artist_name")]
 
+_SLUG_CHAR_MAP = str.maketrans({
+    "ø": "o", "Ø": "o",
+    "å": "a", "Å": "a",
+    "æ": "ae", "Æ": "ae",
+    "ð": "d", "Ð": "d",
+    "þ": "th", "Þ": "th",
+    "ß": "ss",
+    "ł": "l", "Ł": "l",
+    "œ": "oe", "Œ": "oe",
+})
+
+
+def _make_slug(name: str) -> str:
+    mapped = name.translate(_SLUG_CHAR_MAP)
+    normalized = (
+        unicodedata.normalize("NFKD", mapped)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+    return re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-") or "artist"
+
+
+def _unique_slug(base_slug: str) -> str:
+    for suffix in [""] + [f"-{i}" for i in range(2, 50)]:
+        candidate = f"{base_slug}{suffix}"
+
+        existing = (
+            _sb.schema("tinder")
+            .table("artists")
+            .select("id")
+            .eq("slug", candidate)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+
+        if not existing:
+            return candidate
+
+    return f"{base_slug}-{uuid.uuid4().hex[:6]}"
+
+
+def _artist_exists(name: str) -> bool:
+    rows = (
+        _sb.schema("tinder")
+        .table("artists")
+        .select("id")
+        .ilike("name", name)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    return bool(rows)
+
+
+def _queue_artist_for_nightly_scrape(name: str) -> bool:
+    clean_name = (name or "").strip()
+
+    if not clean_name:
+        return False
+
+    if _artist_exists(clean_name):
+        return False
+
+    row = {
+        "name": clean_name,
+        "slug": _unique_slug(_make_slug(clean_name)),
+        "candidate_status": "candidate",
+        "needs_scraping": True,
+    }
+
+    _sb.schema("tinder").table("artists").insert(row).execute()
+    log.info(f"    Added to artists for nightly scrape: {clean_name}")
+    return True
 
 def poll_once() -> None:
     log.info("── Poll cycle start ──────────────────────────────────")
@@ -260,28 +339,51 @@ def poll_once() -> None:
                 "velocity":   velocity,
             }).execute()
 
-            # Queue unknown artists from trending videos for manual review
+            # Queue unknown artists from trending videos for review + nightly scraping
             if is_trending and unknown:
+                added_to_artists = []
+
                 for name in unknown:
+                    clean_name = (name or "").strip()
+
+                    if not clean_name:
+                        continue
+
                     _sb.schema("tinder").table("discovery_queue").upsert({
-                        "artist_name":    name,
+                        "artist_name":    clean_name,
                         "source":         f"youtube_{platform}",
                         "signal":         "trending_set",
-                        "context":        json.dumps({"video_id": vid, "title": title, "velocity": velocity}),
+                        "context":        json.dumps({
+                            "video_id": vid,
+                            "title": title,
+                            "velocity": velocity,
+                            "view_count": view_count,
+                            "published_at": video["published_at"],
+                        }),
                         "status":         "pending",
                         "created_at":     now_iso,
                     }, on_conflict="artist_name,source").execute()
+
+                    try:
+                        inserted = _queue_artist_for_nightly_scrape(clean_name)
+                        if inserted:
+                            added_to_artists.append(clean_name)
+                    except Exception as e:
+                        log.warning(f"    Could not add {clean_name!r} to artists table: {e}")
+
                 log.info(f"    Queued for review: {unknown}")
 
-        # Update last_checked_at on the channel record
+                if added_to_artists:
+                    log.info(f"    Added for nightly scrape: {added_to_artists}")
+
         _sb.schema("tinder").table("youtube_channels").upsert({
             "platform":        platform,
             "last_checked_at": now_iso,
         }, on_conflict="platform").execute()
 
-        time.sleep(0.5)   # be polite between channels
+        time.sleep(0.5)
 
-    log.info("── Poll cycle complete ───────────────────────────────")
+    log.info("── Poll cycle complete ───────────────────────────────")              
 
 
 # ---------------------------------------------------------------------------
