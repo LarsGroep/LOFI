@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from urllib.parse import quote
 
 _API_ROOT = "https://api.airtable.com/v0"
 _META_ROOT = "https://api.airtable.com/v0/meta"
@@ -75,7 +76,7 @@ def _value(v):
 def _fetch_records(table: str) -> list[dict]:
     import httpx  # lazy — only when configured
 
-    url = f"{_API_ROOT}/{_base()}/{table}"
+    url = f"{_API_ROOT}/{_base()}/{quote(table, safe='')}"
     headers = {"Authorization": f"Bearer {_token()}"}
     out, offset = [], None
     with httpx.Client(timeout=30.0) as client:
@@ -142,15 +143,47 @@ def load_comparables(artist_name: str, profile: dict, limit: int = 5,
 
 # ── introspection (run locally to discover the schema) ───────────────────────
 
+# Tables we care about for the resolver — keeps the output small + pasteable.
+_FOCUS_DEFAULT = "booking,artist,event,financial,ticket,budget"
+
+
+def _print_sample(client, headers, table_ref: str, n: int = 2,
+                  indent: str = "      ") -> None:
+    """Print n sample rows (field: truncated value) — shows how links resolve."""
+    try:
+        r = client.get(f"{_API_ROOT}/{_base()}/{quote(table_ref, safe='')}",
+                       headers=headers, params={"pageSize": n})
+        if r.status_code != 200:
+            print(f"{indent}(sample unavailable: {r.status_code})")
+            return
+        recs = r.json().get("records", [])[:n]
+        if not recs:
+            print(f"{indent}(no rows)")
+            return
+        print(f"{indent}sample:")
+        for rec in recs:
+            for k, v in rec.get("fields", {}).items():
+                print(f"{indent}  {k}: {str(_value(v))[:55]}")
+            print(f"{indent}  --")
+    except Exception as e:  # noqa: BLE001
+        print(f"{indent}(sample failed: {e})")
+
+
 def _introspect() -> None:
-    """`python -m scout.airtable` — prints bases/tables/fields so we can map
-    them. Prints field NAMES + truncated sample values only."""
+    """`python -m scout.airtable` — discover the schema.
+
+    Lists every table name, then full fields + sample rows for the tables that
+    matter (booking/artist/event/financial/ticket/budget). Override the keyword
+    filter with AIRTABLE_FILTER (comma-separated, e.g. "book,artist,event")."""
     import httpx
 
     if not _token():
         print("Set AIRTABLE_TOKEN (and ideally AIRTABLE_BASE_ID) in your .env first.")
         return
     headers = {"Authorization": f"Bearer {_token()}"}
+    keywords = [k.strip().lower() for k in
+                os.environ.get("AIRTABLE_FILTER", _FOCUS_DEFAULT).split(",")
+                if k.strip()]
 
     with httpx.Client(timeout=30.0) as client:
         if not _base():
@@ -163,35 +196,32 @@ def _introspect() -> None:
                 print(f"  {b['id']}   {b['name']}")
             return
 
-        # Try the metadata API (full schema) first.
         r = client.get(f"{_META_ROOT}/bases/{_base()}/tables", headers=headers)
-        if r.status_code == 200:
-            print(f"Tables + fields in base {_base()}:\n")
-            for t in r.json().get("tables", []):
-                print(f"TABLE: {t['name']}")
-                for fld in t.get("fields", []):
-                    print(f"    - {fld['name']}  ({fld.get('type')})")
-                print()
-            print("Pick the bookings table → AIRTABLE_BOOKINGS_TABLE, then paste "
-                  "this output back.")
+        if r.status_code != 200:
+            table = _bookings_table()
+            if not table:
+                print(f"Metadata API unavailable ({r.status_code}). Set "
+                      "AIRTABLE_BOOKINGS_TABLE and re-run to sample a table.")
+                return
+            print(f"Sample of '{table}':")
+            _print_sample(client, headers, table, n=3, indent="  ")
             return
 
-        # Fallback: sample the configured bookings table (needs only data scope).
-        table = _bookings_table()
-        if not table:
-            print(f"Metadata API unavailable ({r.status_code}). Set "
-                  "AIRTABLE_BOOKINGS_TABLE and re-run to sample its fields.")
-            return
-        recs = _fetch_records(table)[:3]
-        print(f"Sample of '{table}' ({len(recs)} rows) — field: value(truncated):\n")
-        seen = set()
-        for rec in recs:
-            for k, v in rec.get("fields", {}).items():
-                if k in seen:
-                    continue
-                seen.add(k)
-                print(f"    - {k}: {str(_value(v))[:40]}")
-        print("\nPaste this back so I can map the fields.")
+        tables = r.json().get("tables", [])
+        print(f"Base {_base()} — {len(tables)} tables:\n")
+        for t in tables:
+            print(f"  - {t['name']}")
+
+        matched = [t for t in tables
+                   if any(k in t["name"].lower() for k in keywords)]
+        print(f"\n=== Detail + samples for {len(matched)} relevant tables "
+              f"(filter: {', '.join(keywords)}) ===")
+        for t in matched:
+            print(f"\nTABLE: {t['name']}")
+            for fld in t.get("fields", []):
+                print(f"    - {fld['name']}  ({fld.get('type')})")
+            _print_sample(client, headers, t["id"], n=2)
+        print("\nPaste this back and I'll map the fields + build the resolver.")
 
 
 if __name__ == "__main__":
