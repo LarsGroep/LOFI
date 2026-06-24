@@ -2409,6 +2409,16 @@ def _render_artist_by_id(artist_list: pd.DataFrame, selected: str) -> None:
     render_growth_forecast(profile, ts_data)
     render_feedback_form(artist_id, selected)
 
+    from scout.validation import render_validation
+    render_validation(artist_id, selected, profile, ts_data.get("ml_features") or {},
+                      ext=ext, ra_df=ra_df, pf_data=pf_data, vdf=vdf,
+                      nl_score=nl_score_result[0])
+
+    from scout.chat import render_artist_chat
+    render_artist_chat(artist_id, selected, profile, ts_data.get("ml_features") or {},
+                       ext=ext, ra_df=ra_df, pf_data=pf_data, vdf=vdf,
+                       nl_score=nl_score_result[0])
+
 
 def _page_overzicht() -> None:
     """Main landing page: sticky centered search + dashboard or artist profile."""
@@ -3918,8 +3928,8 @@ def main() -> None:
         if _has_option_menu:
             page = _option_menu(
                 menu_title=None,
-                options=["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
-                icons=["house", "trophy", "music-note-list", "shuffle", "youtube"],
+                options=["Overzicht", "Scout", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
+                icons=["house", "binoculars", "trophy", "music-note-list", "shuffle", "youtube"],
                 default_index=0,
                 styles={
                     "container": {"padding": "0", "background-color": "transparent"},
@@ -3942,7 +3952,7 @@ def main() -> None:
         else:
             page = st.radio(
                 "Navigatie",
-                ["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
+                ["Overzicht", "Scout", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
                 label_visibility="collapsed",
             )
 
@@ -3957,6 +3967,10 @@ def main() -> None:
 
     if page == "Overzicht":
         _page_overzicht()
+
+    elif page == "Scout":
+        from scout.page import render_scout_page
+        render_scout_page()
 
     elif page == "Groei Leaderboard":
         _page_xgboost_leaderboard()
