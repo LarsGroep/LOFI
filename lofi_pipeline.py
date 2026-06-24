@@ -2409,6 +2409,11 @@ def _render_artist_by_id(artist_list: pd.DataFrame, selected: str) -> None:
     render_growth_forecast(profile, ts_data)
     render_feedback_form(artist_id, selected)
 
+    from scout.validation import render_validation
+    render_validation(artist_id, selected, profile, ts_data.get("ml_features") or {},
+                      ext=ext, ra_df=ra_df, pf_data=pf_data, vdf=vdf,
+                      nl_score=nl_score_result[0])
+
     from scout.chat import render_artist_chat
     render_artist_chat(artist_id, selected, profile, ts_data.get("ml_features") or {},
                        ext=ext, ra_df=ra_df, pf_data=pf_data, vdf=vdf,
