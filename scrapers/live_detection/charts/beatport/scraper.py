@@ -14,7 +14,7 @@ from pathlib import Path
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from shared.artist_matcher import load_artist_map, match_name
 from shared.milestone_writer import write_milestone
 from shared.db import get_client
@@ -33,11 +33,14 @@ HEADERS = {
 
 # Genres to monitor — (genre_slug, genre_id, label)
 GENRES = [
-    ("techno-peak-time-driving",  6,  "Techno (Peak Time / Driving)"),
-    ("tech-house",               11,  "Tech House"),
-    ("melodic-house-techno",     90,  "Melodic House & Techno"),
-    ("afro-house",               89,  "Afro House"),
-    ("organic-house-downtempo",  93,  "Organic House"),
+    ("tech-house",                11,  "Tech House"),
+    ("house",                      5,  "House"),
+    ("techno-peak-time-driving",   6,  "Techno (Peak Time / Driving)"),
+    ("melodic-house-techno",      90,  "Melodic House & Techno"),
+    ("minimal-deep-tech",         14,  "Minimal / Deep Tech"),
+    ("afro-house",                89,  "Afro House"),
+    ("organic-house-downtempo",   93,  "Organic House"),
+    ("progressive-house",         15,  "Progressive House"),
 ]
 
 def fetch_chart(genre_slug: str, genre_id: int) -> list[dict]:
@@ -62,12 +65,19 @@ def fetch_chart(genre_slug: str, genre_id: int) -> list[dict]:
         log.error(f"  JSON parse error for {genre_slug}: {e}")
         return []
 
-    # Navigate to chart tracks — path may vary with Beatport updates
+    # Navigate to chart tracks — search all queries for the top-100 key that matches
+    # this genre_id, rather than assuming queries[0] (order may vary).
+    tracks_raw = None
     try:
-        tracks_raw = (
-            data["props"]["pageProps"]["dehydratedState"]["queries"][0]
-            ["state"]["data"]["results"]
-        )
+        queries = data["props"]["pageProps"]["dehydratedState"]["queries"]
+        for q in queries:
+            key = str(q.get("queryKey", ""))
+            if "top-100-tracks" in key and str(genre_id) in key:
+                tracks_raw = q["state"]["data"]["results"]
+                break
+        if tracks_raw is None:
+            # Fallback: try first query (original behaviour)
+            tracks_raw = queries[0]["state"]["data"]["results"]
     except (KeyError, IndexError, TypeError):
         log.warning(f"  Could not find tracks in __NEXT_DATA__ for {genre_slug} — Beatport may have changed structure")
         return []
@@ -86,24 +96,15 @@ def fetch_chart(genre_slug: str, genre_id: int) -> list[dict]:
     return results
 
 
-def upsert_chart_entry(
-    artist_id: str | None,
-    artist_name: str,
-    track_name: str,
-    genre: str,
-    position: int,
-    scraped_at: str,
-) -> None:
+def batch_upsert_chart_entries(rows: list[dict]) -> None:
+    """Upsert all chart entries for a genre in a single HTTP call."""
+    if not rows:
+        return
     sb = get_client()
-    sb.schema("tinder").table("beatport_chart_entries").upsert({
-        "artist_id":    artist_id,
-        "artist_name":  artist_name,
-        "track_name":   track_name,
-        "genre":        genre,
-        "chart_position": position,
-        "chart_type":   "top_100",
-        "scraped_at":   scraped_at,
-    }, on_conflict="artist_name,track_name,genre,chart_type").execute()
+    sb.schema("tinder").table("beatport_chart_entries").upsert(
+        rows,
+        on_conflict="artist_name,track_name,genre,chart_type",
+    ).execute()
 
 
 def run() -> None:
@@ -119,35 +120,45 @@ def run() -> None:
             continue
 
         seen_artists: set[str] = set()
+        upsert_batch: list[dict] = []
+        matched: list[tuple] = []
+
         for entry in entries:
-            raw_name   = entry["artist_name"]
+            raw_name = entry["artist_name"]
             if not raw_name or raw_name in seen_artists:
                 continue
             seen_artists.add(raw_name)
 
-            position       = entry["position"]
-            m_name, m_id   = match_name(raw_name, artist_map)
+            position     = entry["position"]
+            m_name, m_id = match_name(raw_name, artist_map)
 
-            upsert_chart_entry(m_id, raw_name, entry["track_name"], genre_slug, position, scraped_at)
+            upsert_batch.append({
+                "artist_id":      m_id,
+                "artist_name":    raw_name,
+                "track_name":     entry["track_name"],
+                "genre":          genre_slug,
+                "chart_position": position,
+                "chart_type":     "top_100",
+                "scraped_at":     scraped_at,
+            })
 
-            if not m_id:
-                continue   # unknown artist — skip milestone writing
+            if m_id:
+                matched.append((m_id, raw_name, entry["track_name"], position))
 
+        batch_upsert_chart_entries(upsert_batch)
+        log.info(f"    Upserted {len(upsert_batch)} entries  ({len(matched)} matched scouted artists)")
+
+        chart_url = f"https://www.beatport.com/genre/{genre_slug}/{genre_id}/top-100"
+        for m_id, raw_name, track_name, position in matched:
             details = {
                 "genre":      genre_label,
                 "position":   position,
-                "track":      entry["track_name"],
-                "chart_url":  f"https://www.beatport.com/genre/{genre_slug}/{genre_id}/top-100",
+                "track":      track_name,
+                "chart_url":  chart_url,
             }
-
-            # Milestone: first time on any chart
             write_milestone(m_id, "first_beatport_chart", today, "beatport", details)
-
-            # Milestone: first top 10
             if position <= 10:
                 write_milestone(m_id, "first_beatport_top_10", today, "beatport", details)
-
-            # Milestone: first #1
             if position == 1:
                 write_milestone(m_id, "first_beatport_number_1", today, "beatport", details)
 
