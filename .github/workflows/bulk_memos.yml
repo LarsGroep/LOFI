@@ -1,0 +1,52 @@
+name: Bulk Generate AI Memos
+
+# Manually triggered to generate memos for all artists that don't have one.
+# Requires the Next.js app to be deployed (set NEXT_APP_URL secret).
+
+on:
+  workflow_dispatch:
+    inputs:
+      status:
+        description: 'Artist status filter: pending | booked | candidate | all'
+        required: false
+        default: 'all'
+      limit:
+        description: 'Max artists to process (0 = all)'
+        required: false
+        default: '50'
+      delay:
+        description: 'Seconds between requests'
+        required: false
+        default: '3'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt httpx --quiet
+
+      - name: Generate memos
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python tools/bulk_generate_memos.py \
+            --base-url "${{ secrets.NEXT_APP_URL || 'http://localhost:3000' }}" \
+            --status "${{ github.event.inputs.status || 'all' }}" \
+            --limit "${{ github.event.inputs.limit || '50' }}" \
+            --delay "${{ github.event.inputs.delay || '3' }}"
