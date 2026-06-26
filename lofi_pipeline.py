@@ -54,15 +54,8 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* Tighten the top padding on the main content area */
-    .block-container {
-        padding-top: 1.5rem !important;
-        padding-bottom: 2rem !important;
-    }
-
     /* Primary buttons — indigo accent */
-    .stButton > button[kind="primary"],
-    .stButton > button {
+    .stButton > button[kind="primary"] {
         background: #6366F1 !important;
         color: #fff !important;
         border: none !important;
@@ -124,9 +117,10 @@ st.markdown("""
         display: none !important;
     }
 
-    /* Shrink top padding so the fixed search bar isn't cramped */
+    /* Top padding accounts for the fixed search bar; bottom matches */
     .block-container {
         padding-top: 4.5rem !important;
+        padding-bottom: 2rem !important;
     }
 
     /* Fixed centered search bar — pinned below Streamlit's own header */
@@ -1129,8 +1123,9 @@ def render_booking_signals(
 
     lofi_matched = feel.get("matched") or [] if feel else []
     with st.expander("Signaal breakdown"):
+        _gs = f"{growth_score}/100" if growth_score is not None else "—"
         st.markdown(
-            f"**Groei (40%):** {growth_score}/100"
+            f"**Groei (40%):** {_gs}"
             + (f" — {pred:+.0f}% CPP groei" if pred is not None else " — geen model data")
         )
         st.markdown(
@@ -1139,8 +1134,9 @@ def render_booking_signals(
             f"NL {scene_bd['nl_score']}/100, "
             f"RA {scene_bd['ra_count']} events"
         )
+        _ls = f"{lofi_score}/100" if lofi_score is not None else "—"
         st.markdown(
-            f"**LOFI Fit (25%):** {lofi_score}/100"
+            f"**LOFI Fit (25%):** {_ls}"
             + (f" — {', '.join(lofi_matched[:3])}" if lofi_matched else "")
         )
 
@@ -1633,6 +1629,8 @@ def render_audience_demographics(ext: dict) -> None:
                         .encode(x=alt.X("Share %:Q"),y=alt.Y("Country:N",sort="-x"),
                                 tooltip=["Country","Share %"])
                         .properties(height=260)
+                        .configure_view(strokeWidth=0, fill="#0e1117")
+                        .configure(background="#0e1117")
                     )
                     st.altair_chart(bar, use_container_width=True)
                 else:
@@ -2009,6 +2007,8 @@ def render_genre_radar() -> None:
                     y=alt.Y("tag:N",sort="-x",title=""),
                     tooltip=["tag","artist_count","avg_listeners"])
             .properties(height=380, title="Artiesten per genre-tag")
+            .configure_view(strokeWidth=0, fill="#0e1117")
+            .configure(background="#0e1117")
         )
         st.altair_chart(bar, use_container_width=True)
     with c2:
@@ -2018,6 +2018,8 @@ def render_genre_radar() -> None:
                     y=alt.Y("avg_listeners:Q",title="Gem. Last.fm luisteraars"),
                     tooltip=["tag","artist_count",alt.Tooltip("avg_listeners:Q",format=".0f")])
             .properties(height=380, title="Genre publieksdiepte")
+            .configure_view(strokeWidth=0, fill="#0e1117")
+            .configure(background="#0e1117")
         )
         st.altair_chart(scatter, use_container_width=True)
 
@@ -2408,6 +2410,16 @@ def _render_artist_by_id(artist_list: pd.DataFrame, selected: str) -> None:
     st.divider()
     render_growth_forecast(profile, ts_data)
     render_feedback_form(artist_id, selected)
+
+    from scout.validation import render_validation
+    render_validation(artist_id, selected, profile, ts_data.get("ml_features") or {},
+                      ext=ext, ra_df=ra_df, pf_data=pf_data, vdf=vdf,
+                      nl_score=nl_score_result[0])
+
+    from scout.chat import render_artist_chat
+    render_artist_chat(artist_id, selected, profile, ts_data.get("ml_features") or {},
+                       ext=ext, ra_df=ra_df, pf_data=pf_data, vdf=vdf,
+                       nl_score=nl_score_result[0])
 
 
 def _page_overzicht() -> None:
@@ -3258,7 +3270,7 @@ def _render_milestone_strip(milestones: list[dict]) -> None:
                 f"<div style='font-size:0.58rem;color:#6b7280;text-align:center;'>{date}</div>",
                 unsafe_allow_html=True,
             )
-            btn_label = (safe_name[:16] + "…") if len(name) > 16 else safe_name
+            btn_label = (name[:16] + "…") if len(name) > 16 else name
             if st.button(btn_label, key=f"ms_{name}_{date}", use_container_width=True):
                 st.session_state["_pending_search"] = name
                 st.rerun()
@@ -3918,8 +3930,8 @@ def main() -> None:
         if _has_option_menu:
             page = _option_menu(
                 menu_title=None,
-                options=["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
-                icons=["house", "trophy", "music-note-list", "shuffle", "youtube"],
+                options=["Overzicht", "Scout", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
+                icons=["house", "binoculars", "trophy", "music-note-list", "shuffle", "youtube"],
                 default_index=0,
                 styles={
                     "container": {"padding": "0", "background-color": "transparent"},
@@ -3942,7 +3954,7 @@ def main() -> None:
         else:
             page = st.radio(
                 "Navigatie",
-                ["Overzicht", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
+                ["Overzicht", "Scout", "Groei Leaderboard", "Genre Trends", "Artist Recommender", "YouTube Sets"],
                 label_visibility="collapsed",
             )
 
@@ -3957,6 +3969,10 @@ def main() -> None:
 
     if page == "Overzicht":
         _page_overzicht()
+
+    elif page == "Scout":
+        from scout.page import render_scout_page
+        render_scout_page()
 
     elif page == "Groei Leaderboard":
         _page_xgboost_leaderboard()
