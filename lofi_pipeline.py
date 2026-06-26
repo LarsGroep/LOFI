@@ -268,6 +268,7 @@ def _safe(r) -> dict:
     return (r.data if r is not None else None) or {}
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def load_profile(artist_id: str) -> dict:
     """Main flat metrics row — no image_url or lofi_feel here."""
     r = sb.schema("tinder").table("artist_chartmetric_flat").select("*").eq(
@@ -276,6 +277,7 @@ def load_profile(artist_id: str) -> dict:
     return _safe(r)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def load_artist_meta(artist_id: str) -> dict:
     """image_url, cover_url, description from artist_chartmetric + lofi_feel from artists."""
     try:
@@ -292,6 +294,7 @@ def load_artist_meta(artist_id: str) -> dict:
         return {}
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def load_timeseries(artist_id: str) -> dict:
     r = sb.schema("tinder").table("artist_chartmetric").select(
         "cm_timeseries, ml_features"
@@ -299,6 +302,7 @@ def load_timeseries(artist_id: str) -> dict:
     return _safe(r)
 
 
+@st.cache_data(ttl=600, show_spinner=False)
 def load_ext(artist_id: str) -> dict:
     try:
         r = sb.schema("tinder").table("artist_cm_extended").select(
@@ -327,6 +331,7 @@ def load_tracks(artist_id: str) -> pd.DataFrame:
     return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
+@st.cache_data(ttl=600, show_spinner=False)
 def load_ra_events(artist_id: str) -> pd.DataFrame:
     rows = sb.schema("tinder").table("ra_events").select(
         "date, title, event_url, venue, city, country, venue_capacity, lineup_size, lineup"
@@ -355,6 +360,7 @@ def load_ra_events(artist_id: str) -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def load_chart_data(artist_id: str) -> dict:
     """Return latest Beatport + Traxsource chart entries for this artist."""
     try:
@@ -369,6 +375,7 @@ def load_chart_data(artist_id: str) -> dict:
         return {"beatport": [], "traxsource": []}
 
 
+@st.cache_data(ttl=600, show_spinner=False)
 def load_pf_data(artist_id: str) -> dict:
     r = sb.schema("tinder").table("artist_partyflock").select(
         "pf_fans, pf_total_performances, pf_past_performances, "
@@ -377,6 +384,7 @@ def load_pf_data(artist_id: str) -> dict:
     return _safe(r)
 
 
+@st.cache_data(ttl=600, show_spinner=False)
 def load_validation(artist_id: str) -> pd.DataFrame:
     rows = sb.schema("tinder").table("validation_events").select(
         "event_type, event_date, source, confirmed, details"
@@ -2396,13 +2404,6 @@ def _render_dashboard(artist_list: pd.DataFrame) -> None:
     st.caption(f"{len(df)} artists · sort via filters above")
 
     # ── Card grid ────────────────────────────────────────────────────────────
-    # Pre-fetch images in parallel so per-card render is instant
-    from concurrent.futures import ThreadPoolExecutor as _TPE
-    _img_urls = list({u for u in df["image_url"].dropna().tolist() + df["cover_url"].dropna().tolist() if u and u.startswith("http")})
-    if _img_urls:
-        with _TPE(max_workers=min(50, len(_img_urls))) as _p:
-            list(_p.map(_img_b64, _img_urls))
-
     N_COLS = 6
     chunks = [df.iloc[i:i+N_COLS] for i in range(0, len(df), N_COLS)]
     for chunk in chunks:
@@ -2525,8 +2526,9 @@ def _page_overzicht() -> None:
     if artist_list.empty:
         st.warning("No artist data available."); return
 
-    # Apply any pending programmatic search (set before the widget renders to avoid
-    # Streamlit's restriction on setting widget-bound keys after render).
+    # Apply any pending programmatic search/clear (must happen before the widget renders).
+    if st.session_state.pop("_clear_search", False):
+        st.session_state["overzicht_search"] = ""
     pending_search = st.session_state.pop("_pending_search", None)
     if pending_search:
         st.session_state["overzicht_search"] = pending_search
@@ -2571,7 +2573,7 @@ def _page_overzicht() -> None:
                 _run_add_and_scrape(query, status_choice)
 
     if st.button("← Overview", key="back_to_overview_btn"):
-        st.session_state["overzicht_search"] = ""
+        st.session_state["_clear_search"] = True
         st.rerun()
 
     _render_artist_by_id(artist_list, selected)
@@ -3189,27 +3191,34 @@ def _load_leaderboard_df() -> pd.DataFrame:
 
 @st.cache_data(ttl=300)
 def _load_dashboard_kpis() -> dict:
-    # Use count="exact" to get the true total without fetching all rows
-    total_resp = sb.schema("tinder").table("artist_chartmetric_flat").select(
-        "candidate_status", count="exact"
-    ).execute()
-    total = total_resp.count if total_resp.count is not None else len(total_resp.data or [])
-    counts: dict = {"total": total, "pending": 0, "candidate": 0, "accepted": 0, "booked": 0}
-    # Paginate status rows for per-status breakdown
-    rows, page, offset = [], 1000, 0
-    while True:
-        batch = sb.schema("tinder").table("artist_chartmetric_flat").select(
-            "candidate_status"
-        ).range(offset, offset + page - 1).execute().data or []
-        rows.extend(batch)
-        if len(batch) < page:
-            break
-        offset += page
-    for r in rows:
-        s = (r.get("candidate_status") or "").lower()
-        if s in counts:
-            counts[s] += 1
-    return counts
+    # Single SQL query — GROUP BY candidate_status + COUNT(*) avoids fetching all rows
+    try:
+        rows = sb.schema("tinder").rpc("get_candidate_status_counts", {}).execute().data or []
+        counts: dict = {"total": 0, "pending": 0, "candidate": 0, "accepted": 0, "booked": 0}
+        for r in rows:
+            s = (r.get("candidate_status") or "").lower()
+            n = int(r.get("count", 0))
+            counts["total"] += n
+            if s in counts:
+                counts[s] += n
+        return counts
+    except Exception:
+        # Fallback: paginated fetch if RPC doesn't exist yet
+        rows, page, offset = [], 1000, 0
+        while True:
+            batch = sb.schema("tinder").table("artist_chartmetric_flat").select(
+                "candidate_status"
+            ).range(offset, offset + page - 1).execute().data or []
+            rows.extend(batch)
+            if len(batch) < page:
+                break
+            offset += page
+        counts = {"total": len(rows), "pending": 0, "candidate": 0, "accepted": 0, "booked": 0}
+        for r in rows:
+            s = (r.get("candidate_status") or "").lower()
+            if s in counts:
+                counts[s] += 1
+        return counts
 
 
 @st.cache_data(ttl=1800)
@@ -3594,22 +3603,6 @@ def _render_discovery_queue(items: list[dict]) -> None:
                 st.rerun()
 
 
-@st.cache_data(ttl=86400, max_entries=2000, show_spinner=False)
-def _img_b64(url: str) -> str:
-    """Fetch image URL server-side and return as base64 data URI. Cached 24h."""
-    if not url or not url.startswith("http"):
-        return ""
-    try:
-        import httpx, base64 as _b64
-        r = httpx.get(url, timeout=4, follow_redirects=True,
-                      headers={"User-Agent": "Mozilla/5.0"})
-        if r.status_code == 200:
-            ct = r.headers.get("content-type", "image/jpeg").split(";")[0]
-            return f"data:{ct};base64,{_b64.b64encode(r.content).decode()}"
-    except Exception:
-        pass
-    return ""
-
 
 @st.cache_data(ttl=300)
 def _load_catalogue_data() -> pd.DataFrame:
@@ -3642,8 +3635,8 @@ def _load_catalogue_data() -> pd.DataFrame:
         return rows
 
     def _fetch_cm():
-        # image_url, cover_url + sp_30d from ml_features — paginate to bypass PostgREST row cap
-        rows, page = [], 1000
+        # image_url, cover_url + sp_30d — page size 2000 covers current table in one trip
+        rows, page = [], 2000
         offset = 0
         while True:
             batch = sb.schema("tinder").table("artist_chartmetric").select(
@@ -3761,18 +3754,30 @@ def _render_catalogue_card(row: pd.Series) -> None:
 
     ls_txt = _fmt_k(listeners)
 
-    # Photo or initial — proxy through server to get a data URI (avoids CDN/CORS issues)
+    # Photo or initial — use URL directly; onerror falls back to cover_url then initial
     cover = row.get("cover_url") or ""
-    img_src = ""
-    for _candidate in [image, cover]:
-        if _candidate and isinstance(_candidate, str) and _candidate.startswith("http"):
-            img_src = _img_b64(_candidate)
-            if img_src:
-                break
-    if img_src:
-        img_html = f"<img src='{img_src}' style='width:100%;height:100%;object-fit:cover;display:block;'>"
+    initial = name[0].upper() if name and name != "—" else "?"
+    if image and isinstance(image, str) and image.startswith("http"):
+        fallback = (
+            f" onerror=\"if(this.src!=='{cover}'){{this.src='{cover}'}}else{{this.style.display='none';this.nextElementSibling.style.display='flex'}}\""
+            if cover and cover.startswith("http") else
+            f" onerror=\"this.style.display='none';this.nextElementSibling.style.display='flex'\""
+        )
+        img_html = (
+            f"<img src='{image}' referrerpolicy='no-referrer'{fallback}"
+            f" style='width:100%;height:100%;object-fit:cover;display:block;'>"
+            f"<div style='display:none;width:100%;height:100%;align-items:center;"
+            f"justify-content:center;background:#1e2130;font-size:2rem;color:#6366F1'>{initial}</div>"
+        )
+    elif cover and isinstance(cover, str) and cover.startswith("http"):
+        img_html = (
+            f"<img src='{cover}' referrerpolicy='no-referrer'"
+            f" onerror=\"this.style.display='none';this.nextElementSibling.style.display='flex'\""
+            f" style='width:100%;height:100%;object-fit:cover;display:block;'>"
+            f"<div style='display:none;width:100%;height:100%;align-items:center;"
+            f"justify-content:center;background:#1e2130;font-size:2rem;color:#6366F1'>{initial}</div>"
+        )
     else:
-        initial  = name[0].upper() if name and name != "—" else "?"
         img_html = (
             f"<div style='width:100%;height:100%;display:flex;align-items:center;"
             f"justify-content:center;background:#1e2130;font-size:2rem;color:#6366F1'>{initial}</div>"
