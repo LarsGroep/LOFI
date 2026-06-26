@@ -59,7 +59,6 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
     )
   }
 
-  // Map DB notes (artist_feedback + artist_notes) to profile prop shape
   const notes = [
     ...(artist.feedback ?? []).map(f => ({
       id: f.id,
@@ -68,7 +67,6 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
     })),
   ].filter(n => n.text)
 
-  // Map RA events to milestone format
   const events = (artist.raEvents ?? [])
     .filter(e => e.date)
     .map(e => ({
@@ -78,13 +76,11 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       festival: false,
     }))
 
-  // Extract Spotify listener timeseries for the chart
   const growthData = (artist.timeseries ?? []).map(p => ({
-    date: (p.date as string).slice(0, 7), // YYYY-MM
+    date: (p.date as string).slice(0, 7),
     listeners: (p as { listeners?: number }).listeners ?? 0,
   }))
 
-  // Map aiMemo to component shape
   const memo = artist.aiMemo
     ? {
         verdict: artist.aiMemo.verdict as ArtistAiMemoRow['verdict'],
@@ -101,7 +97,6 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-6">
-      {/* AI Booking Memo — top of page, replaces technical scores */}
       <AIBookingMemo
         memo={memo}
         isLoading={memoLoading}
@@ -116,13 +111,6 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
           status: artist.status,
           genres: artist.genres ?? [],
         }}
-        scores={{
-          momentum: 0,
-          growth: 0,
-          marketRelevance: 0,
-          futurePotential: 0,
-          confidence: 0,
-        }}
         bookingSignals={{
           xgboost: Math.round((artist.xgboostGrowth90d ?? 0) * 100),
           scene: artist.raEventCount ? Math.min(100, artist.raEventCount * 5) : 0,
@@ -134,12 +122,16 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
           ),
         }}
         growthData={growthData}
+        multiTimeseries={artist.multiTimeseries ?? []}
         events={events}
         notes={notes}
         onAddNote={handleAddNote}
         isFavorite={isFavorite}
         onFavoriteToggle={() => setIsFavorite(v => !v)}
         onBack={() => router.push('/dashboard')}
+        tracks={artist.tracks ?? []}
+        validationEvents={artist.validationEvents ?? []}
+        similarArtists={artist.similarArtists ?? []}
       />
     </div>
   )

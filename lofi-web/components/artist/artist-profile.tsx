@@ -7,7 +7,10 @@ import {
   TrendingUp,
   Calendar,
   Sparkles,
-  ChevronDown,
+  Music2,
+  Users,
+  CheckCircle2,
+  Circle,
 } from "lucide-react"
 import {
   LineChart,
@@ -18,24 +21,30 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
+import type { TrackRow, ValidationEventRow, MultiTimeseriesItem } from "@/types/supabase"
+
+function fmt(n: number | null | undefined): string {
+  if (n == null || isNaN(n)) return "—"
+  if (n >= 999_500) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 10_000) return `${(n / 1_000).toFixed(0)}K`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+  return String(Math.round(n))
+}
 
 export interface ArtistProfileProps {
   artist: { id: string; name: string; imageUrl: string | null; status: string; genres: string[] }
-  scores: {
-    momentum: number
-    growth: number
-    marketRelevance: number
-    futurePotential: number
-    confidence: number
-  }
   bookingSignals: { xgboost: number; scene: number; lofiFit: number; composite: number }
   growthData: Array<{ date: string; listeners: number }>
+  multiTimeseries: MultiTimeseriesItem[]
   events: Array<{ date: string; venue: string; attending: number; festival: boolean }>
   notes: Array<{ id: string; text: string; createdAt: string }>
   onAddNote: (text: string) => void
   isFavorite: boolean
   onFavoriteToggle: () => void
   onBack?: () => void
+  tracks: TrackRow[]
+  validationEvents: ValidationEventRow[]
+  similarArtists: string[]
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -53,13 +62,6 @@ function getVerdict(composite: number): { label: string; className: string; ring
   return { label: "Not recommended", className: "bg-slate-700 text-slate-300", ring: "#64748b" }
 }
 
-function getStrength(value: number): string {
-  if (value >= 67) return "Strong"
-  if (value >= 40) return "Moderate"
-  return "Weak"
-}
-
-/* Circular progress ring */
 function ScoreRing({
   value,
   size = 64,
@@ -97,14 +99,6 @@ function ScoreRing({
   )
 }
 
-const SCORE_META: { key: keyof ArtistProfileProps["scores"]; label: string; sub: string[] }[] = [
-  { key: "momentum", label: "Momentum", sub: ["Streaming velocity", "Social mentions", "Playlist adds"] },
-  { key: "growth", label: "Growth", sub: ["MoM listener growth", "Follower trend", "Reach expansion"] },
-  { key: "marketRelevance", label: "Market Relevance", sub: ["Genre demand", "Territory fit", "Booking density"] },
-  { key: "futurePotential", label: "Future Potential", sub: ["Trajectory model", "Breakout signals", "Label momentum"] },
-  { key: "confidence", label: "Confidence", sub: ["Data coverage", "Signal agreement", "Sample size"] },
-]
-
 function SignalBar({ label, weight, value }: { label: string; weight: number; value: number }) {
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-[#1e2535] p-4">
@@ -123,25 +117,42 @@ function SignalBar({ label, weight, value }: { label: string; weight: number; va
   )
 }
 
+const PLATFORM_COLORS: Record<string, string> = {
+  spotify: "#1DB954",
+  instagram: "#E1306C",
+  tiktok: "#69C9D0",
+  soundcloud: "#FF5500",
+}
+
 export default function ArtistProfile({
   artist,
-  scores,
   bookingSignals,
   growthData,
+  multiTimeseries,
   events,
   notes,
   onAddNote,
   isFavorite,
   onFavoriteToggle,
   onBack,
+  tracks,
+  validationEvents,
+  similarArtists,
 }: ArtistProfileProps) {
-  const [expanded, setExpanded] = useState<string | null>(null)
   const [draft, setDraft] = useState("")
+  const [activePlatform, setActivePlatform] = useState<string>(
+    multiTimeseries[0]?.platform ?? "spotify"
+  )
   const verdict = getVerdict(bookingSignals.composite)
   const firstLetter = artist.name.trim().charAt(0).toUpperCase() || "?"
   const statusClass = STATUS_STYLES[artist.status] ?? STATUS_STYLES.pending
 
   const sortedEvents = [...events].sort((a, b) => +new Date(a.date) - +new Date(b.date))
+
+  const activeTs = multiTimeseries.find(m => m.platform === activePlatform)
+  const chartData = activeTs
+    ? activeTs.data.map(p => ({ date: p.date.slice(0, 7), value: p.value }))
+    : growthData.map(p => ({ date: p.date.slice(0, 7), value: p.listeners }))
 
   function handleAdd() {
     const text = draft.trim()
@@ -168,7 +179,7 @@ export default function ArtistProfile({
               {artist.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={artist.imageUrl || "/placeholder.svg"}
+                  src={artist.imageUrl}
                   alt={artist.name}
                   crossOrigin="anonymous"
                   className="h-full w-full object-cover"
@@ -236,65 +247,43 @@ export default function ArtistProfile({
         </div>
       </section>
 
-      {/* 3. FIVE SCORES BREAKDOWN */}
-      <section>
-        <h2 className="mb-4 text-lg font-semibold text-slate-100">Score Breakdown</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          {SCORE_META.map(({ key, label, sub }) => {
-            const value = scores[key]
-            const isOpen = expanded === key
-            return (
-              <div key={key} className="rounded-xl bg-[#161b27] p-4">
-                <button
-                  type="button"
-                  onClick={() => setExpanded(isOpen ? null : key)}
-                  aria-expanded={isOpen}
-                  className="flex w-full flex-col items-center gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
-                >
-                  <span className="text-sm font-medium text-slate-300">{label}</span>
-                  <ScoreRing value={value} size={72}>
-                    <span className="text-lg font-bold text-slate-100">{Math.round(value)}</span>
-                  </ScoreRing>
-                  <span className="flex items-center gap-1 text-xs text-slate-400">
-                    {getStrength(value)}
-                    <ChevronDown size={14} className={isOpen ? "rotate-180 transition-transform" : "transition-transform"} />
-                  </span>
-                </button>
-                {isOpen && (
-                  <div className="mt-3 flex flex-col gap-1 border-t border-white/5 pt-3">
-                    {sub.map((s, si) => (
-                      <div key={s} className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400">{s}</span>
-                        <span className="text-slate-300">
-                          {Math.round(Math.max(0, Math.min(100, value + (si - 1) * 6)))}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* 4. GROWTH CHART */}
+      {/* 3. MULTI-PLATFORM GROWTH CHART */}
       <section className="rounded-xl bg-[#161b27] p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <TrendingUp size={18} className="text-indigo-400" />
-          <h2 className="text-lg font-semibold text-slate-100">Spotify Monthly Listeners — 12 months</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp size={18} className="text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Growth — 12 months</h2>
+          </div>
+          {multiTimeseries.length > 1 && (
+            <div className="flex gap-1">
+              {multiTimeseries.map(m => (
+                <button
+                  key={m.platform}
+                  type="button"
+                  onClick={() => setActivePlatform(m.platform)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    activePlatform === m.platform
+                      ? "bg-indigo-500/20 text-indigo-300"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="h-64 w-full">
-          {growthData.length === 0 ? (
+          {chartData.length === 0 ? (
             <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-white/10 text-sm text-slate-500">
-              No listener data available
+              No data available
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={growthData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                 <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
                 <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} width={48} />
+                <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} width={52} tickFormatter={v => fmt(v)} />
                 <Tooltip
                   contentStyle={{
                     background: "#1e2535",
@@ -303,15 +292,110 @@ export default function ArtistProfile({
                     color: "#f1f5f9",
                   }}
                   labelStyle={{ color: "#94a3b8" }}
+                  formatter={(v: number) => [fmt(v)]}
                 />
-                <Line type="monotone" dataKey="listeners" stroke="#6366f1" strokeWidth={2} dot={false} />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke={PLATFORM_COLORS[activePlatform] ?? "#6366f1"}
+                  strokeWidth={2}
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           )}
         </div>
       </section>
 
-      {/* 5. MILESTONE STRIP */}
+      {/* 4. TRACKS */}
+      {tracks.length > 0 && (
+        <section className="rounded-xl bg-[#161b27] p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Music2 size={18} className="text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Top Tracks</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="pb-2 pr-4 font-medium">Track</th>
+                  <th className="pb-2 pr-4 font-medium">Released</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Streams</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Pop</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Spotify #</th>
+                  <th className="pb-2 font-medium text-right">Beatport #</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {tracks.map((t, i) => (
+                  <tr key={t.cm_track_id ?? i} className="hover:bg-white/3">
+                    <td className="py-2 pr-4 font-medium text-slate-200 max-w-[200px] truncate">{t.track_name ?? "—"}</td>
+                    <td className="py-2 pr-4 text-slate-400">{t.release_date ? t.release_date.slice(0, 10) : "—"}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{fmt(t.spotify_streams)}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{t.spotify_popularity ?? "—"}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{t.peak_spotify_chart ?? "—"}</td>
+                    <td className="py-2 text-right text-slate-300">{t.peak_beatport_chart ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* 5. VALIDATION EVENTS / MILESTONES */}
+      {validationEvents.length > 0 && (
+        <section className="rounded-xl bg-[#161b27] p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Milestones</h2>
+          </div>
+          <div className="flex flex-col gap-2">
+            {validationEvents.map(ve => (
+              <div key={ve.id} className="flex items-start gap-3 rounded-lg bg-[#1e2535] px-4 py-3">
+                {ve.confirmed
+                  ? <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-green-400" />
+                  : <Circle size={15} className="mt-0.5 shrink-0 text-slate-500" />
+                }
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-200 capitalize">{ve.event_type.replace(/_/g, " ")}</p>
+                  {ve.source && <p className="text-xs text-slate-500">{ve.source}</p>}
+                </div>
+                <span className="shrink-0 text-xs text-slate-500">
+                  {ve.event_date ? ve.event_date.slice(0, 10) : ""}
+                </span>
+                {!ve.confirmed && (
+                  <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400">
+                    unconfirmed
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 6. SIMILAR ARTISTS */}
+      {similarArtists.length > 0 && (
+        <section className="rounded-xl bg-[#161b27] p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Users size={18} className="text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Similar Artists</h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {similarArtists.map(name => (
+              <span
+                key={name}
+                className="rounded-full bg-[#1e2535] px-3 py-1.5 text-sm text-slate-300 ring-1 ring-white/5"
+              >
+                {name}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 7. EVENT TIMELINE */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <div className="mb-6 flex items-center gap-2">
           <Calendar size={18} className="text-indigo-400" />
@@ -322,7 +406,6 @@ export default function ArtistProfile({
         ) : (
           <div className="relative overflow-x-auto pb-2">
             <div className="relative flex min-w-max items-start gap-12 px-2">
-              {/* timeline line */}
               <div className="absolute left-0 right-0 top-2 h-px bg-white/10" />
               {sortedEvents.map((e, i) => (
                 <div key={`${e.venue}-${i}`} className="group relative flex flex-col items-center gap-2">
@@ -335,7 +418,6 @@ export default function ArtistProfile({
                   <span className="text-[11px] text-slate-500">
                     {new Date(e.date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                   </span>
-                  {/* hover tooltip */}
                   <div className="pointer-events-none absolute -top-10 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#1e2535] px-2 py-1 text-xs text-slate-200 opacity-0 shadow-lg ring-1 ring-white/10 transition-opacity group-hover:opacity-100">
                     {e.attending.toLocaleString()} attending{e.festival ? " · Festival" : ""}
                   </div>
@@ -346,7 +428,7 @@ export default function ArtistProfile({
         )}
       </section>
 
-      {/* 6. NOTES PANEL */}
+      {/* 8. NOTES PANEL */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <div className="mb-4 flex items-center gap-2">
           <Sparkles size={18} className="text-indigo-400" />

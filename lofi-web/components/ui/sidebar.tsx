@@ -11,6 +11,8 @@ import {
   Settings,
   Menu,
   X,
+  Youtube,
+  Radio,
 } from 'lucide-react'
 import { NavItem } from '@/components/ui/nav-item'
 import { cn } from '@/lib/utils'
@@ -21,7 +23,9 @@ const NAV_ITEMS = [
   { href: '/watchlist', label: 'Watchlist', icon: Star },
   { href: '/pipeline', label: 'Pipeline', icon: KanbanSquare },
   { href: '/sounds', label: 'Sounds', icon: Music },
-  { href: '/insights', label: 'Insights', icon: BarChart2 },
+  { href: '/insights', label: 'Leaderboard', icon: BarChart2 },
+  { href: '/youtube', label: 'YouTube Sets', icon: Youtube },
+  { href: '/scene', label: 'Scene Intel', icon: Radio },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const
 

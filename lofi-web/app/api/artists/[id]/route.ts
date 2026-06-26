@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import type { ArtistDetail, RaEventSummary, TimeseriesPoint } from '@/types/supabase'
+import type { ArtistDetail, RaEventSummary, TimeseriesPoint, MultiTimeseriesItem, TrackRow, ValidationEventRow } from '@/types/supabase'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   try {
     const supabase = createServiceClient()
 
-    const [artistRes, raEventsRes, feedbackRes, notesRes] = await Promise.all([
+    const [artistRes, raEventsRes, feedbackRes, notesRes, tracksRes, validationRes] = await Promise.all([
       supabase
         .from('artists')
         .select(`
@@ -23,9 +23,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           ),
           artist_ra (event_count),
           artist_partyflock (pf_fans, pf_total_performances),
-          artist_lastfm (lfm_listeners, tags),
+          artist_lastfm (lfm_listeners, tags, similar_artists),
           xgboost_predictions (predicted_growth_90d, missing_pct),
-          artist_ai_memo (*)
+          artist_ai_memo (*),
+          artist_cm_extended (related_artists)
         `)
         .eq('id', id)
         .single(),
@@ -48,6 +49,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         .select('*')
         .eq('artist_id', id)
         .order('created_at', { ascending: false }),
+
+      supabase
+        .from('artist_cm_tracks')
+        .select('cm_track_id, track_name, release_date, spotify_streams, spotify_popularity, peak_spotify_chart, peak_beatport_chart, playlist_count')
+        .eq('artist_id', id)
+        .order('spotify_streams', { ascending: false, nullsFirst: false })
+        .limit(20),
+
+      supabase
+        .from('validation_events')
+        .select('id, event_type, event_date, source, confirmed, details')
+        .eq('artist_id', id)
+        .order('event_date', { ascending: false })
+        .limit(30),
     ])
 
     if (artistRes.error) throw artistRes.error
@@ -59,24 +74,43 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const lfm = Array.isArray(row.artist_lastfm) ? row.artist_lastfm[0] : row.artist_lastfm
     const xg = Array.isArray(row.xgboost_predictions) ? row.xgboost_predictions[0] : row.xgboost_predictions
     const memo = Array.isArray(row.artist_ai_memo) ? row.artist_ai_memo[0] : row.artist_ai_memo
+    const ext = Array.isArray(row.artist_cm_extended) ? row.artist_cm_extended[0] : row.artist_cm_extended
     const lofi = row.lofi_feel as Record<string, unknown> | null
 
-    // Extract Spotify listener timeseries for the chart (monthly samples, last 12 months)
+    // Extract Spotify listener timeseries (monthly samples, last 12 months)
     let timeseries: TimeseriesPoint[] | null = null
+    const multiTimeseries: MultiTimeseriesItem[] = []
+
     if (cm?.cm_timeseries) {
-      const ts = cm.cm_timeseries as Record<string, { date: string; value: number }[]>
-      const pts = ts?.spotify?.listeners
-      if (pts?.length) {
-        const cutoff = new Date()
-        cutoff.setFullYear(cutoff.getFullYear() - 1)
-        const cutoffStr = cutoff.toISOString().slice(0, 10)
-        // Sample weekly to keep payload small
-        const filtered = pts
-          .filter(p => p.date >= cutoffStr)
-          .filter((_, i) => i % 7 === 0)
-        timeseries = filtered.map(p => ({ date: p.date, listeners: p.value }))
-      }
+      const ts = cm.cm_timeseries as Record<string, Record<string, { date: string; value: number }[]>>
+      const cutoff = new Date()
+      cutoff.setFullYear(cutoff.getFullYear() - 1)
+      const cutoffStr = cutoff.toISOString().slice(0, 10)
+
+      const extractPlatform = (pts: { date: string; value: number }[] | undefined) =>
+        (pts ?? []).filter(p => p.date >= cutoffStr).filter((_, i) => i % 7 === 0)
+
+      const spotifyPts = extractPlatform(ts?.spotify?.listeners)
+      const igPts = extractPlatform(ts?.instagram?.followers)
+      const tiktokPts = extractPlatform(ts?.tiktok?.followers)
+      const scPts = extractPlatform(ts?.soundcloud?.followers)
+
+      timeseries = spotifyPts.map(p => ({ date: p.date, listeners: p.value }))
+
+      if (spotifyPts.length) multiTimeseries.push({ platform: 'spotify', label: 'Spotify Listeners', data: spotifyPts })
+      if (igPts.length) multiTimeseries.push({ platform: 'instagram', label: 'Instagram Followers', data: igPts })
+      if (tiktokPts.length) multiTimeseries.push({ platform: 'tiktok', label: 'TikTok Followers', data: tiktokPts })
+      if (scPts.length) multiTimeseries.push({ platform: 'soundcloud', label: 'SoundCloud Followers', data: scPts })
     }
+
+    // Build similar artists list: lastfm first, then cm extended
+    const similarArtists: string[] = [
+      ...((lfm?.similar_artists as string[] | null) ?? []),
+      ...((ext?.related_artists as { name: string }[] | null)?.map(a => a.name) ?? []),
+    ].filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 15)
+
+    const tracks: TrackRow[] = (tracksRes.data ?? []) as TrackRow[]
+    const validationEvents: ValidationEventRow[] = (validationRes.data ?? []) as ValidationEventRow[]
 
     const detail: ArtistDetail = {
       id: row.id,
@@ -112,10 +146,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       bookedSimilarCount: row.booked_similar_count,
       bookedNeighborCount: row.booked_neighbor_count,
       timeseries,
+      multiTimeseries,
       raEvents: (raEventsRes.data ?? []) as RaEventSummary[],
       feedback: feedbackRes.data ?? [],
       aiMemo: memo ?? null,
       updatedAt: row.updated_at ?? null,
+      tracks,
+      validationEvents,
+      similarArtists,
     }
 
     return NextResponse.json(detail)

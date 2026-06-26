@@ -373,18 +373,47 @@ export interface ArtistDetail {
   bookedSimilarCount: number
   bookedNeighborCount: number
   timeseries: TimeseriesPoint[] | null
+  multiTimeseries: MultiTimeseriesItem[]
   raEvents: RaEventSummary[]
   feedback: ArtistFeedbackRow[]
   aiMemo: ArtistAiMemoRow | null
   updatedAt: string | null
+  tracks: TrackRow[]
+  validationEvents: ValidationEventRow[]
+  similarArtists: string[]
 }
 
 export interface TimeseriesPoint {
   date: string
-  sp_monthly_listeners?: number
-  ig_followers?: number
-  tiktok_followers?: number
+  listeners?: number
+  value?: number
   [key: string]: unknown
+}
+
+export interface MultiTimeseriesItem {
+  platform: string
+  label: string
+  data: { date: string; value: number }[]
+}
+
+export interface TrackRow {
+  cm_track_id?: string
+  track_name: string | null
+  release_date: string | null
+  spotify_streams: number | null
+  spotify_popularity: number | null
+  peak_spotify_chart: number | null
+  peak_beatport_chart: number | null
+  playlist_count: number | null
+}
+
+export interface ValidationEventRow {
+  id: string
+  event_type: string
+  event_date: string | null
+  source: string | null
+  confirmed: boolean | null
+  details?: Record<string, unknown> | null
 }
 
 export interface RaEventSummary {
