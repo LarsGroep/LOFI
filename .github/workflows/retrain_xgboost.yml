@@ -47,7 +47,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          python ml/bulk_predict_to_supabase.py --model-dir "${{ github.event.inputs.output_dir || 'ml/models' }}"
+          python ml/bulk_predict_to_supabase.py --output-dir "${{ github.event.inputs.output_dir || 'ml/models' }}"
 
       - name: Upload model artifacts
         uses: actions/upload-artifact@v4
