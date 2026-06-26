@@ -1,0 +1,58 @@
+name: Audit Genre Outliers
+
+# Manual trigger only — runs the genre outlier audit and optionally
+# auto-rejects artists whose genres have zero overlap with the LOFI scene.
+#
+# dry_run=true  (default): prints the flagged artists; no DB writes.
+# dry_run=false          : artists flagged as clear outliers are set to
+#                          candidate_status='rejected' in tinder.artists.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — print only, no DB writes (true/false)'
+        required: false
+        default: 'true'
+      min_listeners:
+        description: 'Only audit artists with monthly_listeners >= N (0 = all)'
+        required: false
+        default: '0'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Audit genre outliers
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" != "false" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+
+          MIN_L="${{ github.event.inputs.min_listeners || '0' }}"
+
+          python tools/audit_genre_outliers.py \
+            $DRY_RUN_FLAG \
+            --min-listeners "$MIN_L"

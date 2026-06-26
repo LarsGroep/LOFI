@@ -1,10 +1,11 @@
 'use client'
 
-import { use, useState, useCallback } from 'react'
+import { use, useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import ArtistProfile from '@/components/artist/artist-profile'
 import AIBookingMemo from '@/components/artist/ai-booking-memo'
+import ArtistChat from '@/components/artist/artist-chat'
 import type { ArtistDetail, ArtistAiMemoRow } from '@/types/supabase'
 
 const fetcher = (url: string) => fetch(url).then(r => { if (!r.ok) throw new Error('fetch failed'); return r.json() })
@@ -21,6 +22,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
 
   const [isFavorite, setIsFavorite] = useState(false)
   const [memoLoading, setMemoLoading] = useState(false)
+  const autoMemoFiredRef = useRef(false)
 
   const handleAddNote = useCallback(async (text: string) => {
     await fetch(`/api/artists/${id}/notes`, {
@@ -40,6 +42,14 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       setMemoLoading(false)
     }
   }, [id, mutate])
+
+  // Auto-generate memo if artist has loaded and has no memo yet
+  useEffect(() => {
+    if (artist && artist.aiMemo === null && !autoMemoFiredRef.current) {
+      autoMemoFiredRef.current = true
+      handleRegenMemo()
+    }
+  }, [artist, handleRegenMemo])
 
   if (isLoading) {
     return (
@@ -102,6 +112,19 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       }
     : null
 
+  const artistContext = [
+    artist.genres?.slice(0, 2).join(' / ') ?? '',
+    artist.spMonthlyListeners
+      ? `${(artist.spMonthlyListeners / 1000).toFixed(0)}K listeners`
+      : null,
+    artist.xgboostGrowth90d != null
+      ? `${(artist.xgboostGrowth90d * 100).toFixed(0)}% growth`
+      : null,
+    artist.lofiFeel?.score != null
+      ? `LOFI fit ${Math.round(artist.lofiFeel.score)}/100`
+      : null,
+  ].filter(Boolean).join(' · ')
+
   return (
     <div className="flex flex-col gap-6">
       <AIBookingMemo
@@ -154,6 +177,12 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         instagramAudience={artist.instagramAudience}
         xgboostGrowth90d={artist.xgboostGrowth90d}
         albums={artist.albums ?? []}
+      />
+
+      <ArtistChat
+        artistId={id}
+        artistName={artist.name}
+        artistContext={artistContext}
       />
     </div>
   )

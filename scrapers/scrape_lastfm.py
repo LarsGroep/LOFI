@@ -93,6 +93,16 @@ def main() -> None:
     parser.add_argument("--limit",     type=int, default=0)
     parser.add_argument("--stale-days", type=int, default=7,
                         help="Re-scrape artists not updated in this many days")
+    parser.add_argument(
+        "--status",
+        nargs="+",
+        default=None,
+        metavar="STATUS",
+        help=(
+            "Filter by candidate_status (e.g. --status pending booked candidate). "
+            "Omit to scrape all artists regardless of status."
+        ),
+    )
     args = parser.parse_args()
 
     if args.artist_id:
@@ -100,8 +110,13 @@ def main() -> None:
             "id", args.artist_id
         ).execute().data or []
     else:
-        # Fetch all artists; filter by LFM staleness in Python
-        rows = sb.schema("tinder").table("artists").select("id, name").execute().data or []
+        # Fetch artists, optionally filtered by candidate_status
+        q = sb.schema("tinder").table("artists").select("id, name, candidate_status")
+        if args.status:
+            status_list = args.status
+            print(f"Filtering by status: {status_list}")
+            q = q.in_("candidate_status", status_list)
+        rows = q.execute().data or []
         # Find those already scraped
         lfm_rows = sb.schema("tinder").table("artist_lastfm").select(
             "artist_id, updated_at"

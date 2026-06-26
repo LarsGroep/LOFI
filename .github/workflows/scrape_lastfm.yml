@@ -1,0 +1,85 @@
+name: Scrape Last.fm
+
+# Runs nightly after scrape_ra_events (22:00 UTC) to keep Last.fm data fresh
+# for all artists in the roster (pending, booked, candidate).
+# Processes artists that have never been scraped first, then stale ones.
+# Loops in batches until "Nothing to scrape." is printed.
+
+on:
+  schedule:
+    - cron: '0 23 * * *'  # 23:00 UTC (01:00 CEST) — after RA events scrape
+  workflow_dispatch:
+    inputs:
+      artist_id:
+        description: 'Single artist UUID (leave blank for batch)'
+        required: false
+        default: ''
+      limit:
+        description: 'Artists per batch'
+        required: false
+        default: '100'
+      batches:
+        description: 'Max batches to run (0 = unlimited until done)'
+        required: false
+        default: '20'
+      status:
+        description: 'Filter by candidate_status (space-separated, e.g. "pending booked candidate"). Leave blank for all.'
+        required: false
+        default: ''
+      stale_days:
+        description: 'Re-scrape artists not updated in this many days'
+        required: false
+        default: '7'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Scrape Last.fm
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          LIMIT="${{ github.event.inputs.limit || '100' }}"
+          STALE_DAYS="${{ github.event.inputs.stale_days || '7' }}"
+          MAX_BATCHES="${{ github.event.inputs.batches || '20' }}"
+
+          # Build optional flags
+          ARGS=""
+          if [ -n "${{ github.event.inputs.artist_id }}" ]; then
+            ARGS="--artist-id ${{ github.event.inputs.artist_id }}"
+          fi
+          if [ -n "${{ github.event.inputs.status }}" ]; then
+            ARGS="$ARGS --status ${{ github.event.inputs.status }}"
+          fi
+
+          for i in $(seq 1 $MAX_BATCHES); do
+            echo "=== Batch $i / $MAX_BATCHES ==="
+            OUTPUT=$(python -u scrapers/scrape_lastfm.py \
+              --limit "$LIMIT" \
+              --stale-days "$STALE_DAYS" \
+              $ARGS 2>&1)
+            echo "$OUTPUT"
+            if echo "$OUTPUT" | grep -q "Nothing to scrape"; then
+              echo "All done -- stopping."
+              break
+            fi
+          done
