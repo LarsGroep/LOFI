@@ -378,6 +378,7 @@ export interface ArtistDetail {
   multiTimeseries: MultiTimeseriesItem[]
   raEvents: RaEventSummary[]
   feedback: ArtistFeedbackRow[]
+  artistNotes: { id: string; text: string; created_at: string }[]
   aiMemo: ArtistAiMemoRow | null
   updatedAt: string | null
   tracks: TrackRow[]
@@ -386,7 +387,7 @@ export interface ArtistDetail {
   socialLinks: { url: string[]; domain: string }[]
   fanCities: { city: string; country: string; count?: number; pct?: number }[]
   instagramAudience: Record<string, unknown> | null
-  albums: { name: string; release_date?: string; image_url?: string }[]
+  albums: { name: string; release_date?: string; image_url?: string; type?: string }[]
   noteworthy: { title?: string; description?: string; value?: string }[]
 }
 

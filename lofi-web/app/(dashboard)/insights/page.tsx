@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { BarChart2, TrendingUp, Download, ChevronUp, ChevronDown } from 'lucide-react'
+import { BarChart2, TrendingUp, Download, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react'
 import type { ArtistListItem } from '@/types/supabase'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -35,6 +35,8 @@ export default function InsightsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortKey, setSortKey] = useState<SortKey>('xgboostGrowth90d')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [retraining, setRetraining] = useState(false)
+  const [retrainResult, setRetrainResult] = useState<{ ok: boolean; runUrl?: string | null; error?: string } | null>(null)
 
   const artists = data ?? []
 
@@ -79,6 +81,20 @@ export default function InsightsPage() {
     URL.revokeObjectURL(url)
   }
 
+  async function handleRetrain() {
+    setRetraining(true)
+    setRetrainResult(null)
+    try {
+      const res = await fetch('/api/admin/retrain', { method: 'POST' })
+      const data = await res.json()
+      setRetrainResult(data)
+    } catch {
+      setRetrainResult({ ok: false, error: 'Network error' })
+    } finally {
+      setRetraining(false)
+    }
+  }
+
   function SortIcon({ col }: { col: SortKey }) {
     if (sortKey !== col) return <ChevronDown className="size-3 text-[#64748b]" />
     return sortDir === 'desc'
@@ -95,15 +111,43 @@ export default function InsightsPage() {
             {rows.length} artists · sorted by {sortKey === 'xgboostGrowth90d' ? 'XGBoost 90d growth' : sortKey}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={downloadCsv}
-          className="inline-flex items-center gap-2 rounded-md border border-[#1e2535] bg-[#161b27] px-3 py-2 text-sm text-[#94a3b8] transition hover:text-[#f1f5f9]"
-        >
-          <Download className="size-4" />
-          CSV Export
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={downloadCsv}
+            className="inline-flex items-center gap-2 rounded-md border border-[#1e2535] bg-[#161b27] px-3 py-2 text-sm text-[#94a3b8] transition hover:text-[#f1f5f9]"
+          >
+            <Download className="size-4" />
+            CSV Export
+          </button>
+          <button
+            type="button"
+            onClick={handleRetrain}
+            disabled={retraining}
+            className="inline-flex items-center gap-2 rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-60"
+          >
+            <RefreshCw className={`size-4 ${retraining ? 'animate-spin' : ''}`} />
+            {retraining ? 'Triggering…' : 'Retrain XGBoost'}
+          </button>
+        </div>
       </div>
+      {retrainResult && (
+        <div className={`mt-3 rounded-lg px-4 py-2 text-sm ${retrainResult.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+          {retrainResult.ok ? (
+            <>
+              Workflow triggered.{' '}
+              {retrainResult.runUrl && (
+                <a href={retrainResult.runUrl} target="_blank" rel="noopener noreferrer"
+                  className="underline hover:text-emerald-300">
+                  View run on GitHub →
+                </a>
+              )}
+            </>
+          ) : (
+            retrainResult.error ?? 'Failed to trigger workflow.'
+          )}
+        </div>
+      )}
 
       {/* Summary tiles */}
       {!isLoading && (

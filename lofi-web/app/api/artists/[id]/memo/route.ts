@@ -61,7 +61,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     // Compute 30d Spotify listener delta
     let sp30dDelta: string = 'N/A'
     try {
-      const ts = cm?.cm_timeseries as Record<string, { date: string; value: number }[]> | null
+      const ts = cm?.cm_timeseries as Record<string, Record<string, { date: string; value: number }[]>> | null
       const pts = ts?.spotify?.listeners
       if (pts?.length) {
         const sorted = [...pts].sort((a, b) => a.date.localeCompare(b.date))

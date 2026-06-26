@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
-import { Youtube, TrendingUp, Search, Play } from 'lucide-react'
+import { PlayCircle, TrendingUp, Search, Play } from 'lucide-react'
 
 interface YoutubeSet {
   video_id: string
@@ -100,7 +100,7 @@ export default function YoutubeSetPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="mt-16 flex flex-col items-center gap-3 text-center">
-          <Youtube className="size-10 text-[#64748b]" />
+          <PlayCircle className="size-10 text-[#64748b]" />
           <p className="text-sm text-[#64748b]">No sets found</p>
         </div>
       ) : (
@@ -127,7 +127,7 @@ export default function YoutubeSetPage() {
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
-                      <Youtube className="size-10 text-[#1e2535]" />
+                      <PlayCircle className="size-10 text-[#1e2535]" />
                     </div>
                   )}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">

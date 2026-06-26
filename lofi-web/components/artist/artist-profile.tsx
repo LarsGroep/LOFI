@@ -63,6 +63,7 @@ export interface ArtistProfileProps {
   pfGenres?: string[] | null
   instagramAudience?: Record<string, unknown> | null
   xgboostGrowth90d?: number | null
+  albums?: { name: string; release_date?: string; image_url?: string; type?: string }[]
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -137,7 +138,7 @@ export default function ArtistProfile({
   tracks, validationEvents, similarArtists,
   socialLinks = [], fanCities = [], noteworthy = [],
   pfFans, pfTotalPerformances, pfUpcomingPerformances, pfGenres,
-  instagramAudience, xgboostGrowth90d,
+  instagramAudience, xgboostGrowth90d, albums = [],
 }: ArtistProfileProps) {
   const [draft, setDraft] = useState("")
   const [activePlatform, setActivePlatform] = useState<string>(multiTimeseries[0]?.platform ?? "spotify")
@@ -441,7 +442,42 @@ export default function ArtistProfile({
         </section>
       )}
 
-      {/* 6. MILESTONES */}
+      {/* 6. ALBUMS */}
+      {albums.length > 0 && (
+        <section className="rounded-xl bg-[#161b27] p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Disc3 size={18} className="text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Releases</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {albums.slice(0, 10).map((a, i) => (
+              <div key={i} className="flex flex-col gap-1.5 rounded-xl bg-[#1e2535] p-3">
+                <div className="aspect-square w-full overflow-hidden rounded-lg bg-[#161b27]">
+                  {a.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.image_url} alt={a.name} className="h-full w-full object-cover" crossOrigin="anonymous" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Disc3 size={24} className="text-[#64748b]" />
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs font-medium text-slate-200 line-clamp-2 leading-snug">{a.name}</p>
+                <div className="flex items-center justify-between">
+                  {a.release_date && (
+                    <span className="text-[10px] text-slate-500">{String(a.release_date).slice(0, 7)}</span>
+                  )}
+                  {a.type && (
+                    <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] capitalize text-slate-400">{a.type}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 7. MILESTONES */}
       {validationEvents.length > 0 && (
         <section className="rounded-xl bg-[#161b27] p-6">
           <div className="mb-4 flex items-center gap-2">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback } from "react"
 import useSWR from "swr"
-import { Plus, Search, ChevronDown } from "lucide-react"
+import { Plus, Search } from "lucide-react"
 import type { ArtistListItem, ArtistStatus } from "@/types/supabase"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())

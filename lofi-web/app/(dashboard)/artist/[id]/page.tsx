@@ -60,6 +60,11 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
   }
 
   const notes = [
+    ...(artist.artistNotes ?? []).map(n => ({
+      id: n.id,
+      text: n.text,
+      createdAt: n.created_at,
+    })),
     ...(artist.feedback ?? []).map(f => ({
       id: f.id,
       text: f.notes ?? f.field_value ?? '',
@@ -148,6 +153,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         pfGenres={artist.pfGenres}
         instagramAudience={artist.instagramAudience}
         xgboostGrowth90d={artist.xgboostGrowth90d}
+        albums={artist.albums ?? []}
       />
     </div>
   )

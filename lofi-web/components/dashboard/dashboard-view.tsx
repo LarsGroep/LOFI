@@ -8,7 +8,7 @@ import { FiltersBar, type StatusFilter, type SortKey } from "@/components/dashbo
 import { ArtistGrid } from "@/components/dashboard/artist-grid"
 import { AddArtistModal } from "@/components/ui/add-artist-modal"
 import type { ArtistListItem } from "@/types/supabase"
-import { CheckCircle2, Youtube, TrendingUp, Plus } from "lucide-react"
+import { CheckCircle2, PlayCircle, TrendingUp, Plus } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
@@ -102,7 +102,7 @@ function TrendingYoutubeStrip({ sets }: { sets: TrendingSet[] }) {
   return (
     <section>
       <div className="mb-3 flex items-center gap-2">
-        <Youtube size={16} className="text-red-400" />
+        <PlayCircle size={16} className="text-red-400" />
         <h2 className="text-sm font-semibold text-[#f1f5f9]">Trending YouTube Sets</h2>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1">
@@ -120,7 +120,7 @@ function TrendingYoutubeStrip({ sets }: { sets: TrendingSet[] }) {
                 <img src={s.thumbnail_url} alt={s.title ?? ""} className="size-full object-cover transition-transform group-hover:scale-105" />
               ) : (
                 <div className="flex size-full items-center justify-center">
-                  <Youtube size={24} className="text-[#1e2535]" />
+                  <PlayCircle size={24} className="text-[#1e2535]" />
                 </div>
               )}
               {s.view_velocity && s.view_velocity > 0 && (

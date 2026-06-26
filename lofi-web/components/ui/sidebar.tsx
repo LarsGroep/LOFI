@@ -11,7 +11,7 @@ import {
   Settings,
   Menu,
   X,
-  Youtube,
+  PlayCircle,
   Radio,
   Users,
   Tag,
@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { href: '/insights', label: 'Leaderboard', icon: BarChart2 },
   { href: '/recommendations', label: 'Recommender', icon: Users },
   { href: '/genres', label: 'Genres', icon: Tag },
-  { href: '/youtube', label: 'YouTube Sets', icon: Youtube },
+  { href: '/youtube', label: 'YouTube Sets', icon: PlayCircle },
   { href: '/scene', label: 'Scene Intel', icon: Radio },
   { href: '/settings', label: 'Settings', icon: Settings },
 ] as const

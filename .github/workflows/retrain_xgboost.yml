@@ -1,0 +1,57 @@
+name: Retrain XGBoost Growth Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      output_dir:
+        description: 'Output directory for model artifacts'
+        required: false
+        default: 'ml/models'
+      push_predictions:
+        description: 'Push predictions to Supabase after training (true/false)'
+        required: false
+        default: 'true'
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt --quiet
+
+      - name: Train XGBoost model
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python ml/train_growth_model.py --output-dir "${{ github.event.inputs.output_dir || 'ml/models' }}"
+
+      - name: Push predictions to Supabase
+        if: ${{ github.event.inputs.push_predictions != 'false' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python ml/bulk_predict_to_supabase.py --model-dir "${{ github.event.inputs.output_dir || 'ml/models' }}"
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xgboost-model-${{ github.run_id }}
+          path: ${{ github.event.inputs.output_dir || 'ml/models' }}/
+          retention-days: 30

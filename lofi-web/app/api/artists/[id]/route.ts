@@ -151,6 +151,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       multiTimeseries,
       raEvents: (raEventsRes.data ?? []) as RaEventSummary[],
       feedback: feedbackRes.data ?? [],
+      artistNotes: (notesRes.data ?? []).map((n: Record<string, unknown>) => ({
+        id: String(n.id),
+        text: String(n.text ?? ''),
+        created_at: String(n.created_at ?? ''),
+      })).filter((n: { text: string }) => n.text),
       aiMemo: memo ?? null,
       updatedAt: row.updated_at ?? null,
       tracks,
@@ -159,7 +164,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       socialLinks: (ext?.urls as { url: string[]; domain: string }[] | null) ?? [],
       fanCities: (ext?.fan_cities as { city: string; country: string; count?: number; pct?: number }[] | null) ?? [],
       instagramAudience: (ext?.instagram_audience as Record<string, unknown> | null) ?? null,
-      albums: (ext?.albums as { name: string; release_date?: string; image_url?: string }[] | null) ?? [],
+      albums: (ext?.albums as { name: string; release_date?: string; image_url?: string; type?: string }[] | null) ?? [],
       noteworthy: (ext?.noteworthy_insights as { title?: string; description?: string; value?: string }[] | null) ?? [],
     }
 

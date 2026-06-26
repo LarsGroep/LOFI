@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useCallback } from "react"
+import React, { useMemo, useState, useCallback } from "react"
 import useSWR from "swr"
 import {
   Star,
@@ -191,9 +191,9 @@ export default function WatchlistPage() {
             </thead>
             <tbody>
               {groups.map((group) => (
-                <>
+                <React.Fragment key={group.label ?? 'all'}>
                   {group.label && (
-                    <tr key={`group-${group.label}`}>
+                    <tr>
                       <td colSpan={7} className="bg-[#1e2535]/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#94a3b8]">
                         {group.label} · {group.rows.length}
                       </td>
@@ -262,7 +262,7 @@ export default function WatchlistPage() {
                       </tr>
                     )
                   })}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>
