@@ -333,7 +333,9 @@ export interface ArtistListItem {
   bookingAgent: string | null
   isFavorite: boolean
   verdict: ArtistAiMemoRow['verdict'] | null
+  verdictReason: string | null
   generatedAt: string | null
+  spotifyDelta30d: number | null
 }
 
 // Shape returned by GET /api/artists/[id]

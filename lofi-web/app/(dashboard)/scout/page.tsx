@@ -1,56 +1,58 @@
 "use client"
 
-import { useState } from "react"
-import {
-  Zap,
-  TrendingUp,
-  Star,
-  RefreshCw,
-  ArrowUpRight,
-  ChevronRight,
-} from "lucide-react"
+import { useMemo, useState } from "react"
+import useSWR from "swr"
+import { Zap, TrendingUp, Star, RefreshCw, ArrowUpRight, ChevronRight } from "lucide-react"
 import { ArtistRadarCard, type ArtistSignal } from "@/components/scout/artist-radar-card"
+import type { ArtistListItem } from "@/types/supabase"
 
-interface ScoutData {
-  breaking: ArtistSignal[]
-  rising: ArtistSignal[]
-  watchlistAlerts: ArtistSignal[]
+const fetcher = (url: string) => fetch(url).then(r => r.json())
+
+const GENRES = ["All", "Tech-House", "House", "Techno", "Afro House", "Melodic Techno"] as const
+type Genre = (typeof GENRES)[number]
+
+function pseudoSparkline(growth: number, seed: number): number[] {
+  return Array.from({ length: 20 }, (_, i) => {
+    const base = 45
+    const trend = growth * 120 * (i / 19)
+    const noise = Math.sin(i * 1.8 + seed) * 4
+    return Math.max(5, base + trend + noise)
+  })
 }
 
-const GENRES = ["All", "Tech-House", "House", "Techno", "Afro House"] as const
-const REGIONS = ["All", "Netherlands", "Europe", "Global"] as const
-const WINDOWS = ["7d", "14d", "30d"] as const
+function toSignal(a: ArtistListItem, seed: number): ArtistSignal {
+  const growth = a.xgboostGrowth90d ?? 0
+  const lofi = a.lofiFitScore ?? 0
+  const momentumScore = Math.round(Math.max(lofi * 0.5 + growth * 100 * 0.5, lofi * 0.7))
+  const momentumDelta = Math.round(growth * 100)
 
-// ---- Mock data (TODO: replace with SWR fetch from Supabase) ----
-function spark(seed: number): number[] {
-  return Array.from({ length: 30 }, (_, i) => 40 + Math.sin(i / 4 + seed) * 12 + i * (seed % 3))
+  const trigger = a.verdictReason
+    ? a.verdictReason.slice(0, 70) + (a.verdictReason.length > 70 ? "…" : "")
+    : a.verdict
+    ? `AI verdict: ${a.verdict}`
+    : a.xgboostGrowth90d != null
+    ? `XGBoost: +${(a.xgboostGrowth90d * 100).toFixed(1)}% predicted 90d growth`
+    : `LOFI fit score: ${Math.round(lofi)}`
+
+  return {
+    id: a.id,
+    name: a.name,
+    imageUrl: a.imageUrl,
+    genre: a.genres?.[0] ?? "Electronic",
+    momentumScore: Math.min(99, Math.max(0, momentumScore)),
+    momentumDelta,
+    trigger,
+    sparklineData: pseudoSparkline(growth, seed),
+  }
 }
 
-const MOCK: ScoutData = {
-  breaking: [
-    { id: "verraco", name: "Verraco", imageUrl: null, genre: "Tech-House", momentumScore: 84, momentumDelta: 22, trigger: "RA event surge — 4 festival adds in 14d", sparklineData: spark(1) },
-    { id: "sansibar", name: "Sansibar", imageUrl: null, genre: "Afro House", momentumScore: 78, momentumDelta: 18, trigger: "Spotify +40K monthly listeners", sparklineData: spark(2) },
-    { id: "kettama", name: "KETTAMA", imageUrl: null, genre: "House", momentumScore: 71, momentumDelta: 15, trigger: "New festival booking — Awakenings 2025", sparklineData: spark(3) },
-  ],
-  rising: [
-    { id: "lostsoul", name: "Lost Souls of Saturn", imageUrl: null, genre: "Techno", momentumScore: 66, momentumDelta: 9, trigger: "Steady playlist growth 3 months", sparklineData: spark(4) },
-    { id: "azu", name: "Azu Tiwaline", imageUrl: null, genre: "Techno", momentumScore: 61, momentumDelta: 7, trigger: "Consistent NL booking density", sparklineData: spark(5) },
-    { id: "dexphase", name: "DexPhase", imageUrl: null, genre: "Tech-House", momentumScore: 58, momentumDelta: 6, trigger: "Upward Beatport chart trend", sparklineData: spark(6) },
-  ],
-  watchlistAlerts: [
-    { id: "enrico", name: "Enrico Sangiuliano", imageUrl: null, genre: "Techno", momentumScore: 88, momentumDelta: 12, trigger: "Agency upgraded booking tier", sparklineData: spark(7) },
-  ],
+function matchesGenre(a: ArtistListItem, genre: Genre): boolean {
+  if (genre === "All") return true
+  return (a.genres ?? []).some(g => g.toLowerCase().includes(genre.toLowerCase()))
 }
 
-function StatTile({
-  label,
-  value,
-  delta,
-  icon: Icon,
-}: {
-  label: string
-  value: string
-  delta?: string
+function StatTile({ label, value, delta, icon: Icon }: {
+  label: string; value: string; delta?: string
   icon: React.ComponentType<{ size?: number; className?: string }>
 }) {
   return (
@@ -72,23 +74,13 @@ function StatTile({
   )
 }
 
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-        active
-          ? "bg-[#6366f1] text-white"
-          : "bg-[#1e2535] text-[#94a3b8] hover:bg-[#252d3f] hover:text-[#f1f5f9]"
+        active ? "bg-[#6366f1] text-white" : "bg-[#1e2535] text-[#94a3b8] hover:bg-[#252d3f] hover:text-[#f1f5f9]"
       }`}
     >
       {children}
@@ -96,16 +88,12 @@ function Chip({
   )
 }
 
-function SwimLane({
-  title,
-  icon: Icon,
-  iconClass,
-  signals,
-}: {
+function SwimLane({ title, icon: Icon, iconClass, signals, href }: {
   title: string
   icon: React.ComponentType<{ size?: number; className?: string }>
   iconClass: string
   signals: ArtistSignal[]
+  href?: string
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -117,13 +105,11 @@ function SwimLane({
             {signals.length}
           </span>
         </div>
-        <a
-          href="#"
-          className="inline-flex items-center gap-0.5 text-sm font-medium text-[#6366f1] hover:text-[#818cf8]"
-        >
-          View All
-          <ChevronRight size={14} aria-hidden="true" />
-        </a>
+        {href && (
+          <a href={href} className="inline-flex items-center gap-0.5 text-sm font-medium text-[#6366f1] hover:text-[#818cf8]">
+            View All <ChevronRight size={14} />
+          </a>
+        )}
       </div>
       {signals.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 bg-[#161b27]/50 p-8 text-center text-sm text-[#64748b]">
@@ -131,9 +117,7 @@ function SwimLane({
         </div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-2">
-          {signals.map((s) => (
-            <ArtistRadarCard key={s.id} signal={s} />
-          ))}
+          {signals.map((s) => <ArtistRadarCard key={s.id} signal={s} />)}
         </div>
       )}
     </section>
@@ -141,78 +125,96 @@ function SwimLane({
 }
 
 export default function ScoutPage() {
-  const [genre, setGenre] = useState<(typeof GENRES)[number]>("All")
-  const [region, setRegion] = useState<(typeof REGIONS)[number]>("All")
-  const [window, setWindow] = useState<(typeof WINDOWS)[number]>("14d")
+  const { data, isLoading, mutate } = useSWR<ArtistListItem[]>('/api/artists?limit=500', fetcher, {
+    revalidateOnFocus: false,
+  })
+
+  const [genre, setGenre] = useState<Genre>("All")
   const [refreshing, setRefreshing] = useState(false)
 
-  const data = MOCK
-
-  function handleRefresh() {
+  async function handleRefresh() {
     setRefreshing(true)
-    // TODO: trigger real intelligence refresh
-    setTimeout(() => setRefreshing(false), 1500)
+    await mutate()
+    setRefreshing(false)
   }
+
+  const { breaking, rising, watchlistAlerts } = useMemo(() => {
+    const artists = (data ?? []).filter(a => matchesGenre(a, genre))
+
+    // Breaking: high XGBoost growth (top 5)
+    const byGrowth = [...artists]
+      .filter(a => a.xgboostGrowth90d != null && a.xgboostGrowth90d > 0.08)
+      .sort((a, b) => (b.xgboostGrowth90d ?? 0) - (a.xgboostGrowth90d ?? 0))
+      .slice(0, 5)
+      .map((a, i) => toSignal(a, i))
+
+    // Rising: strong LOFI fit, moderate growth
+    const breakingIds = new Set(byGrowth.map(s => s.id))
+    const byLofi = [...artists]
+      .filter(a => !breakingIds.has(a.id) && (a.lofiFitScore ?? 0) > 60)
+      .sort((a, b) => (b.lofiFitScore ?? 0) - (a.lofiFitScore ?? 0))
+      .slice(0, 6)
+      .map((a, i) => toSignal(a, i + 10))
+
+    // Watchlist alerts: current candidates with AI memo
+    const risingIds = new Set(byLofi.map(s => s.id))
+    const candidates = [...artists]
+      .filter(a => !breakingIds.has(a.id) && !risingIds.has(a.id) && a.status === "candidate" && a.verdict != null)
+      .slice(0, 4)
+      .map((a, i) => toSignal(a, i + 20))
+
+    return { breaking: byGrowth, rising: byLofi, watchlistAlerts: candidates }
+  }, [data, genre])
 
   return (
     <div className="flex flex-col gap-6">
-      {/* HEADER */}
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-[#f1f5f9]">Scout</h1>
           <p className="text-sm text-[#94a3b8]">Emerging artists — 6 to 18 months ahead of the market</p>
-          <p className="text-xs text-[#64748b]">Last updated 12 minutes ago</p>
+          {data && <p className="text-xs text-[#64748b]">Derived from {data.length} tracked artists</p>}
         </div>
         <button
           type="button"
           onClick={handleRefresh}
-          disabled={refreshing}
+          disabled={refreshing || isLoading}
           className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#6366f1] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#818cf8] disabled:opacity-60"
         >
-          <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} aria-hidden="true" />
-          {refreshing ? "Refreshing…" : "Refresh Intelligence"}
+          <RefreshCw size={16} className={refreshing || isLoading ? "animate-spin" : ""} />
+          {refreshing ? "Refreshing…" : "Refresh"}
         </button>
       </header>
 
-      {/* RADAR SUMMARY ROW */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile label="Breaking This Week" value={String(data.breaking.length)} delta="vs last week" icon={Zap} />
-        <StatTile label="New Artist Additions" value="12" icon={TrendingUp} />
-        <StatTile label="Watchlist Changes" value={String(data.watchlistAlerts.length)} delta="+1 today" icon={Star} />
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-3 gap-4">
+          {[0, 1, 2].map(i => <div key={i} className="h-20 animate-pulse rounded-xl bg-[#161b27]" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatTile label="Breaking (high growth)" value={String(breaking.length)} icon={Zap} />
+          <StatTile label="Rising (strong LOFI fit)" value={String(rising.length)} icon={TrendingUp} />
+          <StatTile label="Candidate alerts" value={String(watchlistAlerts.length)} icon={Star} />
+        </div>
+      )}
 
-      {/* FILTER BAR */}
       <div className="flex flex-col gap-3 rounded-xl border border-white/5 bg-[#161b27] p-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-1 text-xs font-medium uppercase tracking-wide text-[#64748b]">Genre</span>
           {GENRES.map((g) => (
-            <Chip key={g} active={genre === g} onClick={() => setGenre(g)}>
-              {g}
-            </Chip>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-medium uppercase tracking-wide text-[#64748b]">Region</span>
-          {REGIONS.map((r) => (
-            <Chip key={r} active={region === r} onClick={() => setRegion(r)}>
-              {r}
-            </Chip>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-medium uppercase tracking-wide text-[#64748b]">Window</span>
-          {WINDOWS.map((w) => (
-            <Chip key={w} active={window === w} onClick={() => setWindow(w)}>
-              {w}
-            </Chip>
+            <Chip key={g} active={genre === g} onClick={() => setGenre(g)}>{g}</Chip>
           ))}
         </div>
       </div>
 
-      {/* SWIM LANES */}
-      <SwimLane title="Breaking" icon={Zap} iconClass="text-green-400" signals={data.breaking} />
-      <SwimLane title="On The Rise" icon={TrendingUp} iconClass="text-[#6366f1]" signals={data.rising} />
-      <SwimLane title="Watch List Alerts" icon={Star} iconClass="text-amber-400" signals={data.watchlistAlerts} />
+      {isLoading ? (
+        <div className="h-48 animate-pulse rounded-xl bg-[#161b27]" />
+      ) : (
+        <>
+          <SwimLane title="Breaking" icon={Zap} iconClass="text-green-400" signals={breaking} href="/dashboard?sort=growth" />
+          <SwimLane title="On The Rise" icon={TrendingUp} iconClass="text-[#6366f1]" signals={rising} href="/dashboard?sort=lofi" />
+          <SwimLane title="Candidate Alerts" icon={Star} iconClass="text-amber-400" signals={watchlistAlerts} href="/pipeline" />
+        </>
+      )}
     </div>
   )
 }

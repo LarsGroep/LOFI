@@ -5,7 +5,7 @@ import type { ArtistListItem } from '@/types/supabase'
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const limit = Math.min(Number(searchParams.get('limit') ?? 100), 200)
+    const limit = Math.min(Number(searchParams.get('limit') ?? 100), 500)
     const offset = Number(searchParams.get('offset') ?? 0)
     const status = searchParams.get('status') // optional filter
 
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
         artist_chartmetric (image_url, genres, sp_monthly_listeners, booking_agent),
         artist_ra (event_count),
         xgboost_predictions (predicted_growth_90d),
-        artist_ai_memo (verdict, generated_at)
+        artist_ai_memo (verdict, verdict_reason, generated_at)
       `)
       .order('name')
       .range(offset, offset + limit - 1)
@@ -61,8 +61,9 @@ export async function GET(req: Request) {
         bookingAgent: cm?.booking_agent ?? null,
         isFavorite: false,
         verdict: memo?.verdict ?? null,
+        verdictReason: memo?.verdict_reason ?? null,
         generatedAt: memo?.generated_at ?? null,
-        spotifyDelta30d: null, // computed on profile page from timeseries
+        spotifyDelta30d: null,
       }
     })
 
