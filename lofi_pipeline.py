@@ -3635,17 +3635,10 @@ def _load_catalogue_data() -> pd.DataFrame:
         return rows
 
     def _fetch_cm():
-        # image_url, cover_url + sp_30d — page size 2000 covers current table in one trip
-        rows, page = [], 2000
-        offset = 0
-        while True:
-            batch = sb.schema("tinder").table("artist_chartmetric").select(
-                "artist_id, image_url, cover_url, ml_features"
-            ).range(offset, offset + page - 1).execute().data or []
-            rows.extend(batch)
-            if len(batch) < page:
-                break
-            offset += page
+        # .limit(10000) overrides the PostgREST default row cap (1000)
+        rows = sb.schema("tinder").table("artist_chartmetric").select(
+            "artist_id, image_url, cover_url, ml_features"
+        ).limit(10000).execute().data or []
         result = {}
         for r in rows:
             mf = r.get("ml_features") or {}
