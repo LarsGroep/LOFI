@@ -118,7 +118,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       ? `${(artist.spMonthlyListeners / 1000).toFixed(0)}K listeners`
       : null,
     artist.xgboostGrowth90d != null
-      ? `${(artist.xgboostGrowth90d * 100).toFixed(0)}% growth`
+      ? `${artist.xgboostGrowth90d.toFixed(1)}% CPP growth`
       : null,
     artist.lofiFeel?.score != null
       ? `LOFI fit ${Math.round(artist.lofiFeel.score)}/100`
@@ -147,11 +147,11 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
           hometownCity: artist.hometownCity,
         }}
         bookingSignals={{
-          xgboost: Math.round((artist.xgboostGrowth90d ?? 0) * 100),
+          xgboost: Math.round(Math.max(0, Math.min(100, artist.xgboostGrowth90d ?? 0))),
           scene: artist.raEventCount ? Math.min(100, artist.raEventCount * 5) : 0,
           lofiFit: Math.round(artist.lofiFeel?.score ?? 0),
           composite: Math.round(
-            ((artist.xgboostGrowth90d ?? 0) * 100 * 0.4) +
+            (Math.max(0, Math.min(100, artist.xgboostGrowth90d ?? 0)) * 0.4) +
             (Math.min(100, (artist.raEventCount ?? 0) * 5) * 0.35) +
             ((artist.lofiFeel?.score ?? 0) * 0.25)
           ),

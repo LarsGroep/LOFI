@@ -70,7 +70,7 @@ Last.fm listeners: ${fmt(lfm?.lfm_listeners)}
 Last.fm tags: ${lfm?.tags?.slice(0, 6).join(', ') ?? 'None'}
 Similar artists: ${lfm?.similar_artists?.slice(0, 4).join(', ') ?? 'None'}
 RA events tracked: ${ra?.event_count ?? 0}
-XGBoost 90d growth prediction: ${xg?.predicted_growth_90d != null ? `${(xg.predicted_growth_90d * 100).toFixed(1)}%` : 'N/A'}
+XGBoost 90d CPP growth prediction: ${xg?.predicted_growth_90d != null ? `${(xg.predicted_growth_90d).toFixed(1)}%` : 'N/A'}
 LOFI fit score: ${lofi?.score != null ? `${Math.round(lofi.score as number)}/100` : 'N/A'}
 ${lofi?.matched ? `Matched signals: ${JSON.stringify(lofi.matched)}` : ''}
 ${lofi?.disqualified ? 'DISQUALIFIED by genre filter' : ''}

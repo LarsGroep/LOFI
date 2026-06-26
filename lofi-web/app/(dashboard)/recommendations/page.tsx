@@ -240,7 +240,7 @@ export default function RecommendationsPage() {
                       {rec.xgboostGrowth90d != null && (
                         <span className={`flex items-center gap-1 text-xs font-medium ${rec.xgboostGrowth90d > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                           <TrendingUp size={11} />
-                          {rec.xgboostGrowth90d >= 0 ? '+' : ''}{(rec.xgboostGrowth90d * 100).toFixed(1)}%
+                          {rec.xgboostGrowth90d >= 0 ? '+' : ''}{rec.xgboostGrowth90d.toFixed(1)}%
                         </span>
                       )}
                     </div>

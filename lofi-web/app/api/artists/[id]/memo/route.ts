@@ -184,7 +184,7 @@ Artists in LOFI's booked roster who list this artist as similar: ${row.booked_si
 Artists in LOFI's booked roster who are career-stage neighbors: ${row.booked_neighbor_count}
 
 ML PREDICTION (XGBoost):
-Predicted Spotify growth in next 90 days: ${xg?.predicted_growth_90d != null ? `${(xg.predicted_growth_90d * 100).toFixed(1)}%` : 'N/A'}
+Predicted CPP score growth in next 90 days: ${xg?.predicted_growth_90d != null ? `${(xg.predicted_growth_90d).toFixed(1)}%` : 'N/A'}
 Data coverage: ${xg?.available_features ?? 'N/A'} / ${xg?.total_features ?? 'N/A'} features
 
 NOTEWORTHY INSIGHTS (from Chartmetric):

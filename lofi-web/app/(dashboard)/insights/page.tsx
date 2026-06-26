@@ -66,7 +66,7 @@ export default function InsightsPage() {
       a.status,
       (a.genres ?? []).join('; '),
       a.spMonthlyListeners ?? '',
-      a.xgboostGrowth90d != null ? `${(a.xgboostGrowth90d * 100).toFixed(1)}%` : '',
+      a.xgboostGrowth90d != null ? `${a.xgboostGrowth90d.toFixed(1)}%` : '',
       a.lofiFitScore ?? '',
       a.raEventCount ?? '',
       a.verdict ?? '',
@@ -158,7 +158,7 @@ export default function InsightsPage() {
               icon: TrendingUp,
               value: artists.sort((a, b) => (b.xgboostGrowth90d ?? -1) - (a.xgboostGrowth90d ?? -1))[0]?.name ?? '—',
               sub: artists[0]?.xgboostGrowth90d != null
-                ? `+${(artists.sort((a, b) => (b.xgboostGrowth90d ?? -1) - (a.xgboostGrowth90d ?? -1))[0].xgboostGrowth90d! * 100).toFixed(1)}% predicted`
+                ? `+${(artists.sort((a, b) => (b.xgboostGrowth90d ?? -1) - (a.xgboostGrowth90d ?? -1))[0].xgboostGrowth90d!).toFixed(1)}% CPP predicted`
                 : '',
             },
             {
@@ -291,8 +291,8 @@ export default function InsightsPage() {
                     <td className="px-4 py-3 text-[#94a3b8]">{fmt(a.spMonthlyListeners)}</td>
                     <td className="px-4 py-3">
                       {a.xgboostGrowth90d != null ? (
-                        <span className={`font-semibold ${a.xgboostGrowth90d >= 0.05 ? 'text-emerald-400' : a.xgboostGrowth90d < 0 ? 'text-rose-400' : 'text-[#94a3b8]'}`}>
-                          {a.xgboostGrowth90d >= 0 ? '+' : ''}{(a.xgboostGrowth90d * 100).toFixed(1)}%
+                        <span className={`font-semibold ${a.xgboostGrowth90d >= 5 ? 'text-emerald-400' : a.xgboostGrowth90d < 0 ? 'text-rose-400' : 'text-[#94a3b8]'}`}>
+                          {a.xgboostGrowth90d >= 0 ? '+' : ''}{a.xgboostGrowth90d.toFixed(1)}%
                         </span>
                       ) : (
                         <span className="text-[#64748b]">—</span>

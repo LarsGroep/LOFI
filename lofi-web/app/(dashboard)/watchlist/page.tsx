@@ -245,8 +245,8 @@ export default function WatchlistPage() {
                         <td className="px-4 py-3 text-center">
                           {a.xgboostGrowth90d != null ? (
                             <span className="inline-flex items-center gap-1 text-[#f1f5f9]">
-                              {(a.xgboostGrowth90d * 100).toFixed(1)}%
-                              {a.xgboostGrowth90d >= 0.05
+                              {(a.xgboostGrowth90d >= 0 ? '+' : '')}{a.xgboostGrowth90d.toFixed(1)}%
+                              {a.xgboostGrowth90d >= 5
                                 ? <TrendingUp size={13} className="text-green-400" />
                                 : <TrendingDown size={13} className="text-red-400" />
                               }

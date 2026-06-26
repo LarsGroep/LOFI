@@ -172,7 +172,7 @@ export function DashboardView({ artists, onArtistClick, initialSearch = "" }: Da
   const stats: DashboardStats = useMemo(() => ({
     total: serverStats?.total ?? artists.length,
     bookedThisMonth: serverStats?.booked ?? artists.filter(a => a.status === "booked").length,
-    trending: serverStats?.trending ?? artists.filter(a => (a.xgboostGrowth90d ?? 0) > 0.15).length,
+    trending: serverStats?.trending ?? artists.filter(a => (a.xgboostGrowth90d ?? 0) > 10).length,
     needsAttention: serverStats ? (serverStats.total - serverStats.withMemo) : artists.filter(a => a.verdict === null).length,
   }), [serverStats, artists])
 

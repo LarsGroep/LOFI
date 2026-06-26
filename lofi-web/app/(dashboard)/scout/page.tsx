@@ -31,7 +31,7 @@ function toSignal(a: ArtistListItem, seed: number): ArtistSignal {
     : a.verdict
     ? `AI verdict: ${a.verdict}`
     : a.xgboostGrowth90d != null
-    ? `XGBoost: +${(a.xgboostGrowth90d * 100).toFixed(1)}% predicted 90d growth`
+    ? `XGBoost: +${a.xgboostGrowth90d.toFixed(1)}% predicted 90d CPP growth`
     : `LOFI fit score: ${Math.round(lofi)}`
 
   return {
@@ -143,7 +143,7 @@ export default function ScoutPage() {
 
     // Breaking: high XGBoost growth (top 5)
     const byGrowth = [...artists]
-      .filter(a => a.xgboostGrowth90d != null && a.xgboostGrowth90d > 0.02)
+      .filter(a => a.xgboostGrowth90d != null && a.xgboostGrowth90d > 5)
       .sort((a, b) => (b.xgboostGrowth90d ?? 0) - (a.xgboostGrowth90d ?? 0))
       .slice(0, 5)
       .map((a, i) => toSignal(a, i))

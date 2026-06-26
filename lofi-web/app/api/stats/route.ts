@@ -11,7 +11,7 @@ export async function GET() {
       supabase
         .from('xgboost_predictions')
         .select('*', { count: 'exact', head: true })
-        .gt('predicted_growth_90d', 0.15),
+        .gt('predicted_growth_90d', 10),
       supabase
         .from('artist_ai_memo')
         .select('*', { count: 'exact', head: true }),

@@ -27,8 +27,8 @@ function fmt(n: number | null | undefined): string {
 
 function TrendArrow({ value }: { value: number | null }) {
   if (value == null) return <Minus className="size-4 text-[#64748b]" />
-  if (value > 0.02) return <TrendingUp className="size-4 text-emerald-400" />
-  if (value < -0.02) return <TrendingDown className="size-4 text-rose-400" />
+  if (value > 2) return <TrendingUp className="size-4 text-emerald-400" />
+  if (value < -2) return <TrendingDown className="size-4 text-rose-400" />
   return <Minus className="size-4 text-[#94a3b8]" />
 }
 
@@ -89,7 +89,7 @@ export default function ScenePage() {
       {!isLoading && (
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[
-            { label: 'Fastest Growing Genre', value: fastestGrowing?.name ?? '—', sub: fastestGrowing?.avgGrowth != null ? `avg ${(fastestGrowing.avgGrowth * 100).toFixed(1)}% 90d growth` : '' },
+            { label: 'Fastest Growing Genre', value: fastestGrowing?.name ?? '—', sub: fastestGrowing?.avgGrowth != null ? `avg ${fastestGrowing.avgGrowth.toFixed(1)}% 90d CPP growth` : '' },
             { label: 'Largest by Listeners', value: largest?.name ?? '—', sub: fmt(largest?.avgListeners) + ' avg listeners' },
             { label: 'Most Artists', value: mostArtists?.name ?? '—', sub: `${mostArtists?.artistCount ?? 0} artists tracked` },
             { label: 'Genres Growing', value: `${risingCount} / ${genres.length}`, sub: 'positive avg 90d XGBoost growth' },
@@ -196,8 +196,8 @@ export default function ScenePage() {
                     <td className="px-4 py-3 text-right text-[#94a3b8]">{fmt(g.avgListeners)}</td>
                     <td className="px-4 py-3 text-right">
                       {g.avgGrowth != null ? (
-                        <span className={`font-semibold ${g.avgGrowth > 0.02 ? 'text-emerald-400' : g.avgGrowth < -0.02 ? 'text-rose-400' : 'text-[#94a3b8]'}`}>
-                          {g.avgGrowth >= 0 ? '+' : ''}{(g.avgGrowth * 100).toFixed(1)}%
+                        <span className={`font-semibold ${g.avgGrowth > 2 ? 'text-emerald-400' : g.avgGrowth < -2 ? 'text-rose-400' : 'text-[#94a3b8]'}`}>
+                          {g.avgGrowth >= 0 ? '+' : ''}{g.avgGrowth.toFixed(1)}%
                         </span>
                       ) : <span className="text-[#64748b]">—</span>}
                     </td>

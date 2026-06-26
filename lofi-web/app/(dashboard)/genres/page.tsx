@@ -32,9 +32,9 @@ const VERDICT_COLORS: Record<string, string> = {
 
 function GrowthBadge({ v }: { v: number | null }) {
   if (v == null) return <Minus size={12} className="text-[#64748b]" />
-  if (v > 0.02) return <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-400"><TrendingUp size={11} />+{(v * 100).toFixed(1)}%</span>
-  if (v < -0.02) return <span className="flex items-center gap-0.5 text-xs font-semibold text-rose-400"><TrendingDown size={11} />{(v * 100).toFixed(1)}%</span>
-  return <span className="text-xs text-[#94a3b8]">{v >= 0 ? '+' : ''}{(v * 100).toFixed(1)}%</span>
+  if (v > 2) return <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-400"><TrendingUp size={11} />+{v.toFixed(1)}%</span>
+  if (v < -2) return <span className="flex items-center gap-0.5 text-xs font-semibold text-rose-400"><TrendingDown size={11} />{v.toFixed(1)}%</span>
+  return <span className="text-xs text-[#94a3b8]">{v >= 0 ? '+' : ''}{v.toFixed(1)}%</span>
 }
 
 export default function GenresPage() {
@@ -92,8 +92,8 @@ export default function GenresPage() {
                   {g.artistCount}
                 </span>
                 {growth != null && (
-                  <span className={`text-[10px] font-semibold ${growth > 0.02 ? (isSelected ? 'text-green-200' : 'text-emerald-400') : growth < -0.02 ? (isSelected ? 'text-red-200' : 'text-rose-400') : 'text-[#64748b]'}`}>
-                    {growth >= 0 ? '+' : ''}{(growth * 100).toFixed(0)}%
+                  <span className={`text-[10px] font-semibold ${growth > 2 ? (isSelected ? 'text-green-200' : 'text-emerald-400') : growth < -2 ? (isSelected ? 'text-red-200' : 'text-rose-400') : 'text-[#64748b]'}`}>
+                    {growth >= 0 ? '+' : ''}{growth.toFixed(0)}%
                   </span>
                 )}
               </button>
@@ -163,9 +163,9 @@ export default function GenresPage() {
                     {/* Growth badge */}
                     {a.xgboostGrowth90d != null && (
                       <span className={`absolute right-2 top-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                        a.xgboostGrowth90d > 0.05 ? 'bg-emerald-500/90 text-white' : 'bg-black/60 text-[#94a3b8]'
+                        a.xgboostGrowth90d > 5 ? 'bg-emerald-500/90 text-white' : 'bg-black/60 text-[#94a3b8]'
                       }`}>
-                        {a.xgboostGrowth90d >= 0 ? '+' : ''}{(a.xgboostGrowth90d * 100).toFixed(0)}%
+                        {a.xgboostGrowth90d >= 0 ? '+' : ''}{a.xgboostGrowth90d.toFixed(0)}%
                       </span>
                     )}
                   </div>

@@ -96,14 +96,23 @@ def _norm(s: str) -> str:
 def _genre_overlaps(genres: list[str], target_set: set[str]) -> list[str]:
     """Return the subset of genres (normalised) that overlap with target_set.
 
-    Overlap = a genre token is a substring of a target set entry OR vice-versa.
-    This lets "latin pop" match "latin" and "tech house" match "house".
+    Overlap rule: a genre matches a target set entry if and only if
+      - gn == t  (exact), OR
+      - t appears as a whole-word prefix/suffix/token within gn
+        (checked by requiring the match boundary is a space or string edge),
+        e.g. "latin" matches "latin pop" and "latin rock"
+        but "house" does NOT match "vinahouse".
+
+    This avoids false positives like "house" (LOFI genre) matching the
+    "vinahouse" tag (a wholly different genre).
     """
+    import re
     hits: list[str] = []
     for g in genres:
         gn = _norm(g)
         for t in target_set:
-            if t in gn or gn in t:
+            # Use word-boundary regex: target must appear as a whole word in the genre string
+            if re.search(r"(?<![a-z0-9])" + re.escape(t) + r"(?![a-z0-9])", gn):
                 hits.append(g)
                 break
     return hits
@@ -145,7 +154,7 @@ def main() -> None:
         batch = (
             sb.schema("tinder")
             .table("artists")
-            .select("id, name, candidate_status, artist_chartmetric(genres, monthly_listeners)")
+            .select("id, name, candidate_status, artist_chartmetric(genres, sp_monthly_listeners)")
             .not_.in_("candidate_status", list(EXCLUDE_STATUSES))
             .not_.is_("chartmetric_id", "null")
             .range(offset, offset + 999)
@@ -170,7 +179,7 @@ def main() -> None:
             cm_data = cm_data[0] if cm_data else {}
 
         raw_genres: list = cm_data.get("genres") or []
-        monthly_listeners: int = cm_data.get("monthly_listeners") or 0
+        monthly_listeners: int = cm_data.get("sp_monthly_listeners") or 0
 
         if args.min_listeners and monthly_listeners < args.min_listeners:
             continue
