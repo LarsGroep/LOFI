@@ -22,11 +22,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             hometown_city, current_city, cm_timeseries
           ),
           artist_ra (event_count),
-          artist_partyflock (pf_fans, pf_total_performances),
+          artist_partyflock (pf_fans, pf_total_performances, pf_upcoming_performances, pf_genres),
           artist_lastfm (lfm_listeners, tags, similar_artists),
           xgboost_predictions (predicted_growth_90d, missing_pct),
           artist_ai_memo (*),
-          artist_cm_extended (related_artists)
+          artist_cm_extended (related_artists, urls, fan_cities, instagram_audience, albums, news, noteworthy_insights)
         `)
         .eq('id', id)
         .single(),
@@ -138,6 +138,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       lofiFeel: lofi ? (lofi as ArtistDetail['lofiFeel']) : null,
       pfFans: pf?.pf_fans ?? null,
       pfTotalPerformances: pf?.pf_total_performances ?? null,
+      pfUpcomingPerformances: pf?.pf_upcoming_performances ?? null,
+      pfGenres: pf?.pf_genres ?? null,
       lfmListeners: lfm?.lfm_listeners ?? null,
       lfmTags: lfm?.tags ?? null,
       raEventCount: ra?.event_count ?? null,
@@ -154,6 +156,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       tracks,
       validationEvents,
       similarArtists,
+      socialLinks: (ext?.urls as { url: string[]; domain: string }[] | null) ?? [],
+      fanCities: (ext?.fan_cities as { city: string; country: string; count?: number; pct?: number }[] | null) ?? [],
+      instagramAudience: (ext?.instagram_audience as Record<string, unknown> | null) ?? null,
+      albums: (ext?.albums as { name: string; release_date?: string; image_url?: string }[] | null) ?? [],
+      noteworthy: (ext?.noteworthy_insights as { title?: string; description?: string; value?: string }[] | null) ?? [],
     }
 
     return NextResponse.json(detail)

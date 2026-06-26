@@ -365,6 +365,8 @@ export interface ArtistDetail {
   lofiFeel: LofiFeelJson | null
   pfFans: number | null
   pfTotalPerformances: number | null
+  pfUpcomingPerformances: number | null
+  pfGenres: string[] | null
   lfmListeners: number | null
   lfmTags: string[] | null
   raEventCount: number | null
@@ -381,6 +383,11 @@ export interface ArtistDetail {
   tracks: TrackRow[]
   validationEvents: ValidationEventRow[]
   similarArtists: string[]
+  socialLinks: { url: string[]; domain: string }[]
+  fanCities: { city: string; country: string; count?: number; pct?: number }[]
+  instagramAudience: Record<string, unknown> | null
+  albums: { name: string; release_date?: string; image_url?: string }[]
+  noteworthy: { title?: string; description?: string; value?: string }[]
 }
 
 export interface TimeseriesPoint {

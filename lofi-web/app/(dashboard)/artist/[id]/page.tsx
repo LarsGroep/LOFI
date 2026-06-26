@@ -74,6 +74,8 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       venue: e.venue ?? 'Unknown venue',
       attending: e.venue_capacity ?? 0,
       festival: false,
+      city: e.city ?? undefined,
+      country: e.country ?? undefined,
     }))
 
   const growthData = (artist.timeseries ?? []).map(p => ({
@@ -110,6 +112,11 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
           imageUrl: artist.imageUrl,
           status: artist.status,
           genres: artist.genres ?? [],
+          description: artist.description,
+          recordLabel: artist.recordLabel,
+          bookingAgent: artist.bookingAgent,
+          currentCity: artist.currentCity,
+          hometownCity: artist.hometownCity,
         }}
         bookingSignals={{
           xgboost: Math.round((artist.xgboostGrowth90d ?? 0) * 100),
@@ -132,6 +139,13 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         tracks={artist.tracks ?? []}
         validationEvents={artist.validationEvents ?? []}
         similarArtists={artist.similarArtists ?? []}
+        socialLinks={artist.socialLinks ?? []}
+        fanCities={artist.fanCities ?? []}
+        noteworthy={artist.noteworthy ?? []}
+        pfFans={artist.pfFans}
+        pfTotalPerformances={artist.pfTotalPerformances}
+        pfUpcomingPerformances={artist.pfUpcomingPerformances}
+        pfGenres={artist.pfGenres}
       />
     </div>
   )
