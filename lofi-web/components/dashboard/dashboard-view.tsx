@@ -152,14 +152,15 @@ function computeStats(artists: ArtistListItem[]): DashboardStats {
 interface DashboardViewProps {
   artists: ArtistListItem[]
   onArtistClick: (id: string) => void
+  initialSearch?: string
 }
 
-export function DashboardView({ artists, onArtistClick }: DashboardViewProps) {
+export function DashboardView({ artists, onArtistClick, initialSearch = "" }: DashboardViewProps) {
   const router = useRouter()
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [status, setStatus] = useState<StatusFilter>("all")
   const [sort, setSort] = useState<SortKey>("composite")
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(initialSearch)
   const [addModalOpen, setAddModalOpen] = useState(false)
 
   const { data: overview } = useSWR<{ milestones: Milestone[]; trendingYoutube: TrendingSet[] }>(

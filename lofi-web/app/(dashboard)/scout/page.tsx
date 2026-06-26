@@ -143,7 +143,7 @@ export default function ScoutPage() {
 
     // Breaking: high XGBoost growth (top 5)
     const byGrowth = [...artists]
-      .filter(a => a.xgboostGrowth90d != null && a.xgboostGrowth90d > 0.08)
+      .filter(a => a.xgboostGrowth90d != null && a.xgboostGrowth90d > 0.02)
       .sort((a, b) => (b.xgboostGrowth90d ?? 0) - (a.xgboostGrowth90d ?? 0))
       .slice(0, 5)
       .map((a, i) => toSignal(a, i))
@@ -151,15 +151,15 @@ export default function ScoutPage() {
     // Rising: strong LOFI fit, moderate growth
     const breakingIds = new Set(byGrowth.map(s => s.id))
     const byLofi = [...artists]
-      .filter(a => !breakingIds.has(a.id) && (a.lofiFitScore ?? 0) > 60)
+      .filter(a => !breakingIds.has(a.id) && (a.lofiFitScore ?? 0) > 30)
       .sort((a, b) => (b.lofiFitScore ?? 0) - (a.lofiFitScore ?? 0))
       .slice(0, 6)
       .map((a, i) => toSignal(a, i + 10))
 
-    // Watchlist alerts: current candidates with AI memo
+    // Watchlist alerts: current candidates with AI memo or strong fit
     const risingIds = new Set(byLofi.map(s => s.id))
     const candidates = [...artists]
-      .filter(a => !breakingIds.has(a.id) && !risingIds.has(a.id) && a.status === "candidate" && a.verdict != null)
+      .filter(a => !breakingIds.has(a.id) && !risingIds.has(a.id) && a.status === "candidate" && (a.verdict != null || (a.lofiFitScore ?? 0) > 35))
       .slice(0, 4)
       .map((a, i) => toSignal(a, i + 20))
 

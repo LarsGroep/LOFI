@@ -1,14 +1,17 @@
 'use client'
 
+import { Suspense } from 'react'
 import useSWR from 'swr'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import type { ArtistListItem } from '@/types/supabase'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
-export default function DashboardPage() {
+function DashboardInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialSearch = searchParams.get('q') ?? ''
   const { data: artists, isLoading, error } = useSWR<ArtistListItem[]>('/api/artists', fetcher, {
     revalidateOnFocus: false,
   })
@@ -41,6 +44,15 @@ export default function DashboardPage() {
     <DashboardView
       artists={artists ?? []}
       onArtistClick={(id) => router.push(`/artist/${id}`)}
+      initialSearch={initialSearch}
     />
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardInner />
+    </Suspense>
   )
 }
