@@ -7,7 +7,9 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const limit = Math.min(Number(searchParams.get('limit') ?? 100), 500)
     const offset = Number(searchParams.get('offset') ?? 0)
-    const status = searchParams.get('status') // optional filter
+    const status = searchParams.get('status')
+    const genre = searchParams.get('genre')
+    const q = searchParams.get('q')
 
     const supabase = createServiceClient()
 
@@ -27,9 +29,20 @@ export async function GET(req: Request) {
     if (status && status !== 'all') {
       query = query.eq('candidate_status', status)
     }
+    if (q) {
+      query = query.ilike('name', `%${q}%`)
+    }
 
-    const { data, error } = await query
+    const { data: rawData, error } = await query
     if (error) throw error
+
+    // Filter by genre client-side (Supabase can't filter on embedded jsonb array easily)
+    const data = genre
+      ? (rawData ?? []).filter(row => {
+          const cm = Array.isArray(row.artist_chartmetric) ? row.artist_chartmetric[0] : row.artist_chartmetric
+          return (cm?.genres as string[] | null)?.some(g => g.toLowerCase() === genre.toLowerCase())
+        })
+      : rawData
 
     const items: ArtistListItem[] = (data ?? []).map((row) => {
       const cm = Array.isArray(row.artist_chartmetric)

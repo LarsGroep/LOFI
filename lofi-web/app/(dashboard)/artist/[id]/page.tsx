@@ -146,6 +146,8 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         pfTotalPerformances={artist.pfTotalPerformances}
         pfUpcomingPerformances={artist.pfUpcomingPerformances}
         pfGenres={artist.pfGenres}
+        instagramAudience={artist.instagramAudience}
+        xgboostGrowth90d={artist.xgboostGrowth90d}
       />
     </div>
   )

@@ -61,6 +61,8 @@ export interface ArtistProfileProps {
   pfTotalPerformances?: number | null
   pfUpcomingPerformances?: number | null
   pfGenres?: string[] | null
+  instagramAudience?: Record<string, unknown> | null
+  xgboostGrowth90d?: number | null
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -135,6 +137,7 @@ export default function ArtistProfile({
   tracks, validationEvents, similarArtists,
   socialLinks = [], fanCities = [], noteworthy = [],
   pfFans, pfTotalPerformances, pfUpcomingPerformances, pfGenres,
+  instagramAudience, xgboostGrowth90d,
 }: ArtistProfileProps) {
   const [draft, setDraft] = useState("")
   const [activePlatform, setActivePlatform] = useState<string>(multiTimeseries[0]?.platform ?? "spotify")
@@ -145,15 +148,46 @@ export default function ArtistProfile({
   const nlEvents = events.filter(e => e.country === 'NL' || e.country === 'Netherlands' || e.city?.toLowerCase().includes('amsterdam'))
 
   const activeTs = multiTimeseries.find(m => m.platform === activePlatform)
-  const chartData = activeTs
+  const rawChartData = activeTs
     ? activeTs.data.map(p => ({ date: p.date.slice(0, 7), value: p.value }))
     : growthData.map(p => ({ date: p.date.slice(0, 7), value: p.listeners }))
+
+  // Build projected forecast points if Spotify + xgboost prediction available
+  const isSpotify = !activeTs || activePlatform === 'spotify'
+  const forecastPoints: { date: string; value?: number; projected?: number }[] = []
+  if (isSpotify && xgboostGrowth90d != null && rawChartData.length > 0) {
+    const lastPoint = rawChartData[rawChartData.length - 1]
+    const lastVal = lastPoint.value
+    const growthPer30d = xgboostGrowth90d / 3
+    for (let m = 1; m <= 3; m++) {
+      const [yr, mo] = lastPoint.date.split('-').map(Number)
+      const d = new Date(yr, mo - 1 + m, 1)
+      const label = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      forecastPoints.push({ date: label, projected: Math.round(lastVal * (1 + growthPer30d * m)) })
+    }
+  }
+
+  const chartData: { date: string; value?: number; projected?: number }[] =
+    forecastPoints.length > 0
+      ? [
+          ...rawChartData.map((p, i) =>
+            i === rawChartData.length - 1
+              ? { ...p, projected: p.value } // bridge last historical point to forecast
+              : p
+          ),
+          ...forecastPoints,
+        ]
+      : rawChartData
 
   // Social links: filter to known platforms, deduplicate
   const knownLinks = socialLinks.filter(l => DOMAIN_LABELS[l.domain] && l.url?.length)
 
   // Fan cities: top 10
   const topCities = [...fanCities].sort((a, b) => (b.pct ?? b.count ?? 0) - (a.pct ?? a.count ?? 0)).slice(0, 10)
+
+  // Instagram audience top countries
+  interface CountryAudience { code: string; name: string; percent: string | number; followers: number }
+  const igTopCountries = ((instagramAudience?.top_countries ?? []) as CountryAudience[]).slice(0, 8)
 
   function handleAdd() {
     const text = draft.trim()
@@ -359,8 +393,12 @@ export default function ArtistProfile({
                 <XAxis dataKey="date" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} width={52} tickFormatter={v => fmt(v)} />
                 <Tooltip contentStyle={{ background: "#1e2535", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#f1f5f9" }}
-                  labelStyle={{ color: "#94a3b8" }} formatter={(v: number) => [fmt(v)]} />
-                <Line type="monotone" dataKey="value" stroke={PLATFORM_COLORS[activePlatform] ?? "#6366f1"} strokeWidth={2} dot={false} />
+                  labelStyle={{ color: "#94a3b8" }}
+                  formatter={(v: number, name: string) => [fmt(v), name === 'projected' ? '90d Forecast' : 'Listeners']} />
+                <Line type="monotone" dataKey="value" stroke={PLATFORM_COLORS[activePlatform] ?? "#6366f1"} strokeWidth={2} dot={false} connectNulls={false} />
+                {forecastPoints.length > 0 && (
+                  <Line type="monotone" dataKey="projected" stroke="#818cf8" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls />
+                )}
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -475,7 +513,35 @@ export default function ArtistProfile({
         </section>
       )}
 
-      {/* 9. NOTEWORTHY INSIGHTS */}
+      {/* 9. INSTAGRAM AUDIENCE */}
+      {igTopCountries.length > 0 && (
+        <section className="rounded-xl bg-[#161b27] p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Globe size={18} className="text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Instagram Audience — Top Countries</h2>
+          </div>
+          <div className="flex flex-col gap-2">
+            {igTopCountries.map(c => {
+              const pct = Number(c.percent)
+              return (
+                <div key={c.code} className="flex items-center gap-3">
+                  <span className="w-28 shrink-0 text-xs text-slate-400">{c.name}</span>
+                  <div className="flex-1 overflow-hidden rounded-full bg-white/5 h-2">
+                    <div
+                      className="h-full rounded-full bg-[#E1306C]/60"
+                      style={{ width: `${Math.min(100, pct)}%` }}
+                    />
+                  </div>
+                  <span className="w-12 shrink-0 text-right text-xs font-medium text-slate-300">{pct.toFixed(1)}%</span>
+                  <span className="w-16 shrink-0 text-right text-xs text-slate-500">{fmt(c.followers)}</span>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 10. NOTEWORTHY INSIGHTS */}
       {noteworthy.length > 0 && (
         <section className="rounded-xl bg-[#161b27] p-6">
           <div className="mb-4 flex items-center gap-2">
@@ -494,7 +560,7 @@ export default function ArtistProfile({
         </section>
       )}
 
-      {/* 10. EVENT TIMELINE */}
+      {/* 11. EVENT TIMELINE */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <div className="mb-6 flex items-center gap-2">
           <Calendar size={18} className="text-indigo-400" />
@@ -523,7 +589,7 @@ export default function ArtistProfile({
         )}
       </section>
 
-      {/* 11. NOTES PANEL */}
+      {/* 12. NOTES PANEL */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <div className="mb-4 flex items-center gap-2">
           <Sparkles size={18} className="text-indigo-400" />

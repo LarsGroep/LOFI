@@ -6,8 +6,9 @@ import useSWR from "swr"
 import { StatsRow, type DashboardStats } from "@/components/dashboard/stats-row"
 import { FiltersBar, type StatusFilter, type SortKey } from "@/components/dashboard/filters-bar"
 import { ArtistGrid } from "@/components/dashboard/artist-grid"
+import { AddArtistModal } from "@/components/ui/add-artist-modal"
 import type { ArtistListItem } from "@/types/supabase"
-import { CheckCircle2, Youtube, TrendingUp } from "lucide-react"
+import { CheckCircle2, Youtube, TrendingUp, Plus } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
@@ -159,6 +160,7 @@ export function DashboardView({ artists, onArtistClick }: DashboardViewProps) {
   const [status, setStatus] = useState<StatusFilter>("all")
   const [sort, setSort] = useState<SortKey>("composite")
   const [search, setSearch] = useState("")
+  const [addModalOpen, setAddModalOpen] = useState(false)
 
   const { data: overview } = useSWR<{ milestones: Milestone[]; trendingYoutube: TrendingSet[] }>(
     "/api/dashboard/overview",
@@ -228,10 +230,26 @@ export function DashboardView({ artists, onArtistClick }: DashboardViewProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-[#f1f5f9]">Dashboard</h1>
-        <p className="text-sm text-[#94a3b8]">Artist Intelligence — LOFI Amsterdam</p>
+      <header className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#f1f5f9]">Dashboard</h1>
+          <p className="text-sm text-[#94a3b8]">Artist Intelligence — LOFI Amsterdam</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setAddModalOpen(true)}
+          className="flex shrink-0 items-center gap-2 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
+        >
+          <Plus size={15} /> Add Artist
+        </button>
       </header>
+
+      {addModalOpen && (
+        <AddArtistModal
+          onClose={() => setAddModalOpen(false)}
+          onNavigate={id => router.push(`/artist/${id}`)}
+        />
+      )}
 
       <StatsRow stats={stats} />
 

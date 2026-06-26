@@ -13,6 +13,8 @@ import {
   X,
   Youtube,
   Radio,
+  Users,
+  Tag,
 } from 'lucide-react'
 import { NavItem } from '@/components/ui/nav-item'
 import { cn } from '@/lib/utils'
@@ -24,6 +26,8 @@ const NAV_ITEMS = [
   { href: '/pipeline', label: 'Pipeline', icon: KanbanSquare },
   { href: '/sounds', label: 'Sounds', icon: Music },
   { href: '/insights', label: 'Leaderboard', icon: BarChart2 },
+  { href: '/recommendations', label: 'Recommender', icon: Users },
+  { href: '/genres', label: 'Genres', icon: Tag },
   { href: '/youtube', label: 'YouTube Sets', icon: Youtube },
   { href: '/scene', label: 'Scene Intel', icon: Radio },
   { href: '/settings', label: 'Settings', icon: Settings },
