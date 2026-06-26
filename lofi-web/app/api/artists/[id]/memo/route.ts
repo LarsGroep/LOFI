@@ -84,6 +84,44 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       : 999
     const dataFreshness = daysSinceUpdate < 2 ? 'Fresh' : daysSinceUpdate < 7 ? 'Partial' : 'Stale'
 
+    // Fetch LOFI sound framework benchmarks matching this artist's genres
+    const artistGenres = (cm?.genres ?? []).map((g: string) => g.toLowerCase())
+    const { data: frameworkData } = await supabase
+      .from('lofi_sound_framework')
+      .select('sound, tier, bucket, artists (name)')
+
+    const soundFrameworkSection = (() => {
+      if (!frameworkData?.length) return 'No sound framework configured yet.'
+      // Group by sound, find sounds that overlap with artist genres
+      const sounds = new Map<string, { tier: string; name: string; bucket: string }[]>()
+      for (const entry of frameworkData) {
+        const artistEntry = Array.isArray(entry.artists) ? entry.artists[0] : entry.artists
+        if (!artistEntry) continue
+        if (!sounds.has(entry.sound)) sounds.set(entry.sound, [])
+        sounds.get(entry.sound)!.push({ tier: entry.tier, name: artistEntry.name, bucket: entry.bucket })
+      }
+      // Prioritise sounds that match artist genres, then include all
+      const relevantSounds: string[] = []
+      const otherSounds: string[] = []
+      for (const [sound] of sounds) {
+        const soundLower = sound.toLowerCase()
+        const matches = artistGenres.some(g => soundLower.includes(g) || g.includes(soundLower.split(' ')[0]))
+        if (matches) relevantSounds.push(sound)
+        else otherSounds.push(sound)
+      }
+      const orderedSounds = [...relevantSounds, ...otherSounds].slice(0, 4)
+      const lines = orderedSounds.map(sound => {
+        const artists = sounds.get(sound)!
+        const byTier = ['A+', 'A', 'B', 'Watch'].map(tier => {
+          const names = artists.filter(a => a.tier === tier).map(a => a.name)
+          return names.length ? `${tier}: ${names.join(', ')}` : null
+        }).filter(Boolean)
+        return `${sound}: ${byTier.join(' | ')}`
+      })
+      const matchNote = relevantSounds.length > 0 ? ` (${relevantSounds.join(', ')} appear relevant for this artist)` : ''
+      return lines.join('\n') + matchNote
+    })()
+
     // Build booker notes section
     const notesSection = notes.length
       ? notes.map(n => `[${n.note_type.toUpperCase()}] ${n.text} (by ${n.author})`).join('\n')
@@ -152,6 +190,9 @@ Data coverage: ${xg?.available_features ?? 'N/A'} / ${xg?.total_features ?? 'N/A
 NOTEWORTHY INSIGHTS (from Chartmetric):
 ${JSON.stringify((ext?.noteworthy_insights as unknown[])?.slice(0, 3) ?? [], null, 2)}
 
+LOFI SOUND FRAMEWORK — BENCHMARK ARTISTS (curated by LOFI team):
+${soundFrameworkSection}
+
 BOOKER NOTES FROM LOFI TEAM:
 ${notesSection}
 
@@ -162,6 +203,8 @@ Based on all this data, generate a booking assessment for LOFI Amsterdam. LOFI b
 - Shows growth acceleration (not just size)
 - Fits the LOFI sound profile (underground but festival-capable)
 - Has credibility signals (agency tier, label, festival bookings)
+
+IMPORTANT: When suggesting comparable artists in "comparable_past", ONLY reference artists from the LOFI Sound Framework above. These are the benchmark artists LOFI has curated as examples of success in each sound. Do not invent comparables — if no framework artist is a good match, leave comparable_past empty.
 
 Return ONLY valid JSON matching this exact structure (no markdown, no explanation):
 {
@@ -175,7 +218,7 @@ Return ONLY valid JSON matching this exact structure (no markdown, no explanatio
   ],
   "opportunities": ["bullet 1", "bullet 2"],
   "risks": ["bullet 1", "bullet 2"],
-  "comparable_past": ["Artist name that had similar trajectory"]
+  "comparable_past": ["Only use artist names from the LOFI Sound Framework above"]
 }`
 
     const message = await anthropic.messages.create({
