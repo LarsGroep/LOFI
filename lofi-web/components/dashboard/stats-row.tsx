@@ -18,7 +18,7 @@ export interface DashboardStats {
 export function StatsRow({ stats }: { stats: DashboardStats }) {
   const tiles: StatTile[] = [
     { label: "Total Artists", value: stats.total, icon: Users, accent: "text-indigo-400" },
-    { label: "Booked This Month", value: stats.bookedThisMonth, icon: CalendarCheck, accent: "text-green-400" },
+    { label: "Total Booked", value: stats.bookedThisMonth, icon: CalendarCheck, accent: "text-green-400" },
     { label: "Trending", value: stats.trending, icon: TrendingUp, accent: "text-cyan-400" },
     { label: "Needs Attention", value: stats.needsAttention, icon: AlertTriangle, accent: "text-amber-400" },
   ]

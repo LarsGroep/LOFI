@@ -70,7 +70,7 @@ function SortHeader({
 }
 
 export default function WatchlistPage() {
-  const { data, isLoading, error } = useSWR<ArtistListItem[]>('/api/artists?limit=500', fetcher, {
+  const { data, isLoading, error } = useSWR<ArtistListItem[]>('/api/artists?limit=2000', fetcher, {
     revalidateOnFocus: false,
   })
 

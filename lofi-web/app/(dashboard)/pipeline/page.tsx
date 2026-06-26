@@ -112,7 +112,7 @@ function PipelineCard({
 }
 
 export default function PipelinePage() {
-  const { data, error, isLoading, mutate } = useSWR<ArtistListItem[]>('/api/artists?limit=500', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<ArtistListItem[]>('/api/artists?limit=2000', fetcher, {
     revalidateOnFocus: false,
   })
 

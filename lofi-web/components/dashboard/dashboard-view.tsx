@@ -140,13 +140,11 @@ function TrendingYoutubeStrip({ sets }: { sets: TrendingSet[] }) {
   )
 }
 
-function computeStats(artists: ArtistListItem[]): DashboardStats {
-  return {
-    total: artists.length,
-    bookedThisMonth: artists.filter(a => a.status === "booked").length,
-    trending: artists.filter(a => (a.xgboostGrowth90d ?? 0) > 0.15).length,
-    needsAttention: artists.filter(a => a.verdict === null).length,
-  }
+interface ServerStats {
+  total: number
+  booked: number
+  trending: number
+  withMemo: number
 }
 
 interface DashboardViewProps {
@@ -169,7 +167,14 @@ export function DashboardView({ artists, onArtistClick, initialSearch = "" }: Da
     { revalidateOnFocus: false }
   )
 
-  const stats = useMemo(() => computeStats(artists), [artists])
+  const { data: serverStats } = useSWR<ServerStats>("/api/stats", fetcher, { revalidateOnFocus: false })
+
+  const stats: DashboardStats = useMemo(() => ({
+    total: serverStats?.total ?? artists.length,
+    bookedThisMonth: serverStats?.booked ?? artists.filter(a => a.status === "booked").length,
+    trending: serverStats?.trending ?? artists.filter(a => (a.xgboostGrowth90d ?? 0) > 0.15).length,
+    needsAttention: serverStats ? (serverStats.total - serverStats.withMemo) : artists.filter(a => a.verdict === null).length,
+  }), [serverStats, artists])
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase()

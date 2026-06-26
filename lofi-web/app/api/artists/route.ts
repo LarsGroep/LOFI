@@ -5,7 +5,7 @@ import type { ArtistListItem } from '@/types/supabase'
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const limit = Math.min(Number(searchParams.get('limit') ?? 100), 500)
+    const limit = Math.min(Number(searchParams.get('limit') ?? 100), 2000)
     const offset = Number(searchParams.get('offset') ?? 0)
     const status = searchParams.get('status')
     const genre = searchParams.get('genre')

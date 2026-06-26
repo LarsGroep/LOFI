@@ -147,7 +147,7 @@ function AddArtistModal({
   onAdd: (artistId: string, tier: Tier, bucket: BucketKey) => Promise<void>
   onClose: () => void
 }) {
-  const { data: allArtists } = useSWR<ArtistListItem[]>('/api/artists?limit=500', fetcher)
+  const { data: allArtists } = useSWR<ArtistListItem[]>('/api/artists?limit=2000', fetcher)
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tier, setTier] = useState<Tier>('B')

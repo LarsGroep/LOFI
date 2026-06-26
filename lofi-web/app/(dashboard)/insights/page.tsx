@@ -30,7 +30,7 @@ const VERDICT_COLORS: Record<string, string> = {
 
 export default function InsightsPage() {
   const router = useRouter()
-  const { data, isLoading } = useSWR<ArtistListItem[]>('/api/artists?limit=500', fetcher, { revalidateOnFocus: false })
+  const { data, isLoading } = useSWR<ArtistListItem[]>('/api/artists?limit=2000', fetcher, { revalidateOnFocus: false })
 
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [sortKey, setSortKey] = useState<SortKey>('xgboostGrowth90d')

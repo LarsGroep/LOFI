@@ -125,7 +125,7 @@ function SwimLane({ title, icon: Icon, iconClass, signals, href }: {
 }
 
 export default function ScoutPage() {
-  const { data, isLoading, mutate } = useSWR<ArtistListItem[]>('/api/artists?limit=500', fetcher, {
+  const { data, isLoading, mutate } = useSWR<ArtistListItem[]>('/api/artists?limit=2000', fetcher, {
     revalidateOnFocus: false,
   })
 
@@ -172,7 +172,7 @@ export default function ScoutPage() {
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-[#f1f5f9]">Scout</h1>
           <p className="text-sm text-[#94a3b8]">Emerging artists — 6 to 18 months ahead of the market</p>
-          {data && <p className="text-xs text-[#64748b]">Derived from {data.length} tracked artists</p>}
+          {data && <p className="text-xs text-[#64748b]">Derived from {data.length.toLocaleString()} tracked artists</p>}
         </div>
         <button
           type="button"

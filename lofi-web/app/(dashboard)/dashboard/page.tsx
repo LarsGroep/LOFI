@@ -12,7 +12,7 @@ function DashboardInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialSearch = searchParams.get('q') ?? ''
-  const { data: artists, isLoading, error } = useSWR<ArtistListItem[]>('/api/artists', fetcher, {
+  const { data: artists, isLoading, error } = useSWR<ArtistListItem[]>('/api/artists?limit=2000', fetcher, {
     revalidateOnFocus: false,
   })
 
