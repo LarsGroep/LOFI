@@ -26,17 +26,17 @@ export async function GET() {
     }
 
     // Aggregate by genre
-    const genreMap = new Map<string, { count: number; totalListeners: number; totalGrowth: number; growthCount: number }>()
+    const genreMap = new Map<string, { count: number; totalListeners: number; totalGrowth: number; growthCount: number; growingCount: number }>()
     for (const row of data ?? []) {
       if (!row.genres?.length) continue
       const growth = growthMap.get(row.artist_id)
       for (const genre of row.genres as string[]) {
         const key = genre.toLowerCase()
-        if (!genreMap.has(key)) genreMap.set(key, { count: 0, totalListeners: 0, totalGrowth: 0, growthCount: 0 })
+        if (!genreMap.has(key)) genreMap.set(key, { count: 0, totalListeners: 0, totalGrowth: 0, growthCount: 0, growingCount: 0 })
         const g = genreMap.get(key)!
         g.count++
         if (row.sp_monthly_listeners) g.totalListeners += row.sp_monthly_listeners
-        if (growth != null) { g.totalGrowth += growth; g.growthCount++ }
+        if (growth != null) { g.totalGrowth += growth; g.growthCount++; if (growth > 0) g.growingCount++ }
       }
     }
 
@@ -47,9 +47,7 @@ export async function GET() {
         artistCount: v.count,
         avgListeners: v.count > 0 ? Math.round(v.totalListeners / v.count) : 0,
         avgGrowth: v.growthCount > 0 ? v.totalGrowth / v.growthCount : null,
-        pctGrowing: v.growthCount > 0
-          ? Math.round(((v.totalGrowth > 0 ? 1 : 0) / v.growthCount) * 100)
-          : null,
+        pctGrowing: v.growthCount > 0 ? Math.round((v.growingCount / v.growthCount) * 100) : null,
       }))
       .sort((a, b) => b.artistCount - a.artistCount)
       .slice(0, 20)
