@@ -147,36 +147,10 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
           hometownCity: artist.hometownCity,
         }}
         bookingSignals={{
-          xgboost: Math.round(Math.max(0, Math.min(100, 50 + (artist.xgboostGrowth90d ?? -50)))),
-          scene: (() => {
-            // Weighted validation event score matching Streamlit _compute_scene_signal
-            const valWeights: Record<string, number> = {
-              first_ibiza: 25, boiler_room: 20, first_hor_berlin: 15,
-              first_all_night_long: 15, first_headline_5k: 20, first_headline_1k: 12,
-              first_headline_500: 8, ra_podcast: 10, festival_main_stage: 18,
-              major_label_signing: 12, agency_signing: 10,
-            }
-            const valEvents = artist.validationEvents ?? []
-            const valScore = Math.min(100, valEvents.reduce((sum, e) => sum + (valWeights[e.event_type] ?? 0), 0))
-            const raScore = Math.min(40, (artist.raEventCount ?? 0) * 2)
-            return Math.round(Math.min(100, valScore * 0.6 + raScore * 0.4))
-          })(),
+          xgboost: artist.growthScore ?? 0,
+          scene: artist.sceneScore ?? 0,
           lofiFit: Math.round(artist.lofiFeel?.score ?? 0),
-          composite: (() => {
-            const xg = Math.max(0, Math.min(100, 50 + (artist.xgboostGrowth90d ?? -50)))
-            const valWeights: Record<string, number> = {
-              first_ibiza: 25, boiler_room: 20, first_hor_berlin: 15,
-              first_all_night_long: 15, first_headline_5k: 20, first_headline_1k: 12,
-              first_headline_500: 8, ra_podcast: 10, festival_main_stage: 18,
-              major_label_signing: 12, agency_signing: 10,
-            }
-            const valEvents = artist.validationEvents ?? []
-            const valScore = Math.min(100, valEvents.reduce((sum, e) => sum + (valWeights[e.event_type] ?? 0), 0))
-            const raScore = Math.min(40, (artist.raEventCount ?? 0) * 2)
-            const scene = Math.min(100, valScore * 0.6 + raScore * 0.4)
-            const lofi = artist.lofiFeel?.score ?? 0
-            return Math.round(xg * 0.4 + scene * 0.35 + lofi * 0.25)
-          })(),
+          composite: artist.compositeScore ?? 0,
         }}
         growthData={growthData}
         multiTimeseries={artist.multiTimeseries ?? []}

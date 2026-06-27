@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { ArtistDetail, RaEventSummary, TimeseriesPoint, MultiTimeseriesItem, TrackRow, ValidationEventRow } from '@/types/supabase'
 
+// ─── Five Scores ───────────────────────────────────────────────────────────────
+
 function clamp(v: number, lo = 0, hi = 100): number {
   if (isNaN(v) || !isFinite(v)) return lo
   return Math.max(lo, Math.min(hi, v))
@@ -64,12 +66,202 @@ function computeFiveScores(
   }
 }
 
+// ─── NL Score (port of compute_nl_score from lofi_pipeline.py) ────────────────
+
+interface NlVenue {
+  id: number
+  venue_name: string | null
+  city: string | null
+  country: string | null
+  tier: number | null
+  ra_venue_name: string | null
+  pf_venue_name: string | null
+}
+
+export interface NlScoreBreakdown {
+  nl_event_count: number
+  ams_event_count: number
+  ams_score: number
+  nl_event_score: number
+  demo_pct: number | null
+  has_demographics: boolean
+}
+
+function extractCountryPct(audience: Record<string, unknown> | null, code: string): number | null {
+  if (!audience) return null
+  const c = code.toUpperCase()
+  // Format: { countries: [{code, pct}] }
+  const list1 = audience.countries as { code?: string; pct?: number }[] | null
+  if (Array.isArray(list1)) {
+    const hit = list1.find(x => (x.code ?? '').toUpperCase() === c)
+    if (hit?.pct != null) return hit.pct
+  }
+  // Format: { audience_geo: { countries: [{code, pct}] } }
+  const geo = audience.audience_geo as { countries?: { code?: string; pct?: number }[] } | null
+  if (geo?.countries) {
+    const hit = geo.countries.find(x => (x.code ?? '').toUpperCase() === c)
+    if (hit?.pct != null) return hit.pct
+  }
+  // Format: direct key { NL: 15.0 }
+  if (typeof audience[c] === 'number') return audience[c] as number
+  return null
+}
+
+function buildVenueLookup(nlVenues: NlVenue[]): Map<string, NlVenue> {
+  const m = new Map<string, NlVenue>()
+  for (const v of nlVenues) {
+    for (const key of [v.ra_venue_name, v.pf_venue_name, v.venue_name]) {
+      const k = (key ?? '').toLowerCase().trim()
+      if (k && !m.has(k)) m.set(k, v)
+    }
+  }
+  return m
+}
+
+const NL_COUNTRIES = new Set(['NL', 'NETHERLANDS', 'BE', 'BELGIUM'])
+const NL_CITIES = new Set(['amsterdam', 'rotterdam', 'utrecht', 'eindhoven', 'groningen',
+  'nijmegen', 'haarlem', 'tilburg', 'arnhem', 'maastricht'])
+
+function venuePoints(venue: string, city: string, country: string, lookup: Map<string, NlVenue>): [number, boolean] {
+  const vn = (venue ?? '').toLowerCase().trim()
+  const cn = (city ?? '').toLowerCase().trim()
+  const co = (country ?? '').toUpperCase().trim()
+  const isAms = cn.includes('amsterdam')
+
+  let best: NlVenue | null = null
+  for (const [key, row] of lookup) {
+    if (key && (key.includes(vn) || vn.includes(key))) {
+      if (best === null || (row.tier ?? 3) < (best.tier ?? 3)) best = row
+    }
+  }
+  if (best) {
+    const t = best.tier ?? 3
+    const pts = t === 1 ? 3.0 : t === 2 ? 2.0 : 1.0
+    return [pts, (best.city ?? '').toLowerCase().includes('amsterdam')]
+  }
+  const isNL = NL_COUNTRIES.has(co) || NL_CITIES.has(cn)
+  if (isNL) return [0.5, isAms]
+  return [0.0, false]
+}
+
+function computeNlScore(
+  raEvents: { venue?: string | null; city?: string | null; country?: string | null; date?: string | null }[],
+  pfEvents: { venue?: string | null; city?: string | null; country?: string | null; start_date?: string | null }[],
+  nlVenues: NlVenue[],
+  instagramAudience: Record<string, unknown> | null,
+  tiktokAudience: Record<string, unknown> | null,
+): [number, NlScoreBreakdown] {
+  const cutoff24m = new Date()
+  cutoff24m.setDate(cutoff24m.getDate() - 730)
+  const cutoffStr = cutoff24m.toISOString().slice(0, 10)
+
+  const lookup = buildVenueLookup(nlVenues)
+  const nlEvts = new Map<string, number>()
+  const amsEvts = new Map<string, number>()
+
+  for (const row of raEvents) {
+    const date = (row.date ?? '').slice(0, 10)
+    if (!date) continue
+    const [pts, isAms] = venuePoints(row.venue ?? '', row.city ?? '', row.country ?? '', lookup)
+    if (pts > 0) {
+      const w = pts * (date >= cutoffStr ? 1.5 : 1.0)
+      nlEvts.set(date, Math.max(nlEvts.get(date) ?? 0, w))
+      if (isAms) amsEvts.set(date, Math.max(amsEvts.get(date) ?? 0, w))
+    }
+  }
+
+  for (const e of pfEvents) {
+    const date = (e.start_date ?? '').slice(0, 10)
+    if (!date || nlEvts.has(date)) continue // RA takes priority for same date
+    const [pts, isAms] = venuePoints(e.venue ?? '', e.city ?? '', e.country ?? '', lookup)
+    if (pts > 0) {
+      const w = pts * (date >= cutoffStr ? 1.5 : 1.0)
+      nlEvts.set(date, w)
+      if (isAms) amsEvts.set(date, Math.max(amsEvts.get(date) ?? 0, w))
+    }
+  }
+
+  const amsTotal = [...amsEvts.values()].reduce((a, b) => a + b, 0)
+  const nlTotal = [...nlEvts.values()].reduce((a, b) => a + b, 0)
+  const amsScore = Math.min(100, (amsTotal / 12) * 100)
+  const nlEventScore = Math.min(100, (nlTotal / 20) * 100)
+
+  const igNl = extractCountryPct(instagramAudience, 'NL')
+  const tkNl = extractCountryPct(tiktokAudience, 'NL')
+  const demoVals = [igNl, tkNl].filter((v): v is number => v != null)
+  const demoPct = demoVals.length > 0 ? demoVals.reduce((a, b) => a + b, 0) / demoVals.length : null
+
+  let composite: number
+  if (demoPct != null) {
+    composite = 0.50 * Math.min(100, demoPct * 4.0) + 0.30 * amsScore + 0.20 * nlEventScore
+  } else {
+    composite = 0.65 * amsScore + 0.35 * nlEventScore
+  }
+
+  return [Math.round(composite), {
+    nl_event_count: nlEvts.size,
+    ams_event_count: amsEvts.size,
+    ams_score: Math.round(amsScore),
+    nl_event_score: Math.round(nlEventScore),
+    demo_pct: demoPct,
+    has_demographics: demoPct != null,
+  }]
+}
+
+// ─── Scene Signal (port of _compute_scene_signal from lofi_pipeline.py) ───────
+
+export interface SceneBreakdown {
+  validation_score: number
+  validation_hits: string[]
+  nl_score: number
+  ra_count: number
+  ra_score: number
+}
+
+const SCENE_WEIGHTS: Record<string, number> = {
+  first_ibiza: 25, first_boiler_room: 20, first_hor_berlin: 15,
+  first_f2f_tv: 10, first_mixmag: 8,
+  first_headline_500: 8, first_headline_1k: 12,
+  first_headline_2k: 18, first_headline_5k: 25,
+  first_tier_a_support: 12, beatport_top10: 10, beatport_number1: 15,
+  first_extended_set: 6, first_all_night_long: 10, first_b2b: 4,
+}
+
+function computeSceneSignal(
+  validationEvents: { event_type: string }[],
+  nlScore: number,
+  raEventCount: number,
+): [number, SceneBreakdown] {
+  let valPts = 0
+  const valHits: string[] = []
+  for (const row of validationEvents) {
+    const et = row.event_type ?? ''
+    valPts += SCENE_WEIGHTS[et] ?? 2
+    if (et in SCENE_WEIGHTS) valHits.push(et)
+  }
+  const valScore = Math.min(100, valPts)
+  const raScore = Math.min(100, raEventCount * 3)
+  const scene = Math.round(0.40 * valScore + 0.35 * nlScore + 0.25 * raScore)
+  return [scene, { validation_score: valScore, validation_hits: valHits.slice(0, 5), nl_score: nlScore, ra_count: raEventCount, ra_score: raScore }]
+}
+
+// Composite with weight redistribution when a component is null (matches Streamlit exactly)
+function computeComposite(growthScore: number | null, sceneScore: number, lofiScore: number | null): number | null {
+  const parts: [number | null, number][] = [[growthScore, 0.40], [sceneScore, 0.35], [lofiScore, 0.25]]
+  const filled = parts.filter((p): p is [number, number] => p[0] != null)
+  if (filled.length === 0) return null
+  const wTotal = filled.reduce((s, [, w]) => s + w, 0)
+  return Math.round(filled.reduce((s, [score, w]) => s + score * w, 0) / wTotal)
+}
+
+// ─── Route handler ─────────────────────────────────────────────────────────────
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   try {
     const supabase = createServiceClient()
 
-    const [artistRes, raEventsRes, feedbackRes, notesRes, tracksRes, validationRes, playlistsRes, beatportRes, traxsourceRes] = await Promise.all([
+    const [artistRes, raEventsRes, feedbackRes, notesRes, tracksRes, validationRes, playlistsRes, beatportRes, traxsourceRes, nlVenuesRes] = await Promise.all([
       supabase
         .from('artists')
         .select(`
@@ -99,7 +291,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         .select('event_id, date, venue, city, country, venue_capacity, title, event_url, lineup, lineup_size')
         .eq('artist_id', id)
         .order('date', { ascending: false })
-        .limit(50),
+        .limit(100),
 
       supabase
         .from('artist_feedback')
@@ -147,6 +339,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         .eq('artist_id', id)
         .order('scraped_at', { ascending: false })
         .limit(20),
+
+      supabase
+        .from('nl_venues')
+        .select('id, venue_name, city, country, tier, ra_venue_name, pf_venue_name'),
     ])
 
     if (artistRes.error) throw artistRes.error
@@ -160,12 +356,38 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const memo = Array.isArray(row.artist_ai_memo) ? row.artist_ai_memo[0] : row.artist_ai_memo
     const ext = Array.isArray(row.artist_cm_extended) ? row.artist_cm_extended[0] : row.artist_cm_extended
     const lofi = row.lofi_feel as Record<string, unknown> | null
+    const nlVenues = (nlVenuesRes.data ?? []) as NlVenue[]
 
-    // Compute five scores from ml_features
+    // Compute five scores
     const mlFeatures = (cm?.ml_features as MlFeaturesForScoring | null) ?? null
     const fiveScores = mlFeatures ? computeFiveScores(cm ?? {}, mlFeatures) : null
 
-    // Extract Spotify listener timeseries (monthly samples, last 12 months)
+    // Compute NL score
+    const pfEventsArr = ((pf as Record<string, unknown> | null)?.events as Record<string, unknown>[] | null) ?? []
+    const [nlScore, nlScoreBreakdown] = computeNlScore(
+      (raEventsRes.data ?? []) as { venue?: string | null; city?: string | null; country?: string | null; date?: string | null }[],
+      pfEventsArr as { venue?: string | null; city?: string | null; country?: string | null; start_date?: string | null }[],
+      nlVenues,
+      (ext?.instagram_audience as Record<string, unknown> | null) ?? null,
+      (ext?.tiktok_audience as Record<string, unknown> | null) ?? null,
+    )
+
+    // Compute scene signal (exact port of _compute_scene_signal)
+    const validationEventsArr = (validationRes.data ?? []) as ValidationEventRow[]
+    const raEventCount = ra?.event_count ?? 0
+    const [sceneScore, sceneBreakdown] = computeSceneSignal(validationEventsArr, nlScore, raEventCount)
+
+    // Compute growth score: clamp(50 + predicted_growth_90d, 0, 100)
+    const predictedGrowth = xg?.predicted_growth_90d ?? null
+    const growthScore = predictedGrowth != null ? Math.round(Math.max(0, Math.min(100, 50 + predictedGrowth))) : null
+
+    // Compute LOFI fit score
+    const lofiScore = lofi ? ((lofi as { score?: number }).score ?? null) : null
+
+    // Composite with weight redistribution when component is null
+    const compositeScore = computeComposite(growthScore, sceneScore, lofiScore)
+
+    // Extract timeseries
     let timeseries: TimeseriesPoint[] | null = null
     const multiTimeseries: MultiTimeseriesItem[] = []
 
@@ -191,14 +413,29 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       if (scPts.length) multiTimeseries.push({ platform: 'soundcloud', label: 'SoundCloud Followers', data: scPts })
     }
 
-    // Build similar artists list: lastfm first, then cm extended
+    // Similar artists: LFM first (preserves order), then CM
     const similarArtists: string[] = [
       ...((lfm?.similar_artists as string[] | null) ?? []),
       ...((ext?.related_artists as { name: string }[] | null)?.map(a => a.name) ?? []),
     ].filter((v, i, arr) => arr.indexOf(v) === i).slice(0, 15)
 
+    // RA fallback: if ra_events table is empty, try artist_ra.events JSONB
+    let raEventsData = (raEventsRes.data ?? []) as RaEventSummary[]
+    if (raEventsData.length === 0 && ra) {
+      const jsonbEvents = (ra as Record<string, unknown>).events as Record<string, unknown>[] | null
+      if (Array.isArray(jsonbEvents)) {
+        raEventsData = jsonbEvents.map((e) => ({
+          event_id: String(e.event_id ?? e.id ?? ''),
+          date: String(e.date ?? ''),
+          venue: String(e.venue ?? ''),
+          city: (e.city as string | null) ?? null,
+          country: (e.country as string | null) ?? null,
+          venue_capacity: (e.venue_capacity as number | null) ?? null,
+        })) as RaEventSummary[]
+      }
+    }
+
     const tracks: TrackRow[] = (tracksRes.data ?? []) as TrackRow[]
-    const validationEvents: ValidationEventRow[] = (validationRes.data ?? []) as ValidationEventRow[]
 
     const detail: ArtistDetail = {
       id: row.id,
@@ -239,7 +476,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       bookedNeighborCount: row.booked_neighbor_count,
       timeseries,
       multiTimeseries,
-      raEvents: (raEventsRes.data ?? []) as RaEventSummary[],
+      raEvents: raEventsData,
       feedback: feedbackRes.data ?? [],
       artistNotes: (notesRes.data ?? []).map((n: Record<string, unknown>) => ({
         id: String(n.id),
@@ -249,7 +486,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       aiMemo: memo ?? null,
       updatedAt: row.updated_at ?? null,
       tracks,
-      validationEvents,
+      validationEvents: validationEventsArr,
       similarArtists,
       socialLinks: (ext?.urls as { url: string[]; domain: string }[] | null) ?? [],
       fanCities: (ext?.fan_cities as { city: string; country: string; count?: number; pct?: number }[] | null) ?? [],
@@ -258,16 +495,23 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       noteworthy: (ext?.noteworthy_insights as { title?: string; description?: string; value?: string }[] | null) ?? [],
       cmArtistRank: cm?.cm_artist_rank ?? null,
       fiveScores,
-      mlFeatures: mlFeatures ? Object.fromEntries(Object.entries(mlFeatures).filter(([,v]) => v !== undefined)) as Record<string, number | null> : null,
+      mlFeatures: mlFeatures ? Object.fromEntries(Object.entries(mlFeatures).filter(([, v]) => v !== undefined)) as Record<string, number | null> : null,
       playlists: (playlistsRes.data ?? []) as { platform: string; playlist_name: string; playlist_followers: number | null; position: number | null; added_at: string | null }[],
       beatportChartEntries: (beatportRes.data ?? []) as { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string }[],
       traxsourceChartEntries: (traxsourceRes.data ?? []) as { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[],
-      pfEvents: ((pf as Record<string, unknown> | null)?.events as Record<string, unknown>[] | null) ?? [],
+      pfEvents: pfEventsArr,
       tiktokAudience: (ext?.tiktok_audience as Record<string, unknown> | null) ?? null,
       milestones: (ext?.milestones as Record<string, unknown>[] | null) ?? null,
       youtubeAudience: (ext?.youtube_audience as Record<string, unknown> | null) ?? null,
       eventsExternal: (ext?.events_external as Record<string, unknown>[] | null) ?? null,
       cmStats: (ext?.cm_stats as Record<string, unknown> | null) ?? null,
+      // Computed booking signals (server-side, exact match with Streamlit formulas)
+      nlScore,
+      nlScoreBreakdown,
+      sceneScore,
+      sceneBreakdown,
+      growthScore,
+      compositeScore,
     }
 
     return NextResponse.json(detail)
@@ -281,7 +525,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params
   try {
     const body = await req.json()
-    const allowed = ['candidate_status']
+    const allowed = ['candidate_status', 'excluded', 'excluded_reason']
     const update: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in body) update[key] = body[key]

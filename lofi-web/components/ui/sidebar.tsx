@@ -15,6 +15,7 @@ import {
   Radio,
   Users,
   Tag,
+  ShieldCheck,
 } from 'lucide-react'
 import { NavItem } from '@/components/ui/nav-item'
 import { cn } from '@/lib/utils'
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: '/youtube', label: 'YouTube Sets', icon: PlayCircle },
   { href: '/scene', label: 'Scene Intel', icon: Radio },
   { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/admin', label: 'DB Health', icon: ShieldCheck },
 ] as const
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {

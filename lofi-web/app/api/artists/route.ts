@@ -5,7 +5,7 @@ import type { ArtistListItem } from '@/types/supabase'
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const limit = Math.min(Number(searchParams.get('limit') ?? 100), 2000)
+    const limit = Math.min(Number(searchParams.get('limit') ?? 200), 2000)
     const offset = Number(searchParams.get('offset') ?? 0)
     const status = searchParams.get('status')
     const genre = searchParams.get('genre')
@@ -13,16 +13,19 @@ export async function GET(req: Request) {
 
     const supabase = createServiceClient()
 
+    // Match Streamlit cohort: only artists with XGBoost predictions (inner join).
+    // Streamlit's _load_catalogue_data() uses predictions_df as the primary table.
     let query = supabase
       .from('artists')
       .select(`
-        id, name, slug, candidate_status, lofi_feel,
+        id, name, slug, candidate_status, lofi_feel, excluded,
         booked_similar_count, booked_neighbor_count,
         artist_chartmetric (image_url, genres, sp_monthly_listeners, booking_agent, ml_features),
         artist_ra (event_count),
-        xgboost_predictions (predicted_growth_90d),
+        xgboost_predictions!inner (predicted_growth_90d),
         artist_ai_memo (verdict, verdict_reason, generated_at)
       `)
+      .eq('excluded', false)
       .order('name')
       .range(offset, offset + limit - 1)
 
@@ -36,7 +39,7 @@ export async function GET(req: Request) {
     const { data: rawData, error } = await query
     if (error) throw error
 
-    // Filter by genre client-side (Supabase can't filter on embedded jsonb array easily)
+    // Filter by genre client-side (PostgREST cannot filter on embedded JSONB array)
     const data = genre
       ? (rawData ?? []).filter(row => {
           const cm = Array.isArray(row.artist_chartmetric) ? row.artist_chartmetric[0] : row.artist_chartmetric
@@ -45,18 +48,10 @@ export async function GET(req: Request) {
       : rawData
 
     const items: ArtistListItem[] = (data ?? []).map((row) => {
-      const cm = Array.isArray(row.artist_chartmetric)
-        ? row.artist_chartmetric[0]
-        : row.artist_chartmetric
-      const ra = Array.isArray(row.artist_ra)
-        ? row.artist_ra[0]
-        : row.artist_ra
-      const xg = Array.isArray(row.xgboost_predictions)
-        ? row.xgboost_predictions[0]
-        : row.xgboost_predictions
-      const memo = Array.isArray(row.artist_ai_memo)
-        ? row.artist_ai_memo[0]
-        : row.artist_ai_memo
+      const cm = Array.isArray(row.artist_chartmetric) ? row.artist_chartmetric[0] : row.artist_chartmetric
+      const ra = Array.isArray(row.artist_ra) ? row.artist_ra[0] : row.artist_ra
+      const xg = Array.isArray(row.xgboost_predictions) ? row.xgboost_predictions[0] : row.xgboost_predictions
+      const memo = Array.isArray(row.artist_ai_memo) ? row.artist_ai_memo[0] : row.artist_ai_memo
 
       const lofi = row.lofi_feel as { score?: number } | null
       const ml = (cm?.ml_features ?? null) as Record<string, number | null> | null
@@ -79,6 +74,7 @@ export async function GET(req: Request) {
         verdictReason: memo?.verdict_reason ?? null,
         generatedAt: memo?.generated_at ?? null,
         spotifyDelta30d: sp30d,
+        excluded: row.excluded ?? false,
       }
     })
 

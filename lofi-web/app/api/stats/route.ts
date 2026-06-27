@@ -8,14 +8,15 @@ export async function GET() {
     const [statusRes, trendingRes, withMemoRes] = await Promise.all([
       supabase
         .from('artists')
-        .select('candidate_status'),
+        .select('candidate_status')
+        .eq('excluded', false),
       supabase
         .from('xgboost_predictions')
-        .select('*', { count: 'exact', head: true })
+        .select('artist_id', { count: 'exact', head: true })
         .gt('predicted_growth_90d', 10),
       supabase
         .from('artist_ai_memo')
-        .select('*', { count: 'exact', head: true }),
+        .select('artist_id', { count: 'exact', head: true }),
     ])
 
     const rows = statusRes.data ?? []

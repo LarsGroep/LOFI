@@ -336,6 +336,7 @@ export interface ArtistListItem {
   verdictReason: string | null
   generatedAt: string | null
   spotifyDelta30d: number | null
+  excluded?: boolean
 }
 
 // Shape returned by GET /api/artists/[id]
@@ -418,6 +419,26 @@ export interface ArtistDetail {
   youtubeAudience: Record<string, unknown> | null
   eventsExternal: Record<string, unknown>[] | null
   cmStats: Record<string, unknown> | null
+  // Server-computed booking signals (exact Streamlit formula ports)
+  nlScore: number | null
+  nlScoreBreakdown: {
+    nl_event_count: number
+    ams_event_count: number
+    ams_score: number
+    nl_event_score: number
+    demo_pct: number | null
+    has_demographics: boolean
+  } | null
+  sceneScore: number | null
+  sceneBreakdown: {
+    validation_score: number
+    validation_hits: string[]
+    nl_score: number
+    ra_count: number
+    ra_score: number
+  } | null
+  growthScore: number | null
+  compositeScore: number | null
 }
 
 export interface TimeseriesPoint {
