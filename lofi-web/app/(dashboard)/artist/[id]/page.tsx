@@ -24,11 +24,11 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
   const [memoLoading, setMemoLoading] = useState(false)
   const autoMemoFiredRef = useRef(false)
 
-  const handleAddNote = useCallback(async (text: string) => {
+  const handleAddNote = useCallback(async (text: string, noteType?: string) => {
     await fetch(`/api/artists/${id}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, note_type: noteType ?? 'performance' }),
     })
     mutate()
   }, [id, mutate])
@@ -74,11 +74,13 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       id: n.id,
       text: n.text,
       createdAt: n.created_at,
+      noteType: n.note_type ?? 'performance',
     })),
     ...(artist.feedback ?? []).map(f => ({
       id: f.id,
       text: f.notes ?? f.field_value ?? '',
       createdAt: f.created_at ?? '',
+      noteType: 'performance',
     })),
   ].filter(n => n.text)
 

@@ -1,14 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   ArrowLeft, Star, TrendingUp, Calendar, Sparkles,
   Music2, Users, CheckCircle2, Circle, MapPin, Building2,
-  ExternalLink, Globe, Disc3,
+  ExternalLink, Globe, Disc3, MessageSquare,
 } from "lucide-react"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis,
 } from "recharts"
 import type { TrackRow, ValidationEventRow, MultiTimeseriesItem } from "@/types/supabase"
 
@@ -46,8 +47,8 @@ export interface ArtistProfileProps {
   growthData: Array<{ date: string; listeners: number }>
   multiTimeseries: MultiTimeseriesItem[]
   events: Array<{ date: string; venue: string; attending: number; festival: boolean; city?: string; country?: string }>
-  notes: Array<{ id: string; text: string; createdAt: string }>
-  onAddNote: (text: string) => void
+  notes: Array<{ id: string; text: string; createdAt: string; noteType?: string }>
+  onAddNote: (text: string, noteType?: string) => void
   isFavorite: boolean
   onFavoriteToggle: () => void
   onBack?: () => void
@@ -116,6 +117,85 @@ function ScoreRing({ value, size = 64, stroke = 6, color = "#6366f1", children }
   )
 }
 
+function scoreInterpret(key: string, v: number): { label: string; color: string } {
+  if (key === 'momentum') {
+    if (v >= 70) return { label: "Streaming buzz is growing fast", color: "text-emerald-400" }
+    if (v >= 45) return { label: "Steady audience growth", color: "text-indigo-400" }
+    if (v >= 25) return { label: "Growth slowing or flat", color: "text-amber-400" }
+    return { label: "Declining or no data", color: "text-slate-500" }
+  }
+  if (key === 'growth') {
+    if (v >= 70) return { label: "Rapidly accelerating", color: "text-emerald-400" }
+    if (v >= 45) return { label: "Picking up momentum", color: "text-indigo-400" }
+    if (v >= 25) return { label: "Moderate, not yet breaking", color: "text-amber-400" }
+    return { label: "Stagnant or declining", color: "text-slate-500" }
+  }
+  if (key === 'market_relevance') {
+    if (v >= 70) return { label: "Established, sizeable fanbase", color: "text-emerald-400" }
+    if (v >= 45) return { label: "Mid-size, building presence", color: "text-indigo-400" }
+    if (v >= 25) return { label: "Emerging artist", color: "text-amber-400" }
+    return { label: "Very early stage", color: "text-slate-500" }
+  }
+  if (key === 'future_potential') {
+    if (v >= 70) return { label: "Strong 6–12 month outlook", color: "text-emerald-400" }
+    if (v >= 45) return { label: "Promising trajectory", color: "text-indigo-400" }
+    if (v >= 25) return { label: "Uncertain next steps", color: "text-amber-400" }
+    return { label: "Low near-term potential", color: "text-slate-500" }
+  }
+  if (v >= 70) return { label: "Rich data — high confidence", color: "text-emerald-400" }
+  if (v >= 45) return { label: "Adequate data coverage", color: "text-indigo-400" }
+  if (v >= 25) return { label: "Limited data available", color: "text-amber-400" }
+  return { label: "Insufficient data", color: "text-slate-500" }
+}
+
+const SCORE_DIMS = [
+  { key: 'momentum',         label: 'Current Buzz',    icon: '🔥', radarLabel: 'Buzz' },
+  { key: 'growth',           label: 'Acceleration',    icon: '📈', radarLabel: 'Accel' },
+  { key: 'market_relevance', label: 'Audience Size',   icon: '👥', radarLabel: 'Size' },
+  { key: 'future_potential', label: '6-Month Outlook', icon: '🎯', radarLabel: 'Outlook' },
+  { key: 'confidence',       label: 'Data Quality',    icon: '📊', radarLabel: 'Data' },
+] as const
+
+function ScoreRadar({ fiveScores }: {
+  fiveScores: { momentum: number; growth: number; market_relevance: number; future_potential: number; confidence: number }
+}) {
+  const radarData = SCORE_DIMS.map(d => ({ axis: d.radarLabel, value: Math.round(fiveScores[d.key]) }))
+  return (
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+      <div className="flex shrink-0 items-center justify-center">
+        <ResponsiveContainer width={200} height={200}>
+          <RadarChart data={radarData} margin={{ top: 10, right: 28, bottom: 10, left: 28 }}>
+            <PolarGrid stroke="rgba(255,255,255,0.08)" />
+            <PolarAngleAxis dataKey="axis" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+            <Radar dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.25} />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex flex-1 flex-col gap-2">
+        {SCORE_DIMS.map(({ key, label, icon }) => {
+          const v = fiveScores[key]
+          const { label: interp, color } = scoreInterpret(key, v)
+          return (
+            <div key={key} className="flex items-center gap-3 rounded-lg bg-[#1e2535] px-3 py-2">
+              <span className="text-base leading-none">{icon}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-medium text-slate-300">{label}</span>
+                  <span className="text-xs font-bold text-slate-100">{Math.round(v)}</span>
+                </div>
+                <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-indigo-500/70 transition-all" style={{ width: `${Math.max(0, Math.min(100, v))}%` }} />
+                </div>
+                <p className={`mt-0.5 text-[11px] leading-tight ${color}`}>{interp}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function SignalBar({ label, weight, value }: { label: string; weight: number; value: number }) {
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-[#1e2535] p-4">
@@ -165,8 +245,60 @@ function ShowHistoryTabs({ raEvents, pfEvents, beatportChartEntries, traxsourceC
   const [tab, setTab] = useState<'ra' | 'partyflock' | 'charts'>('ra')
   const hasPf = pfEvents.length > 0
   const hasCharts = beatportChartEntries.length > 0 || traxsourceChartEntries.length > 0
+
+  const yearlyData = useMemo(() => {
+    const byYear: Record<string, { year: string; total: number; nl: number }> = {}
+    for (const e of raEvents) {
+      const year = e.date?.slice(0, 4)
+      if (!year || year.length !== 4) continue
+      if (!byYear[year]) byYear[year] = { year, total: 0, nl: 0 }
+      byYear[year].total++
+      if (e.country === 'NL' || e.country === 'Netherlands') byYear[year].nl++
+    }
+    return Object.values(byYear).sort((a, b) => a.year.localeCompare(b.year)).slice(-6)
+  }, [raEvents])
+
+  const maxBookings = Math.max(...yearlyData.map(d => d.total), 1)
+
   return (
     <div>
+      {/* Year-by-year booking growth */}
+      {yearlyData.length >= 2 && (
+        <div className="mb-5 rounded-lg bg-[#1e2535] p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Booking Activity — Year on Year</p>
+          <div className="flex h-24 items-end gap-2">
+            {yearlyData.map((d, i) => {
+              const prev = yearlyData[i - 1]
+              const growth = prev && prev.total > 0 ? Math.round(((d.total - prev.total) / prev.total) * 100) : null
+              const barPct = Math.round((d.total / maxBookings) * 100)
+              const isLatest = i === yearlyData.length - 1
+              return (
+                <div key={d.year} className="flex flex-1 flex-col items-center gap-1">
+                  {growth != null ? (
+                    <span className={`text-[10px] font-bold ${growth > 0 ? 'text-emerald-400' : growth < 0 ? 'text-rose-400' : 'text-slate-500'}`}>
+                      {growth > 0 ? '+' : ''}{growth}%
+                    </span>
+                  ) : <span className="text-[10px] text-transparent">0%</span>}
+                  <div
+                    className="w-full rounded-t transition-all"
+                    style={{
+                      height: `${Math.max(barPct, d.total > 0 ? 8 : 0)}%`,
+                      background: isLatest ? 'linear-gradient(to top, #6366f1, #818cf8)' : 'rgba(99,102,241,0.35)',
+                      minHeight: d.total > 0 ? 4 : 0,
+                    }}
+                  />
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-slate-100">{d.total}</p>
+                    <p className="text-[9px] text-slate-500">{d.year}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <p className="mt-2 text-[10px] text-slate-600">Shows per year · Resident Advisor data</p>
+        </div>
+      )}
+
       <div className="mb-4 flex gap-1 rounded-lg bg-[#1e2535] p-1 w-fit">
         <button type="button" onClick={() => setTab('ra')}
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'ra' ? 'bg-[#161b27] text-slate-200 shadow' : 'text-slate-500 hover:text-slate-300'}`}>
@@ -388,6 +520,7 @@ export default function ArtistProfile({
   pfEvents = [], tiktokAudience: _tiktokAudience,
 }: ArtistProfileProps) {
   const [draft, setDraft] = useState("")
+  const [noteType, setNoteType] = useState<'performance' | 'correction' | 'intel'>('performance')
   const [activePlatform, setActivePlatform] = useState<string>(multiTimeseries[0]?.platform ?? "spotify")
   const verdict = getVerdict(bookingSignals.composite)
   const firstLetter = artist.name.trim().charAt(0).toUpperCase() || "?"
@@ -440,7 +573,7 @@ export default function ArtistProfile({
   function handleAdd() {
     const text = draft.trim()
     if (!text) return
-    onAddNote(text)
+    onAddNote(text, noteType)
     setDraft("")
   }
 
@@ -561,52 +694,21 @@ export default function ArtistProfile({
         </div>
       </section>
 
-      {/* FIVE SCORES */}
+      {/* SCORE RADAR */}
       {fiveScores && (
         <section className="rounded-xl bg-[#161b27] p-6">
-          <h2 className="mb-4 text-lg font-semibold text-slate-100">Scores</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
-            {([
-              { key: 'momentum', label: 'Momentum', desc: 'Is the buzz growing now?' },
-              { key: 'growth', label: 'Growth', desc: 'Is growth accelerating?' },
-              { key: 'market_relevance', label: 'Market Position', desc: 'How big is the artist?' },
-              { key: 'future_potential', label: 'Potential', desc: 'Where is this heading?' },
-              { key: 'confidence', label: 'Data', desc: 'How much data do we have?' },
-            ] as const).map(({ key, label, desc }) => {
-              const v = fiveScores[key]
-              const color = v >= 70 ? '#6366f1' : v >= 45 ? '#818cf8' : '#64748b'
-              return (
-                <div key={key} className="flex flex-col gap-2 rounded-lg bg-[#1e2535] p-4">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</span>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${v}%`, background: color }} />
-                  </div>
-                  <span className="text-2xl font-bold text-slate-100">{Math.round(v)}</span>
-                  <span className="text-xs text-slate-500">{desc}</span>
-                </div>
-              )
-            })}
-          </div>
-          {fiveScores.breakdown && (
-            <div className="mt-3 rounded-lg bg-[#1e2535] px-4 py-3 text-xs text-slate-500">
-              <span className="font-medium text-slate-400">Data coverage: </span>
-              {fiveScores.breakdown.data_filled}/{fiveScores.breakdown.data_total} fields
-              {fiveScores.breakdown.sp_30d_pct != null && (
-                <span className="ml-3">
-                  SP 30d: <span className={fiveScores.breakdown.sp_30d_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {fiveScores.breakdown.sp_30d_pct >= 0 ? '+' : ''}{fiveScores.breakdown.sp_30d_pct.toFixed(1)}%
-                  </span>
-                </span>
-              )}
-              {fiveScores.breakdown.accel != null && (
-                <span className="ml-3">
-                  Acceleration: <span className={fiveScores.breakdown.accel >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                    {fiveScores.breakdown.accel >= 0 ? '+' : ''}{fiveScores.breakdown.accel.toFixed(1)}%
-                  </span>
-                </span>
-              )}
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-100">Artist Profile</h2>
+              <p className="text-xs text-slate-500">What the data says — in booking terms</p>
             </div>
-          )}
+            {fiveScores.breakdown && (
+              <span className="text-xs text-slate-500">
+                {fiveScores.breakdown.data_filled}/{fiveScores.breakdown.data_total} data points
+              </span>
+            )}
+          </div>
+          <ScoreRadar fiveScores={fiveScores} />
         </section>
       )}
 
@@ -625,6 +727,81 @@ export default function ArtistProfile({
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${verdict.className}`}>{verdict.label}</span>
           </div>
         </div>
+      </section>
+
+      {/* BOOKER INTELLIGENCE */}
+      <section className="rounded-xl bg-[#161b27] p-6">
+        <div className="mb-1 flex items-center gap-2">
+          <MessageSquare size={18} className="text-indigo-400" />
+          <div>
+            <h2 className="text-lg font-semibold text-slate-100">Booker Intelligence</h2>
+            <p className="text-xs text-slate-500">Log real-world observations — they feed back into the model</p>
+          </div>
+        </div>
+
+        {/* Type selector */}
+        <div className="mb-3 mt-4 flex flex-wrap gap-1">
+          {([
+            { type: 'performance', icon: '🎯', label: 'Live feedback' },
+            { type: 'correction',  icon: '⚠️', label: 'Score correction' },
+            { type: 'intel',       icon: '💡', label: 'Industry intel' },
+          ] as const).map(({ type, icon, label }) => (
+            <button key={type} type="button" onClick={() => setNoteType(type)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                noteType === type
+                  ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/40'
+                  : 'text-slate-500 hover:text-slate-300 ring-1 ring-white/5'
+              }`}>
+              {icon} {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            placeholder={
+              noteType === 'performance'
+                ? 'e.g. Sold out Thuishaven last Saturday. Crowd response excellent, support act exceeded expectations.'
+                : noteType === 'correction'
+                ? 'e.g. Momentum score seems too high — comparable artists listed don\'t match the sound at all.'
+                : 'e.g. Switching from Hector to UTA next month. Big collab release dropping in Q3.'
+            }
+            rows={3}
+            className="w-full resize-none rounded-lg bg-[#1e2535] p-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+          />
+          <div className="flex justify-end">
+            <button type="button" onClick={handleAdd} disabled={!draft.trim()}
+              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40">
+              Log Observation
+            </button>
+          </div>
+        </div>
+
+        {notes.length > 0 && (
+          <div className="mt-4 flex flex-col gap-2 border-t border-white/5 pt-4">
+            {notes.map(n => {
+              const typeMap: Record<string, { badge: string; cls: string }> = {
+                performance: { badge: '🎯 Live feedback',   cls: 'bg-emerald-500/10 text-emerald-400' },
+                correction:  { badge: '⚠️ Correction',      cls: 'bg-amber-500/10 text-amber-400' },
+                intel:       { badge: '💡 Intel',            cls: 'bg-indigo-500/10 text-indigo-400' },
+              }
+              const { badge, cls } = typeMap[n.noteType ?? 'performance'] ?? typeMap.performance
+              return (
+                <div key={n.id} className="rounded-lg bg-[#1e2535] p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm text-slate-200">{n.text}</p>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}>{badge}</span>
+                  </div>
+                  <span className="mt-1 block text-xs text-slate-500">
+                    {new Date(n.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       {/* 3. NL / AMSTERDAM SECTION */}
@@ -933,38 +1110,7 @@ export default function ArtistProfile({
         />
       </section>
 
-      {/* 12. NOTES PANEL */}
-      <section className="rounded-xl bg-[#161b27] p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Sparkles size={18} className="text-indigo-400" />
-          <h2 className="text-lg font-semibold text-slate-100">Notes</h2>
-        </div>
-        <div className="flex flex-col gap-3">
-          <textarea value={draft} onChange={e => setDraft(e.target.value)}
-            placeholder="Add a note about this artist…" rows={3}
-            className="w-full resize-none rounded-lg bg-[#1e2535] p-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
-          <div className="flex justify-end">
-            <button type="button" onClick={handleAdd} disabled={!draft.trim()}
-              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-40">
-              Add Note
-            </button>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-col gap-3">
-          {notes.length === 0 ? (
-            <p className="text-sm text-slate-500">No notes yet.</p>
-          ) : (
-            notes.map(n => (
-              <div key={n.id} className="rounded-lg bg-[#1e2535] p-3">
-                <p className="text-sm text-slate-200">{n.text}</p>
-                <span className="mt-1 block text-xs text-slate-500">
-                  {new Date(n.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
+      {/* Booker Intelligence is shown earlier on the page, above NL/Amsterdam */}
     </div>
   )
 }
