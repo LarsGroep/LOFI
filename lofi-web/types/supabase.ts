@@ -366,6 +366,8 @@ export interface ArtistDetail {
   pfFans: number | null
   pfTotalPerformances: number | null
   pfUpcomingPerformances: number | null
+  pfPastPerformances: number | null
+  pfViews: number | null
   pfGenres: string[] | null
   lfmListeners: number | null
   lfmTags: string[] | null
@@ -412,6 +414,10 @@ export interface ArtistDetail {
   traxsourceChartEntries: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[]
   pfEvents: Record<string, unknown>[]
   tiktokAudience: Record<string, unknown> | null
+  milestones: Record<string, unknown>[] | null
+  youtubeAudience: Record<string, unknown> | null
+  eventsExternal: Record<string, unknown>[] | null
+  cmStats: Record<string, unknown> | null
 }
 
 export interface TimeseriesPoint {

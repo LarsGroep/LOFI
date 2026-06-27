@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       .select(`
         id, name, slug, candidate_status, lofi_feel,
         booked_similar_count, booked_neighbor_count,
-        artist_chartmetric (image_url, genres, sp_monthly_listeners, booking_agent),
+        artist_chartmetric (image_url, genres, sp_monthly_listeners, booking_agent, ml_features),
         artist_ra (event_count),
         xgboost_predictions (predicted_growth_90d),
         artist_ai_memo (verdict, verdict_reason, generated_at)
@@ -59,6 +59,8 @@ export async function GET(req: Request) {
         : row.artist_ai_memo
 
       const lofi = row.lofi_feel as { score?: number } | null
+      const ml = (cm?.ml_features ?? null) as Record<string, number | null> | null
+      const sp30d = ml?.sp_listeners_30d_pct ?? null
 
       return {
         id: row.id,
@@ -76,7 +78,7 @@ export async function GET(req: Request) {
         verdict: memo?.verdict ?? null,
         verdictReason: memo?.verdict_reason ?? null,
         generatedAt: memo?.generated_at ?? null,
-        spotifyDelta30d: null,
+        spotifyDelta30d: sp30d,
       }
     })
 

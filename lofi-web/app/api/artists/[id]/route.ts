@@ -85,18 +85,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             hometown_city, current_city, cm_timeseries, ml_features
           ),
           artist_ra (event_count),
-          artist_partyflock (pf_fans, pf_total_performances, pf_upcoming_performances, pf_genres, events),
+          artist_partyflock (pf_fans, pf_total_performances, pf_upcoming_performances, pf_past_performances, pf_views, pf_genres, events),
           artist_lastfm (lfm_listeners, tags, similar_artists),
           xgboost_predictions (predicted_growth_90d, missing_pct),
           artist_ai_memo (*),
-          artist_cm_extended (related_artists, urls, fan_cities, instagram_audience, tiktok_audience, albums, news, noteworthy_insights)
+          artist_cm_extended (related_artists, urls, fan_cities, instagram_audience, tiktok_audience, albums, news, noteworthy_insights, milestones, youtube_audience, events_external, cm_stats)
         `)
         .eq('id', id)
         .single(),
 
       supabase
         .from('ra_events')
-        .select('event_id, date, venue, city, country, venue_capacity')
+        .select('event_id, date, venue, city, country, venue_capacity, title, event_url, lineup, lineup_size')
         .eq('artist_id', id)
         .order('date', { ascending: false })
         .limit(50),
@@ -227,6 +227,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       pfFans: pf?.pf_fans ?? null,
       pfTotalPerformances: pf?.pf_total_performances ?? null,
       pfUpcomingPerformances: pf?.pf_upcoming_performances ?? null,
+      pfPastPerformances: pf?.pf_past_performances ?? null,
+      pfViews: pf?.pf_views ?? null,
       pfGenres: pf?.pf_genres ?? null,
       lfmListeners: lfm?.lfm_listeners ?? null,
       lfmTags: lfm?.tags ?? null,
@@ -262,6 +264,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       traxsourceChartEntries: (traxsourceRes.data ?? []) as { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[],
       pfEvents: ((pf as Record<string, unknown> | null)?.events as Record<string, unknown>[] | null) ?? [],
       tiktokAudience: (ext?.tiktok_audience as Record<string, unknown> | null) ?? null,
+      milestones: (ext?.milestones as Record<string, unknown>[] | null) ?? null,
+      youtubeAudience: (ext?.youtube_audience as Record<string, unknown> | null) ?? null,
+      eventsExternal: (ext?.events_external as Record<string, unknown>[] | null) ?? null,
+      cmStats: (ext?.cm_stats as Record<string, unknown> | null) ?? null,
     }
 
     return NextResponse.json(detail)

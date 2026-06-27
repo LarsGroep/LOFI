@@ -142,6 +142,9 @@ function TrendingYoutubeStrip({ sets }: { sets: TrendingSet[] }) {
 
 interface ServerStats {
   total: number
+  pending: number
+  candidate: number
+  accepted: number
   booked: number
   trending: number
   withMemo: number
@@ -171,6 +174,9 @@ export function DashboardView({ artists, onArtistClick, initialSearch = "" }: Da
 
   const stats: DashboardStats = useMemo(() => ({
     total: serverStats?.total ?? artists.length,
+    pending: serverStats?.pending ?? artists.filter(a => a.status === "pending").length,
+    candidate: serverStats?.candidate ?? artists.filter(a => a.status === "candidate").length,
+    accepted: serverStats?.accepted ?? artists.filter(a => a.status === "accepted").length,
     bookedThisMonth: serverStats?.booked ?? artists.filter(a => a.status === "booked").length,
     trending: serverStats?.trending ?? artists.filter(a => (a.xgboostGrowth90d ?? 0) > 10).length,
     needsAttention: serverStats ? (serverStats.total - serverStats.withMemo) : artists.filter(a => a.verdict === null).length,
@@ -195,13 +201,13 @@ export function DashboardView({ artists, onArtistClick, initialSearch = "" }: Da
         sorted.sort((a, b) => (b.xgboostGrowth90d ?? -99) - (a.xgboostGrowth90d ?? -99))
         break
       case "growth":
-        sorted.sort((a, b) => (b.spotifyDelta30d ?? -99) - (a.spotifyDelta30d ?? -99))
+        sorted.sort((a, b) => (b.spotifyDelta30d ?? -999) - (a.spotifyDelta30d ?? -999))
         break
       case "name":
         sorted.sort((a, b) => a.name.localeCompare(b.name))
         break
       case "recent":
-        sorted.sort((a, b) => (b.spotifyDelta30d ?? -99) - (a.spotifyDelta30d ?? -99))
+        sorted.sort((a, b) => (b.xgboostGrowth90d ?? -99) - (a.xgboostGrowth90d ?? -99))
         break
     }
     return sorted
