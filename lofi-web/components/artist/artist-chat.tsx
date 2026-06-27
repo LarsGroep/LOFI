@@ -15,10 +15,21 @@ interface ArtistChatProps {
 }
 
 const SUGGESTIONS = [
-  (name: string) => `Is ${name} ready to headline?`,
-  () => 'What are the main booking risks?',
-  () => 'How does the NL market look?',
-  (name: string) => `Compare ${name} to similar artists we've booked`,
+  (name: string) => `Is ${name} a good LOFI booking? Give a reasoned verdict with key signals.`,
+  (name: string) => `What's a realistic fee for ${name} based on comparable artists?`,
+  (name: string) => `Why is ${name} growing? Explain in plain language.`,
+  (name: string) => `Which reference artists or past LOFI bookings is ${name} comparable to?`,
+  (name: string) => `What are the main risks or caveats for booking ${name}?`,
+  (name: string) => `Write a 3-4 sentence internal team note about ${name}.`,
+]
+
+const SUGGESTION_LABELS = [
+  'Good booking?',
+  'Realistic fee?',
+  'Why growing?',
+  'Comparable to…',
+  'Risks',
+  'Team note',
 ]
 
 export default function ArtistChat({ artistId, artistName, artistContext }: ArtistChatProps) {
@@ -129,7 +140,7 @@ export default function ArtistChat({ artistId, artistName, artistContext }: Arti
               onClick={() => sendMessage(fn(artistName))}
               className="rounded-full border border-[#1e2535] bg-[#0e1117] px-3 py-1.5 text-xs text-[#94a3b8] transition hover:border-indigo-500/40 hover:text-[#f1f5f9]"
             >
-              {fn(artistName)}
+              {SUGGESTION_LABELS[i]}
             </button>
           ))}
         </div>

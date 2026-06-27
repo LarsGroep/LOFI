@@ -3611,28 +3611,14 @@ def _load_catalogue_data() -> pd.DataFrame:
     from collections import Counter
 
     def _fetch_preds():
-        rows, page, offset = [], 1000, 0
-        while True:
-            batch = sb.schema("tinder").table("xgboost_predictions").select(
-                "artist_id, artist_name, predicted_growth_90d"
-            ).range(offset, offset + page - 1).execute().data or []
-            rows.extend(batch)
-            if len(batch) < page:
-                break
-            offset += page
-        return rows
+        return sb.schema("tinder").table("xgboost_predictions").select(
+            "artist_id, artist_name, predicted_growth_90d"
+        ).limit(5000).execute().data or []
 
     def _fetch_flat():
-        rows, page, offset = [], 1000, 0
-        while True:
-            batch = sb.schema("tinder").table("artist_chartmetric_flat").select(
-                "artist_id, candidate_status, spotify_listeners, cm_artist_score"
-            ).range(offset, offset + page - 1).execute().data or []
-            rows.extend(batch)
-            if len(batch) < page:
-                break
-            offset += page
-        return rows
+        return sb.schema("tinder").table("artist_chartmetric_flat").select(
+            "artist_id, candidate_status, spotify_listeners, cm_artist_score"
+        ).limit(5000).execute().data or []
 
     def _fetch_cm():
         # .limit(10000) overrides the PostgREST default row cap (1000)
@@ -3747,30 +3733,11 @@ def _render_catalogue_card(row: pd.Series) -> None:
 
     ls_txt = _fmt_k(listeners)
 
-    # Photo or initial — use URL directly; onerror falls back to cover_url then initial
-    cover = row.get("cover_url") or ""
-    initial = name[0].upper() if name and name != "—" else "?"
+    # Photo or initial
     if image and isinstance(image, str) and image.startswith("http"):
-        fallback = (
-            f" onerror=\"if(this.src!=='{cover}'){{this.src='{cover}'}}else{{this.style.display='none';this.nextElementSibling.style.display='flex'}}\""
-            if cover and cover.startswith("http") else
-            f" onerror=\"this.style.display='none';this.nextElementSibling.style.display='flex'\""
-        )
-        img_html = (
-            f"<img src='{image}' referrerpolicy='no-referrer'{fallback}"
-            f" style='width:100%;height:100%;object-fit:cover;display:block;'>"
-            f"<div style='display:none;width:100%;height:100%;align-items:center;"
-            f"justify-content:center;background:#1e2130;font-size:2rem;color:#6366F1'>{initial}</div>"
-        )
-    elif cover and isinstance(cover, str) and cover.startswith("http"):
-        img_html = (
-            f"<img src='{cover}' referrerpolicy='no-referrer'"
-            f" onerror=\"this.style.display='none';this.nextElementSibling.style.display='flex'\""
-            f" style='width:100%;height:100%;object-fit:cover;display:block;'>"
-            f"<div style='display:none;width:100%;height:100%;align-items:center;"
-            f"justify-content:center;background:#1e2130;font-size:2rem;color:#6366F1'>{initial}</div>"
-        )
+        img_html = f"<img src='{image}' style='width:100%;height:100%;object-fit:cover;display:block;'>"
     else:
+        initial  = name[0].upper() if name and name != "—" else "?"
         img_html = (
             f"<div style='width:100%;height:100%;display:flex;align-items:center;"
             f"justify-content:center;background:#1e2130;font-size:2rem;color:#6366F1'>{initial}</div>"

@@ -2,12 +2,74 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { ArtistDetail, RaEventSummary, TimeseriesPoint, MultiTimeseriesItem, TrackRow, ValidationEventRow } from '@/types/supabase'
 
+function clamp(v: number, lo = 0, hi = 100): number {
+  if (isNaN(v) || !isFinite(v)) return lo
+  return Math.max(lo, Math.min(hi, v))
+}
+function pctToScore(pct: number | null | undefined, scale = 30): number {
+  if (pct == null) return 50
+  return clamp(50 + 50 * Math.tanh(pct / scale))
+}
+function rankToScore(rank: number | null | undefined, maxRank = 200_000): number {
+  if (!rank || rank <= 0) return 0
+  return clamp(100 * (1 - rank / maxRank))
+}
+interface MlFeaturesForScoring {
+  sp_listeners_30d_pct?: number | null
+  sp_listeners_90d_pct?: number | null
+  sp_listeners_180d_pct?: number | null
+  sp_listeners_accel?: number | null
+  cross_platform_momentum_30d?: number | null
+  platforms_growing_30d?: number | null
+  cpp_score_30d_pct?: number | null
+  cpp_score_90d_pct?: number | null
+  cpp_score_current?: number | null
+  [key: string]: number | null | undefined
+}
+function computeFiveScores(
+  cm: { cm_artist_score?: number | null; cm_artist_rank?: number | null; fan_base_rank?: number | null; career_stage_score?: number | null; career_trend_score?: number | null; sp_monthly_listeners?: number | null; ig_followers?: number | null },
+  ml: MlFeaturesForScoring
+) {
+  const sp30 = ml.sp_listeners_30d_pct ?? null
+  const sp90 = ml.sp_listeners_90d_pct ?? null
+  const sp180 = ml.sp_listeners_180d_pct ?? null
+  const accel = ml.sp_listeners_accel ?? null
+  const xpm = ml.cross_platform_momentum_30d ?? null
+  const platG = ml.platforms_growing_30d ?? null
+  const cpp30 = ml.cpp_score_30d_pct ?? null
+  const cpp90 = ml.cpp_score_90d_pct ?? null
+  const cppCur = ml.cpp_score_current ?? null
+  const mSp30 = pctToScore(sp30, 20); const mXpm = pctToScore(xpm, 25)
+  const mPlat = platG != null ? clamp(platG / 5 * 100) : 50; const mCpp30 = pctToScore(cpp30, 8)
+  const momentum = clamp(0.35 * mSp30 + 0.30 * mXpm + 0.20 * mPlat + 0.15 * mCpp30)
+  const gAccel = clamp(50 + (accel ?? 0) * 2); const gSp30 = pctToScore(sp30, 20)
+  const gTrend = clamp((cm.career_trend_score ?? 0) * 10 + 50)
+  const growth = clamp(0.50 * gAccel + 0.30 * gSp30 + 0.20 * gTrend)
+  const rCm = clamp(cm.cm_artist_score ?? 0); const rRank = rankToScore(cm.cm_artist_rank)
+  const rFan = rankToScore(cm.fan_base_rank); const rCpp = clamp((cppCur ?? 0) / 10 * 100)
+  const marketRelevance = clamp(0.35 * rCm + 0.25 * rRank + 0.25 * rFan + 0.15 * rCpp)
+  const f180 = pctToScore(sp180, 60); const fAccel = clamp(50 + (accel ?? 0) * 1.5)
+  const fStage = clamp((cm.career_stage_score ?? 0) * 10 + 50); const fCpp90 = pctToScore(cpp90, 15)
+  const futurePotential = clamp(0.35 * f180 + 0.30 * fAccel + 0.20 * fStage + 0.15 * fCpp90)
+  const fields = [sp30, sp90, sp180, accel, xpm, platG, cppCur, cm.cm_artist_score, cm.cm_artist_rank, cm.ig_followers, cm.sp_monthly_listeners, cm.career_stage_score, cm.career_trend_score]
+  const filled = fields.filter(f => f != null).length
+  const confidence = clamp(filled / fields.length * 100)
+  return {
+    momentum: Math.round(momentum * 10) / 10,
+    growth: Math.round(growth * 10) / 10,
+    market_relevance: Math.round(marketRelevance * 10) / 10,
+    future_potential: Math.round(futurePotential * 10) / 10,
+    confidence: Math.round(confidence * 10) / 10,
+    breakdown: { sp_30d_pct: sp30, sp_90d_pct: sp90, accel, cross_platform_30d: xpm, platforms_growing: platG, data_filled: filled, data_total: fields.length },
+  }
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   try {
     const supabase = createServiceClient()
 
-    const [artistRes, raEventsRes, feedbackRes, notesRes, tracksRes, validationRes] = await Promise.all([
+    const [artistRes, raEventsRes, feedbackRes, notesRes, tracksRes, validationRes, playlistsRes, beatportRes, traxsourceRes] = await Promise.all([
       supabase
         .from('artists')
         .select(`
@@ -19,14 +81,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             sp_monthly_listeners, sp_followers, sp_popularity,
             ig_followers, tiktok_followers, yt_subscribers,
             soundcloud_followers, cpp_score, cm_artist_score,
-            hometown_city, current_city, cm_timeseries
+            cm_artist_rank, career_stage_score, career_trend_score, fan_base_rank,
+            hometown_city, current_city, cm_timeseries, ml_features
           ),
           artist_ra (event_count),
-          artist_partyflock (pf_fans, pf_total_performances, pf_upcoming_performances, pf_genres),
+          artist_partyflock (pf_fans, pf_total_performances, pf_upcoming_performances, pf_genres, events),
           artist_lastfm (lfm_listeners, tags, similar_artists),
           xgboost_predictions (predicted_growth_90d, missing_pct),
           artist_ai_memo (*),
-          artist_cm_extended (related_artists, urls, fan_cities, instagram_audience, albums, news, noteworthy_insights)
+          artist_cm_extended (related_artists, urls, fan_cities, instagram_audience, tiktok_audience, albums, news, noteworthy_insights)
         `)
         .eq('id', id)
         .single(),
@@ -63,6 +126,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         .eq('artist_id', id)
         .order('event_date', { ascending: false })
         .limit(30),
+
+      supabase
+        .from('artist_cm_playlists')
+        .select('platform, playlist_name, playlist_followers, position, added_at')
+        .eq('artist_id', id)
+        .order('playlist_followers', { ascending: false, nullsFirst: false })
+        .limit(30),
+
+      supabase
+        .from('beatport_chart_entries')
+        .select('genre, chart_position, track_name, scraped_at')
+        .eq('artist_id', id)
+        .order('scraped_at', { ascending: false })
+        .limit(20),
+
+      supabase
+        .from('traxsource_chart_entries')
+        .select('genre, chart_position, track_name, scraped_at')
+        .eq('artist_id', id)
+        .order('scraped_at', { ascending: false })
+        .limit(20),
     ])
 
     if (artistRes.error) throw artistRes.error
@@ -76,6 +160,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const memo = Array.isArray(row.artist_ai_memo) ? row.artist_ai_memo[0] : row.artist_ai_memo
     const ext = Array.isArray(row.artist_cm_extended) ? row.artist_cm_extended[0] : row.artist_cm_extended
     const lofi = row.lofi_feel as Record<string, unknown> | null
+
+    // Compute five scores from ml_features
+    const mlFeatures = (cm?.ml_features as MlFeaturesForScoring | null) ?? null
+    const fiveScores = mlFeatures ? computeFiveScores(cm ?? {}, mlFeatures) : null
 
     // Extract Spotify listener timeseries (monthly samples, last 12 months)
     let timeseries: TimeseriesPoint[] | null = null
@@ -166,6 +254,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       instagramAudience: (ext?.instagram_audience as Record<string, unknown> | null) ?? null,
       albums: (ext?.albums as { name: string; release_date?: string; image_url?: string; type?: string }[] | null) ?? [],
       noteworthy: (ext?.noteworthy_insights as { title?: string; description?: string; value?: string }[] | null) ?? [],
+      cmArtistRank: cm?.cm_artist_rank ?? null,
+      fiveScores,
+      mlFeatures: mlFeatures ? Object.fromEntries(Object.entries(mlFeatures).filter(([,v]) => v !== undefined)) as Record<string, number | null> : null,
+      playlists: (playlistsRes.data ?? []) as { platform: string; playlist_name: string; playlist_followers: number | null; position: number | null; added_at: string | null }[],
+      beatportChartEntries: (beatportRes.data ?? []) as { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string }[],
+      traxsourceChartEntries: (traxsourceRes.data ?? []) as { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[],
+      pfEvents: ((pf as Record<string, unknown> | null)?.events as Record<string, unknown>[] | null) ?? [],
+      tiktokAudience: (ext?.tiktok_audience as Record<string, unknown> | null) ?? null,
     }
 
     return NextResponse.json(detail)

@@ -64,6 +64,23 @@ export interface ArtistProfileProps {
   instagramAudience?: Record<string, unknown> | null
   xgboostGrowth90d?: number | null
   albums?: { name: string; release_date?: string; image_url?: string; type?: string }[]
+  cmArtistScore?: number | null
+  cmArtistRank?: number | null
+  spMonthlyListeners?: number | null
+  igFollowers?: number | null
+  tiktokFollowers?: number | null
+  lfmListeners?: number | null
+  fiveScores?: {
+    momentum: number; growth: number; market_relevance: number
+    future_potential: number; confidence: number
+    breakdown: { sp_30d_pct: number | null; sp_90d_pct: number | null; accel: number | null; cross_platform_30d: number | null; platforms_growing: number | null; data_filled: number; data_total: number }
+  } | null
+  mlFeatures?: Record<string, number | null> | null
+  playlists?: { platform: string; playlist_name: string; playlist_followers: number | null; position: number | null; added_at: string | null }[]
+  beatportChartEntries?: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string }[]
+  traxsourceChartEntries?: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[]
+  pfEvents?: Record<string, unknown>[]
+  tiktokAudience?: Record<string, unknown> | null
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -132,6 +149,233 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   agency_signing: "Agency Signing",
 }
 
+const GENRE_LABELS: Record<string, string> = {
+  'tech-house': 'Tech House', 'house': 'House', 'melodic-house-techno': 'Melodic H&T',
+  'techno-peak-time-driving': 'Techno', 'minimal-deep-tech': 'Minimal',
+  'afro-house': 'Afro House', 'organic-house-downtempo': 'Organic',
+  'progressive-house': 'Progressive', 'deep-house': 'Deep House', 'nu-disco-indie-dance': 'Nu Disco',
+}
+
+function ShowHistoryTabs({ raEvents, pfEvents, beatportChartEntries, traxsourceChartEntries }: {
+  raEvents: { date: string; venue: string; attending: number; festival: boolean; city?: string; country?: string }[]
+  pfEvents: Record<string, unknown>[]
+  beatportChartEntries: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string }[]
+  traxsourceChartEntries: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[]
+}) {
+  const [tab, setTab] = useState<'ra' | 'partyflock' | 'charts'>('ra')
+  const hasPf = pfEvents.length > 0
+  const hasCharts = beatportChartEntries.length > 0 || traxsourceChartEntries.length > 0
+  return (
+    <div>
+      <div className="mb-4 flex gap-1 rounded-lg bg-[#1e2535] p-1 w-fit">
+        <button type="button" onClick={() => setTab('ra')}
+          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'ra' ? 'bg-[#161b27] text-slate-200 shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+          Resident Advisor ({raEvents.length})
+        </button>
+        {hasPf && (
+          <button type="button" onClick={() => setTab('partyflock')}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'partyflock' ? 'bg-[#161b27] text-slate-200 shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+            Partyflock NL ({pfEvents.length})
+          </button>
+        )}
+        {hasCharts && (
+          <button type="button" onClick={() => setTab('charts')}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${tab === 'charts' ? 'bg-[#161b27] text-slate-200 shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+            Charts ({beatportChartEntries.length + traxsourceChartEntries.length})
+          </button>
+        )}
+      </div>
+      {tab === 'ra' && (
+        raEvents.length === 0 ? (
+          <p className="text-sm text-slate-500">No RA events recorded.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="pb-2 pr-4 font-medium">Date</th>
+                  <th className="pb-2 pr-4 font-medium">Venue</th>
+                  <th className="pb-2 pr-4 font-medium">City</th>
+                  <th className="pb-2 font-medium">Country</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {raEvents.slice(0, 50).map((e, i) => (
+                  <tr key={i} className="hover:bg-white/[0.02]">
+                    <td className="py-2 pr-4 text-slate-400">{e.date?.slice(0, 10)}</td>
+                    <td className="py-2 pr-4 font-medium text-slate-200">{e.venue}</td>
+                    <td className="py-2 pr-4 text-slate-400">{e.city ?? '—'}</td>
+                    <td className="py-2 text-slate-400">{e.country ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+      {tab === 'partyflock' && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                <th className="pb-2 pr-4 font-medium">Date</th>
+                <th className="pb-2 pr-4 font-medium">Event</th>
+                <th className="pb-2 pr-4 font-medium">Venue</th>
+                <th className="pb-2 font-medium">City</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {pfEvents.slice(0, 50).map((e, i) => (
+                <tr key={i} className="hover:bg-white/[0.02]">
+                  <td className="py-2 pr-4 text-slate-400">{String(e.start_date ?? e.date ?? '—').slice(0, 10)}</td>
+                  <td className="py-2 pr-4 font-medium text-slate-200">{String(e.name ?? e.title ?? '—')}</td>
+                  <td className="py-2 pr-4 text-slate-400">{String(e.venue ?? '—')}</td>
+                  <td className="py-2 text-slate-400">{String(e.city ?? '—')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {tab === 'charts' && (
+        <div className="flex flex-col gap-6">
+          {beatportChartEntries.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-slate-300">Beatport</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="pb-2 pr-4 font-medium">Genre</th>
+                      <th className="pb-2 pr-4 font-medium text-right">Position</th>
+                      <th className="pb-2 pr-4 font-medium">Track</th>
+                      <th className="pb-2 font-medium">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {beatportChartEntries.map((e, i) => (
+                      <tr key={i} className="hover:bg-white/[0.02]">
+                        <td className="py-2 pr-4 text-slate-400">{GENRE_LABELS[e.genre ?? ''] ?? e.genre ?? '—'}</td>
+                        <td className="py-2 pr-4 text-right font-bold text-orange-400">#{e.chart_position ?? '?'}</td>
+                        <td className="py-2 pr-4 text-slate-300 max-w-[180px] truncate">{e.track_name ?? '—'}</td>
+                        <td className="py-2 text-slate-500">{e.scraped_at?.slice(0, 10) ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {traxsourceChartEntries.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium text-slate-300">Traxsource</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                      <th className="pb-2 pr-4 font-medium">Genre</th>
+                      <th className="pb-2 pr-4 font-medium text-right">Position</th>
+                      <th className="pb-2 pr-4 font-medium">Track</th>
+                      <th className="pb-2 font-medium">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {traxsourceChartEntries.map((e, i) => (
+                      <tr key={i} className="hover:bg-white/[0.02]">
+                        <td className="py-2 pr-4 text-slate-400">{GENRE_LABELS[e.genre ?? ''] ?? e.genre ?? '—'}</td>
+                        <td className="py-2 pr-4 text-right font-bold text-cyan-400">#{e.chart_position ?? '?'}</td>
+                        <td className="py-2 pr-4 text-slate-300 max-w-[180px] truncate">{e.track_name ?? '—'}</td>
+                        <td className="py-2 text-slate-500">{e.scraped_at?.slice(0, 10) ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TracksTabs({ tracks, playlists }: { tracks: TrackRow[]; playlists: { platform: string; playlist_name: string; playlist_followers: number | null; position: number | null; added_at: string | null }[] }) {
+  const [tab, setTab] = useState<'tracks' | 'playlists'>('tracks')
+  return (
+    <div>
+      <div className="mb-4 flex gap-1 rounded-lg bg-[#1e2535] p-1 w-fit">
+        {(['tracks', 'playlists'] as const).map(t => (
+          <button key={t} type="button" onClick={() => setTab(t)}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium capitalize transition-colors ${tab === t ? 'bg-[#161b27] text-slate-200 shadow' : 'text-slate-500 hover:text-slate-300'}`}>
+            {t} {t === 'tracks' ? `(${tracks.length})` : `(${playlists.length})`}
+          </button>
+        ))}
+      </div>
+      {tab === 'tracks' ? (
+        tracks.length === 0 ? (
+          <p className="text-sm text-slate-500">No tracks found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="pb-2 pr-4 font-medium">Track</th>
+                  <th className="pb-2 pr-4 font-medium">Released</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Streams</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Pop</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Spotify #</th>
+                  <th className="pb-2 font-medium text-right">Beatport #</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {tracks.map((t, i) => (
+                  <tr key={t.cm_track_id ?? i} className="hover:bg-white/[0.02]">
+                    <td className="py-2 pr-4 font-medium text-slate-200 max-w-[200px] truncate">{t.track_name ?? "—"}</td>
+                    <td className="py-2 pr-4 text-slate-400">{t.release_date ? String(t.release_date).slice(0, 10) : "—"}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{fmt(t.spotify_streams)}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{t.spotify_popularity ?? "—"}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{t.peak_spotify_chart ?? "—"}</td>
+                    <td className="py-2 text-right text-slate-300">{t.peak_beatport_chart ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : (
+        playlists.length === 0 ? (
+          <p className="text-sm text-slate-500">No playlist placements found.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="pb-2 pr-4 font-medium">Platform</th>
+                  <th className="pb-2 pr-4 font-medium">Playlist</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Followers</th>
+                  <th className="pb-2 pr-4 font-medium text-right">Pos</th>
+                  <th className="pb-2 font-medium">Added</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {playlists.map((p, i) => (
+                  <tr key={i} className="hover:bg-white/[0.02]">
+                    <td className="py-2 pr-4 text-slate-400 capitalize">{p.platform ?? "—"}</td>
+                    <td className="py-2 pr-4 font-medium text-slate-200 max-w-[200px] truncate">{p.playlist_name ?? "—"}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{fmt(p.playlist_followers)}</td>
+                    <td className="py-2 pr-4 text-right text-slate-300">{p.position ?? "—"}</td>
+                    <td className="py-2 text-slate-400">{p.added_at ? String(p.added_at).slice(0, 10) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
 export default function ArtistProfile({
   artist, bookingSignals, growthData, multiTimeseries, events, notes,
   onAddNote, isFavorite, onFavoriteToggle, onBack,
@@ -139,6 +383,9 @@ export default function ArtistProfile({
   socialLinks = [], fanCities = [], noteworthy = [],
   pfFans, pfTotalPerformances, pfUpcomingPerformances, pfGenres,
   instagramAudience, xgboostGrowth90d, albums = [],
+  cmArtistScore, cmArtistRank, spMonthlyListeners, igFollowers, tiktokFollowers, lfmListeners,
+  fiveScores, mlFeatures, playlists = [], beatportChartEntries = [], traxsourceChartEntries = [],
+  pfEvents = [], tiktokAudience: _tiktokAudience,
 }: ArtistProfileProps) {
   const [draft, setDraft] = useState("")
   const [activePlatform, setActivePlatform] = useState<string>(multiTimeseries[0]?.platform ?? "spotify")
@@ -295,6 +542,74 @@ export default function ArtistProfile({
         )}
       </section>
 
+      {/* PLATFORM STATS ROW */}
+      <section className="rounded-xl bg-[#161b27] p-6">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+          {[
+            { label: "CM Score", value: cmArtistScore != null ? cmArtistScore.toFixed(1) : "—" },
+            { label: "CM Rank", value: cmArtistRank != null ? `#${cmArtistRank.toLocaleString()}` : "—" },
+            { label: "SP Listeners", value: fmt(spMonthlyListeners) },
+            { label: "Instagram", value: fmt(igFollowers) },
+            { label: "TikTok", value: fmt(tiktokFollowers) },
+            { label: "Last.fm", value: fmt(lfmListeners) },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-lg bg-[#1e2535] p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
+              <p className="mt-1 text-lg font-bold text-slate-100">{value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FIVE SCORES */}
+      {fiveScores && (
+        <section className="rounded-xl bg-[#161b27] p-6">
+          <h2 className="mb-4 text-lg font-semibold text-slate-100">Scores</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+            {([
+              { key: 'momentum', label: 'Momentum', desc: 'Is the buzz growing now?' },
+              { key: 'growth', label: 'Growth', desc: 'Is growth accelerating?' },
+              { key: 'market_relevance', label: 'Market Position', desc: 'How big is the artist?' },
+              { key: 'future_potential', label: 'Potential', desc: 'Where is this heading?' },
+              { key: 'confidence', label: 'Data', desc: 'How much data do we have?' },
+            ] as const).map(({ key, label, desc }) => {
+              const v = fiveScores[key]
+              const color = v >= 70 ? '#6366f1' : v >= 45 ? '#818cf8' : '#64748b'
+              return (
+                <div key={key} className="flex flex-col gap-2 rounded-lg bg-[#1e2535] p-4">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</span>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${v}%`, background: color }} />
+                  </div>
+                  <span className="text-2xl font-bold text-slate-100">{Math.round(v)}</span>
+                  <span className="text-xs text-slate-500">{desc}</span>
+                </div>
+              )
+            })}
+          </div>
+          {fiveScores.breakdown && (
+            <div className="mt-3 rounded-lg bg-[#1e2535] px-4 py-3 text-xs text-slate-500">
+              <span className="font-medium text-slate-400">Data coverage: </span>
+              {fiveScores.breakdown.data_filled}/{fiveScores.breakdown.data_total} fields
+              {fiveScores.breakdown.sp_30d_pct != null && (
+                <span className="ml-3">
+                  SP 30d: <span className={fiveScores.breakdown.sp_30d_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    {fiveScores.breakdown.sp_30d_pct >= 0 ? '+' : ''}{fiveScores.breakdown.sp_30d_pct.toFixed(1)}%
+                  </span>
+                </span>
+              )}
+              {fiveScores.breakdown.accel != null && (
+                <span className="ml-3">
+                  Acceleration: <span className={fiveScores.breakdown.accel >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                    {fiveScores.breakdown.accel >= 0 ? '+' : ''}{fiveScores.breakdown.accel.toFixed(1)}%
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* 2. BOOKING SIGNALS */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <h2 className="mb-4 text-lg font-semibold text-slate-100">Booking Signals</h2>
@@ -362,6 +677,39 @@ export default function ArtistProfile({
         </section>
       )}
 
+      {/* GROWTH SIGNALS */}
+      {mlFeatures && Object.values(mlFeatures).some(v => v != null) && (
+        <section className="rounded-xl bg-[#161b27] p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <TrendingUp size={18} className="text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Growth Signals</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {[
+              { label: 'SP Listeners 30d', key: 'sp_listeners_30d_pct', isPct: true },
+              { label: 'SP Listeners 90d', key: 'sp_listeners_90d_pct', isPct: true },
+              { label: 'Acceleration ↑↓', key: 'sp_listeners_accel', isPct: true },
+              { label: 'Cross-Platform 30d', key: 'cross_platform_momentum_30d', isPct: true },
+              { label: 'Platforms Growing', key: 'platforms_growing_30d', isPct: false },
+            ].map(({ label, key, isPct }) => {
+              const v = mlFeatures[key]
+              return (
+                <div key={key} className="rounded-lg bg-[#1e2535] p-3">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
+                  {v != null ? (
+                    <p className={`mt-1 text-lg font-bold ${!isPct ? 'text-slate-100' : v > 0 ? 'text-emerald-400' : v < 0 ? 'text-rose-400' : 'text-slate-400'}`}>
+                      {isPct ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : Math.round(v)}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-lg font-bold text-slate-500">—</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
       {/* 4. MULTI-PLATFORM GROWTH CHART */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <div className="mb-4 flex items-center justify-between">
@@ -406,39 +754,14 @@ export default function ArtistProfile({
         </div>
       </section>
 
-      {/* 5. TRACKS */}
-      {tracks.length > 0 && (
+      {/* 5. TRACKS & PLAYLISTS */}
+      {(tracks.length > 0 || (playlists && playlists.length > 0)) && (
         <section className="rounded-xl bg-[#161b27] p-6">
           <div className="mb-4 flex items-center gap-2">
             <Music2 size={18} className="text-indigo-400" />
-            <h2 className="text-lg font-semibold text-slate-100">Top Tracks</h2>
+            <h2 className="text-lg font-semibold text-slate-100">Tracks & Playlists</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                  <th className="pb-2 pr-4 font-medium">Track</th>
-                  <th className="pb-2 pr-4 font-medium">Released</th>
-                  <th className="pb-2 pr-4 font-medium text-right">Streams</th>
-                  <th className="pb-2 pr-4 font-medium text-right">Pop</th>
-                  <th className="pb-2 pr-4 font-medium text-right">Spotify #</th>
-                  <th className="pb-2 font-medium text-right">Beatport #</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {tracks.map((t, i) => (
-                  <tr key={t.cm_track_id ?? i} className="hover:bg-white/[0.02]">
-                    <td className="py-2 pr-4 font-medium text-slate-200 max-w-[200px] truncate">{t.track_name ?? "—"}</td>
-                    <td className="py-2 pr-4 text-slate-400">{t.release_date ? String(t.release_date).slice(0, 10) : "—"}</td>
-                    <td className="py-2 pr-4 text-right text-slate-300">{fmt(t.spotify_streams)}</td>
-                    <td className="py-2 pr-4 text-right text-slate-300">{t.spotify_popularity ?? "—"}</td>
-                    <td className="py-2 pr-4 text-right text-slate-300">{t.peak_spotify_chart ?? "—"}</td>
-                    <td className="py-2 text-right text-slate-300">{t.peak_beatport_chart ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <TracksTabs tracks={tracks} playlists={playlists ?? []} />
         </section>
       )}
 
@@ -596,33 +919,18 @@ export default function ArtistProfile({
         </section>
       )}
 
-      {/* 11. EVENT TIMELINE */}
+      {/* 11. SHOW HISTORY */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <div className="mb-6 flex items-center gap-2">
           <Calendar size={18} className="text-indigo-400" />
-          <h2 className="text-lg font-semibold text-slate-100">Event Timeline ({sortedEvents.length} events)</h2>
+          <h2 className="text-lg font-semibold text-slate-100">Show History</h2>
         </div>
-        {sortedEvents.length === 0 ? (
-          <p className="text-sm text-slate-500">No events recorded.</p>
-        ) : (
-          <div className="relative overflow-x-auto pb-2">
-            <div className="relative flex min-w-max items-start gap-12 px-2">
-              <div className="absolute left-0 right-0 top-2 h-px bg-white/10" />
-              {sortedEvents.map((e, i) => (
-                <div key={`${e.venue}-${i}`} className="group relative flex flex-col items-center gap-2">
-                  <span className={`relative z-10 h-4 w-4 rounded-full ring-4 ring-[#161b27] ${e.festival ? "bg-indigo-400" : "bg-slate-500"}`} />
-                  <span className="text-xs font-medium text-slate-300">{e.venue}</span>
-                  <span className="text-[11px] text-slate-500">
-                    {new Date(e.date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                  </span>
-                  <div className="pointer-events-none absolute -top-10 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#1e2535] px-2 py-1 text-xs text-slate-200 opacity-0 shadow-lg ring-1 ring-white/10 transition-opacity group-hover:opacity-100">
-                    {e.city && `${e.city} · `}{e.attending.toLocaleString()} cap{e.festival ? " · Festival" : ""}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <ShowHistoryTabs
+          raEvents={sortedEvents}
+          pfEvents={pfEvents ?? []}
+          beatportChartEntries={beatportChartEntries ?? []}
+          traxsourceChartEntries={traxsourceChartEntries ?? []}
+        />
       </section>
 
       {/* 12. NOTES PANEL */}

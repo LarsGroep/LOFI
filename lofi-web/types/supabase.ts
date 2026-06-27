@@ -389,6 +389,29 @@ export interface ArtistDetail {
   instagramAudience: Record<string, unknown> | null
   albums: { name: string; release_date?: string; image_url?: string; type?: string }[]
   noteworthy: { title?: string; description?: string; value?: string }[]
+  cmArtistRank: number | null
+  fiveScores: {
+    momentum: number
+    growth: number
+    market_relevance: number
+    future_potential: number
+    confidence: number
+    breakdown: {
+      sp_30d_pct: number | null
+      sp_90d_pct: number | null
+      accel: number | null
+      cross_platform_30d: number | null
+      platforms_growing: number | null
+      data_filled: number
+      data_total: number
+    }
+  } | null
+  mlFeatures: Record<string, number | null> | null
+  playlists: { platform: string; playlist_name: string; playlist_followers: number | null; position: number | null; added_at: string | null }[]
+  beatportChartEntries: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string }[]
+  traxsourceChartEntries: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[]
+  pfEvents: Record<string, unknown>[]
+  tiktokAudience: Record<string, unknown> | null
 }
 
 export interface TimeseriesPoint {

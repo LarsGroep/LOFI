@@ -177,6 +177,19 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         instagramAudience={artist.instagramAudience}
         xgboostGrowth90d={artist.xgboostGrowth90d}
         albums={artist.albums ?? []}
+        cmArtistScore={artist.cmArtistScore}
+        cmArtistRank={artist.cmArtistRank}
+        spMonthlyListeners={artist.spMonthlyListeners}
+        igFollowers={artist.igFollowers}
+        tiktokFollowers={artist.tiktokFollowers}
+        lfmListeners={artist.lfmListeners}
+        fiveScores={artist.fiveScores}
+        mlFeatures={artist.mlFeatures}
+        playlists={artist.playlists ?? []}
+        beatportChartEntries={artist.beatportChartEntries ?? []}
+        traxsourceChartEntries={artist.traxsourceChartEntries ?? []}
+        pfEvents={artist.pfEvents ?? []}
+        tiktokAudience={artist.tiktokAudience}
       />
 
       <ArtistChat
