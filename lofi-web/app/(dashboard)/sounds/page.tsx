@@ -8,7 +8,7 @@ import type { ArtistListItem } from "@/types/supabase"
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
 const SOUNDS = [
-  'Tech-House', 'House', 'Minimal House', 'Left Field House & Techno',
+  'Tech House', 'House', 'Minimal House', 'Left Field House & Techno',
   'Melodic', 'Melodic Commercial', 'Progressive Techno', 'Techno',
   'Afro House', 'UKG', 'Bounce / Hardhouse', 'Disco', 'Hip-Hop',
   'Dub / Reggae', 'Live',
