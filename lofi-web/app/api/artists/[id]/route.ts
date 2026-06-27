@@ -4,6 +4,12 @@ import type { ArtistDetail, RaEventSummary, TimeseriesPoint, MultiTimeseriesItem
 
 // ─── Five Scores ───────────────────────────────────────────────────────────────
 
+function decodeHtmlEntities(s: string | null): string | null {
+  if (!s) return s
+  return s.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+}
+
 function clamp(v: number, lo = 0, hi = 100): number {
   if (isNaN(v) || !isFinite(v)) return lo
   return Math.max(lo, Math.min(hi, v))
@@ -445,7 +451,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       imageUrl: cm?.image_url ?? null,
       coverUrl: cm?.cover_url ?? null,
       genres: cm?.genres ?? null,
-      description: cm?.description ?? null,
+      description: decodeHtmlEntities(cm?.description ?? null),
       careerStatus: cm?.career_status ?? null,
       recordLabel: cm?.record_label ?? null,
       bookingAgent: cm?.booking_agent ?? null,

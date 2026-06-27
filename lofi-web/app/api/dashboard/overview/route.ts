@@ -14,7 +14,8 @@ export async function GET() {
             artist_chartmetric (image_url)
           )
         `)
-        .order('event_date', { ascending: false })
+        .lte('event_date', new Date().toISOString().slice(0, 10))
+        .order('detected_at', { ascending: false })
         .limit(8),
 
       supabase

@@ -36,14 +36,28 @@ interface TrendingSet {
 const EVENT_TYPE_LABELS: Record<string, string> = {
   first_ibiza: "First Ibiza",
   boiler_room: "Boiler Room",
+  first_boiler_room: "Boiler Room",
+  first_hor_berlin: "HÖR Berlin",
+  first_f2f_tv: "F2F TV",
+  first_mixmag: "Mixmag",
   first_all_night_long: "All-Night-Long",
+  first_extended_set: "Extended Set",
+  first_b2b: "B2B Set",
   first_headline_500: "Headline 500+",
   first_headline_1k: "Headline 1K+",
+  first_headline_2k: "Headline 2K+",
   first_headline_5k: "Headline 5K+",
+  first_tier_a_support: "Tier-A Support",
   ra_podcast: "RA Podcast",
   festival_main_stage: "Festival Main Stage",
   major_label_signing: "Label Signing",
   agency_signing: "Agency Signing",
+  first_beatport_chart: "Beatport Chart",
+  beatport_top10: "Beatport Top 10",
+  beatport_number1: "Beatport #1",
+  first_beatport_top_10: "Beatport Top 10",
+  first_beatport_number1: "Beatport #1",
+  first_traxsource_chart: "Traxsource Chart",
 }
 
 function fmt(n: number | null | undefined): string {
