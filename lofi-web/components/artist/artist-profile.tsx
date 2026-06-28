@@ -67,6 +67,7 @@ export interface ArtistProfileProps {
   pfGenres?: string[] | null
   instagramAudience?: Record<string, unknown> | null
   xgboostGrowth90d?: number | null
+  xgboostMissingDataPct?: number | null
   albums?: { name: string; release_date?: string; image_url?: string; type?: string }[]
   cmArtistScore?: number | null
   cmArtistRank?: number | null
@@ -85,6 +86,7 @@ export interface ArtistProfileProps {
   traxsourceChartEntries?: { genre: string | null; chart_position: number | null; track_name: string | null; scraped_at: string | null }[]
   pfEvents?: Record<string, unknown>[]
   tiktokAudience?: Record<string, unknown> | null
+  milestones?: Record<string, unknown>[] | null
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -206,7 +208,7 @@ function signalLabel(value: number): { text: string; color: string } {
   return { text: "Weak", color: "text-slate-500" }
 }
 
-function SignalBar({ label, weight, value }: { label: string; weight: number; value: number }) {
+function SignalBar({ label, weight, value, explanation }: { label: string; weight: number; value: number; explanation: string }) {
   const sig = signalLabel(value)
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-[#1e2535] p-4">
@@ -219,8 +221,27 @@ function SignalBar({ label, weight, value }: { label: string; weight: number; va
           style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
       <span className={`text-lg font-semibold ${sig.color}`}>{sig.text}</span>
+      <p className="text-xs leading-relaxed text-slate-500">{explanation}</p>
     </div>
   )
+}
+
+function pctFmt(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(v)) return "Unavailable"
+  return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`
+}
+
+function milestoneText(m: Record<string, unknown>): string {
+  return String(m.title ?? m.name ?? m.type ?? m.event_type ?? m.milestone ?? "Milestone")
+    .replace(/_/g, " ")
+}
+
+function milestoneDate(m: Record<string, unknown>): string {
+  return String(m.date ?? m.event_date ?? m.achieved_at ?? m.detected_at ?? "").slice(0, 10)
+}
+
+function milestoneSource(m: Record<string, unknown>): string {
+  return String(m.source ?? m.platform ?? m.url ?? m.event_url ?? m.venue ?? "Chartmetric")
 }
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -525,10 +546,10 @@ export default function ArtistProfile({
   tracks, validationEvents, similarArtists,
   socialLinks = [], fanCities = [], noteworthy = [],
   pfFans, pfTotalPerformances, pfUpcomingPerformances, pfGenres,
-  instagramAudience, xgboostGrowth90d, albums = [],
+  instagramAudience, xgboostGrowth90d, xgboostMissingDataPct, albums = [],
   cmArtistScore, cmArtistRank, spMonthlyListeners, igFollowers, tiktokFollowers, lfmListeners,
   fiveScores, mlFeatures, playlists = [], beatportChartEntries = [], traxsourceChartEntries = [],
-  pfEvents = [], tiktokAudience: _tiktokAudience,
+  pfEvents = [], tiktokAudience: _tiktokAudience, milestones = null,
 }: ArtistProfileProps) {
   const [draft, setDraft] = useState("")
   const [noteType, setNoteType] = useState<'performance' | 'correction' | 'intel'>('performance')
@@ -606,32 +627,17 @@ export default function ArtistProfile({
     ? activeTs.data.map(p => ({ date: p.date.slice(0, 7), value: p.value }))
     : growthData.map(p => ({ date: p.date.slice(0, 7), value: p.listeners }))
 
-  // Build projected forecast points if Spotify + xgboost prediction available
-  const isSpotify = !activeTs || activePlatform === 'spotify'
-  const forecastPoints: { date: string; value?: number; projected?: number }[] = []
-  if (isSpotify && xgboostGrowth90d != null && rawChartData.length > 0) {
-    const lastPoint = rawChartData[rawChartData.length - 1]
-    const lastVal = lastPoint.value
-    const growthPer30d = xgboostGrowth90d / 3
-    for (let m = 1; m <= 3; m++) {
-      const [yr, mo] = lastPoint.date.split('-').map(Number)
-      const d = new Date(yr, mo - 1 + m, 1)
-      const label = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      forecastPoints.push({ date: label, projected: Math.round(lastVal * (1 + growthPer30d * m)) })
-    }
-  }
-
-  const chartData: { date: string; value?: number; projected?: number }[] =
-    forecastPoints.length > 0
-      ? [
-          ...rawChartData.map((p, i) =>
-            i === rawChartData.length - 1
-              ? { ...p, projected: p.value } // bridge last historical point to forecast
-              : p
-          ),
-          ...forecastPoints,
-        ]
-      : rawChartData
+  const chartData: { date: string; value?: number }[] = rawChartData
+  const xgbLabel = xgboostGrowth90d == null
+    ? { text: "No model forecast", color: "text-slate-500", bg: "bg-slate-500/10" }
+    : xgboostGrowth90d >= 15
+    ? { text: "Breakout signal", color: "text-emerald-400", bg: "bg-emerald-500/10" }
+    : xgboostGrowth90d >= 5
+    ? { text: "Positive trend", color: "text-indigo-400", bg: "bg-indigo-500/10" }
+    : xgboostGrowth90d >= -5
+    ? { text: "Stable", color: "text-slate-400", bg: "bg-slate-500/10" }
+    : { text: "Cooling", color: "text-rose-400", bg: "bg-rose-500/10" }
+  const cmMilestones = (milestones ?? []).filter(Boolean)
 
   // Social links: filter to known platforms, deduplicate
   const knownLinks = socialLinks.filter(l => DOMAIN_LABELS[l.domain] && l.url?.length)
@@ -839,10 +845,43 @@ export default function ArtistProfile({
       {/* 2. BOOKING SIGNALS */}
       <section className="rounded-xl bg-[#161b27] p-6">
         <h2 className="mb-4 text-lg font-semibold text-slate-100">Booking Signals</h2>
+        <div className="mb-4 rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">XGBoost target</p>
+              <h3 className="mt-1 text-base font-semibold text-slate-100">Predicted Chartmetric CPP score movement</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                This model predicts 90-day CPP growth, not Spotify listeners. CPP is the Chartmetric industry-presence score and is the forecast target carried over from the Streamlit baseline.
+              </p>
+            </div>
+            <div className="shrink-0 rounded-lg bg-[#101521] px-4 py-3 text-right">
+              <p className={`text-2xl font-bold ${xgbLabel.color}`}>{pctFmt(xgboostGrowth90d)}</p>
+              <p className={`mt-1 rounded-full px-2 py-0.5 text-xs font-medium ${xgbLabel.bg} ${xgbLabel.color}`}>{xgbLabel.text}</p>
+              {xgboostMissingDataPct != null && (
+                <p className="mt-1 text-[10px] text-slate-500">{xgboostMissingDataPct.toFixed(0)}% model inputs missing</p>
+              )}
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <SignalBar label="XGBoost Score" weight={40} value={bookingSignals.xgboost} />
-          <SignalBar label="Scene Score" weight={35} value={bookingSignals.scene} />
-          <SignalBar label="LOFI Fit" weight={25} value={bookingSignals.lofiFit} />
+          <SignalBar
+            label="Trend Forecast"
+            weight={40}
+            value={bookingSignals.xgboost}
+            explanation="Maps predicted CPP growth onto a 0-100 score: 50 is flat, above 50 is expected growth, below 50 is cooling."
+          />
+          <SignalBar
+            label="Scene Evidence"
+            weight={35}
+            value={bookingSignals.scene}
+            explanation="Combines confirmed milestones, NL/Amsterdam presence, and RA booking history."
+          />
+          <SignalBar
+            label="LOFI Fit"
+            weight={25}
+            value={bookingSignals.lofiFit}
+            explanation="Checks whether the artist matches LOFI's sound, audience, and booking taste. It is suitability, not trend."
+          />
         </div>
         <div className="mt-4 flex items-center justify-between rounded-lg bg-[#1e2535] px-4 py-3">
           <span className="text-sm text-slate-400">Overall assessment</span>
@@ -1042,11 +1081,8 @@ export default function ArtistProfile({
                 <Tooltip contentStyle={{ background: "#1e2535", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#f1f5f9" }}
                   labelStyle={{ color: "#94a3b8" }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(v: any, name?: any) => [fmt(v), name === 'projected' ? '90d Forecast' : 'Listeners']} />
+                  formatter={(v: any) => [fmt(v), activeTs?.label ?? 'Spotify Listeners']} />
                 <Line type="monotone" dataKey="value" stroke={PLATFORM_COLORS[activePlatform] ?? "#6366f1"} strokeWidth={2} dot={false} connectNulls={false} />
-                {forecastPoints.length > 0 && (
-                  <Line type="monotone" dataKey="projected" stroke="#818cf8" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls />
-                )}
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -1100,7 +1136,7 @@ export default function ArtistProfile({
       )}
 
       {/* 7. MILESTONES */}
-      {validationEvents.length > 0 && (
+      {(validationEvents.length > 0 || cmMilestones.length > 0) && (
         <section className="rounded-xl bg-[#161b27] p-6">
           <div className="mb-4 flex items-center gap-2">
             <CheckCircle2 size={18} className="text-indigo-400" />
@@ -1124,6 +1160,29 @@ export default function ArtistProfile({
                 )}
               </div>
             ))}
+            {cmMilestones.map((m, i) => {
+              const source = milestoneSource(m)
+              const url = String(m.url ?? m.event_url ?? m.source_url ?? "")
+              const date = milestoneDate(m)
+              const detail = String(m.description ?? m.detail ?? m.context ?? m.value ?? "")
+              return (
+                <div key={`cm-${i}`} className="flex items-start gap-3 rounded-lg bg-[#1e2535] px-4 py-3">
+                  <Sparkles size={15} className="mt-0.5 shrink-0 text-indigo-400" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium capitalize text-slate-200">{milestoneText(m)}</p>
+                    {detail && <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{detail}</p>}
+                    <p className="mt-1 text-xs text-slate-500">
+                      Achieved via {url ? (
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-indigo-300 hover:text-indigo-200">
+                          {source}
+                        </a>
+                      ) : source}
+                    </p>
+                  </div>
+                  {date && <span className="shrink-0 text-xs text-slate-500">{date}</span>}
+                </div>
+              )
+            })}
           </div>
         </section>
       )}

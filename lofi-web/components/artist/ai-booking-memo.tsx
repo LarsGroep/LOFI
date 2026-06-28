@@ -28,6 +28,7 @@ export interface BookingMemo {
 interface AIBookingMemoProps {
   memo: BookingMemo | null
   isLoading: boolean
+  error?: string | null
   onRegenerate: () => void
 }
 
@@ -74,7 +75,7 @@ function SignalPill({ signal }: { signal: BookingMemo["signals"][number] }) {
   )
 }
 
-export default function AIBookingMemo({ memo, isLoading, onRegenerate }: AIBookingMemoProps) {
+export default function AIBookingMemo({ memo, isLoading, error, onRegenerate }: AIBookingMemoProps) {
   // LOADING STATE
   if (isLoading) {
     return (
@@ -104,9 +105,11 @@ export default function AIBookingMemo({ memo, isLoading, onRegenerate }: AIBooki
   if (!memo) {
     return (
       <section className="flex flex-col items-center gap-3 rounded-xl border border-white/5 bg-[#161b27] p-10 text-center">
-        <AlertCircle size={28} className="text-red-400" />
-        <p className="text-base font-medium text-[#f1f5f9]">Unable to generate assessment</p>
-        <p className="text-sm text-[#94a3b8]">Check that data sources are connected and try again.</p>
+        <AlertCircle size={28} className={error ? "text-red-400" : "text-[#6366f1]"} />
+        <p className="text-base font-medium text-[#f1f5f9]">{error ? "AI assessment unavailable" : "No AI assessment yet"}</p>
+        <p className="max-w-xl text-sm text-[#94a3b8]">
+          {error ?? "Generate this on demand. The memo uses structured LOFI signals, Chartmetric CPP forecast, milestones, and booker notes; it is not generated automatically so tokens are not spent just by opening profiles."}
+        </p>
         <button
           type="button"
           onClick={onRegenerate}

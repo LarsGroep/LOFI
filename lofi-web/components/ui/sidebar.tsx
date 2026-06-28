@@ -16,6 +16,7 @@ import {
   Users,
   Tag,
   ShieldCheck,
+  BookOpen,
 } from 'lucide-react'
 import { NavItem } from '@/components/ui/nav-item'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: '/insights', label: 'Leaderboard', icon: BarChart2 },
   { href: '/recommendations', label: 'Recommender', icon: Users },
   { href: '/genres', label: 'Genres', icon: Tag },
+  { href: '/methodology', label: 'Methodology', icon: BookOpen },
   { href: '/youtube', label: 'YouTube Sets', icon: PlayCircle },
   { href: '/scene', label: 'Scene Intel', icon: Radio },
   { href: '/settings', label: 'Settings', icon: Settings },

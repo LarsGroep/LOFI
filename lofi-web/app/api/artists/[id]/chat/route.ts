@@ -1,7 +1,22 @@
-import Anthropic from '@anthropic-ai/sdk'
+﻿import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase/server'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+function getAnthropicClient(): Anthropic | null {
+  const key = process.env.ANTHROPIC_API_KEY?.trim()
+  return key ? new Anthropic({ apiKey: key }) : null
+}
+
+function aiErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err)
+  const lower = raw.toLowerCase()
+  if (lower.includes('credit') || lower.includes('quota') || lower.includes('billing') || lower.includes('insufficient')) {
+    return 'AI chat is unavailable because Anthropic credits or billing are exhausted. Add API credits/billing, then try again.'
+  }
+  if (lower.includes('api key') || lower.includes('unauthorized') || lower.includes('authentication')) {
+    return 'AI chat is unavailable because the Anthropic API key is missing or invalid in Vercel.'
+  }
+  return 'AI chat is temporarily unavailable. The profile data and deterministic scores still work.'
+}
 
 function fmt(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return 'N/A'
@@ -57,7 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const systemPrompt = `You are a booking intelligence assistant for LOFI Amsterdam, an underground electronic music venue and promoter. You help the booking team make decisions about artists.
 
-ARTIST BRIEF — ${row.name}:
+ARTIST BRIEF â€” ${row.name}:
 Status: ${row.candidate_status}
 Genres: ${cm?.genres?.slice(0, 5).join(', ') ?? 'Unknown'}
 Career stage: ${cm?.career_status ?? 'Unknown'}
@@ -75,31 +90,51 @@ LOFI fit score: ${lofi?.score != null ? `${Math.round(lofi.score as number)}/100
 ${lofi?.matched ? `Matched signals: ${JSON.stringify(lofi.matched)}` : ''}
 ${lofi?.disqualified ? 'DISQUALIFIED by genre filter' : ''}
 Recent milestones: ${JSON.stringify((ext?.milestones as unknown[])?.slice(0, 3) ?? [])}
-${memo ? `\nEXISTING AI ASSESSMENT:\nVerdict: ${memo.verdict} — ${memo.verdict_reason}\nSummary: ${memo.summary}` : ''}
+${memo ? `\nEXISTING AI ASSESSMENT:\nVerdict: ${memo.verdict} - ${memo.verdict_reason}\nSummary: ${memo.summary}` : ''}
 
-You have expert knowledge of the underground electronic music scene, particularly tech-house, house, techno, and related genres. LOFI books artists for Amsterdam shows, typically 300–2000 capacity. Answer concisely and from the perspective of an experienced booking advisor. If the question is about data you don't have, say so honestly.`
+IMPORTANT:
+- The XGBoost number is predicted Chartmetric CPP score growth, not a Spotify listener forecast.
+- Separate trend strength, LOFI suitability, booking urgency, and confidence.
+- Explain reasoning in plain language for non-technical bookers. Do not invent hidden score logic; if evidence is missing, say what is missing.
 
-  const stream = await anthropic.messages.stream({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 512,
-    system: systemPrompt,
-    messages: [
-      ...history.slice(-8),
-      { role: 'user', content: message },
-    ],
-  })
+You have expert knowledge of the underground electronic music scene, particularly tech-house, house, techno, and related genres. LOFI books artists for Amsterdam shows, typically 300-2000 capacity. Answer concisely and from the perspective of an experienced booking advisor. If the question is about data you don't have, say so honestly.`
+
+  const anthropic = getAnthropicClient()
+  if (!anthropic) {
+    return new Response('AI chat is unavailable because the Anthropic API key is missing in Vercel.', { status: 401 })
+  }
+
+  let stream: ReturnType<Anthropic.Messages['stream']>
+  try {
+    stream = anthropic.messages.stream({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      system: systemPrompt,
+      messages: [
+        ...history.slice(-8),
+        { role: 'user', content: message },
+      ],
+    })
+  } catch (err) {
+    return new Response(aiErrorMessage(err), { status: 503 })
+  }
 
   const readable = new ReadableStream({
     async start(controller) {
-      for await (const chunk of stream) {
-        if (
-          chunk.type === 'content_block_delta' &&
-          chunk.delta.type === 'text_delta'
-        ) {
-          controller.enqueue(new TextEncoder().encode(chunk.delta.text))
+      try {
+        for await (const chunk of stream) {
+          if (
+            chunk.type === 'content_block_delta' &&
+            chunk.delta.type === 'text_delta'
+          ) {
+            controller.enqueue(new TextEncoder().encode(chunk.delta.text))
+          }
         }
+        controller.close()
+      } catch (err) {
+        controller.enqueue(new TextEncoder().encode(aiErrorMessage(err)))
+        controller.close()
       }
-      controller.close()
     },
     cancel() {
       stream.controller.abort()
@@ -114,3 +149,4 @@ You have expert knowledge of the underground electronic music scene, particularl
     },
   })
 }
+

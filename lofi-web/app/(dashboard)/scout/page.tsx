@@ -14,7 +14,7 @@ type Genre = (typeof GENRES)[number]
 function pseudoSparkline(growth: number, seed: number): number[] {
   return Array.from({ length: 20 }, (_, i) => {
     const base = 45
-    const trend = growth * 120 * (i / 19)
+    const trend = growth * 1.2 * (i / 19)
     const noise = Math.sin(i * 1.8 + seed) * 4
     return Math.max(5, base + trend + noise)
   })
@@ -23,8 +23,7 @@ function pseudoSparkline(growth: number, seed: number): number[] {
 function toSignal(a: ArtistListItem, seed: number): ArtistSignal {
   const growth = a.xgboostGrowth90d ?? 0
   const lofi = a.lofiFitScore ?? 0
-  const momentumScore = Math.round(Math.max(lofi * 0.5 + growth * 100 * 0.5, lofi * 0.7))
-  const momentumDelta = Math.round(growth * 100)
+  const trendScore = Math.round(Math.max(0, Math.min(100, 50 + growth)))
 
   const trigger = a.verdictReason
     ? a.verdictReason.slice(0, 70) + (a.verdictReason.length > 70 ? "…" : "")
@@ -39,8 +38,9 @@ function toSignal(a: ArtistListItem, seed: number): ArtistSignal {
     name: a.name,
     imageUrl: a.imageUrl,
     genre: a.genres?.[0] ?? "Electronic",
-    momentumScore: Math.min(99, Math.max(0, momentumScore)),
-    momentumDelta,
+    trendScore,
+    forecast90d: a.xgboostGrowth90d,
+    lofiFitScore: lofi,
     trigger,
     sparklineData: pseudoSparkline(growth, seed),
   }

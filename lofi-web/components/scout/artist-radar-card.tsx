@@ -7,8 +7,9 @@ export interface ArtistSignal {
   name: string
   imageUrl: string | null
   genre: string
-  momentumScore: number
-  momentumDelta: number
+  trendScore: number
+  forecast90d: number | null
+  lofiFitScore: number
   trigger: string
   sparklineData: number[]
 }
@@ -85,7 +86,7 @@ function MomentumRing({ value }: { value: number }) {
 
 export function ArtistRadarCard({ signal }: { signal: ArtistSignal }) {
   const firstLetter = signal.name.trim().charAt(0).toUpperCase() || "?"
-  const positive = signal.momentumDelta >= 0
+  const positive = (signal.forecast90d ?? 0) >= 0
 
   return (
     <a
@@ -125,16 +126,17 @@ export function ArtistRadarCard({ signal }: { signal: ArtistSignal }) {
 
         {/* Right: momentum ring + delta */}
         <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <MomentumRing value={signal.momentumScore} />
+          <MomentumRing value={signal.trendScore} />
           <span
             className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium ${
               positive ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"
             }`}
+            title="Predicted 90-day Chartmetric CPP growth"
           >
             <TrendingUp size={11} className={positive ? "" : "rotate-180"} aria-hidden="true" />
-            {positive ? "+" : ""}
-            {signal.momentumDelta} pts
+            {signal.forecast90d == null ? "—" : `${signal.forecast90d >= 0 ? "+" : ""}${signal.forecast90d.toFixed(1)}%`}
           </span>
+          <span className="text-[10px] text-[#64748b]">LOFI {Math.round(signal.lofiFitScore)}%</span>
         </div>
       </div>
 

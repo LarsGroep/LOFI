@@ -2,7 +2,31 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceClient } from '@/lib/supabase/server'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+function getAnthropicClient(): Anthropic | null {
+  const key = process.env.ANTHROPIC_API_KEY?.trim()
+  return key ? new Anthropic({ apiKey: key }) : null
+}
+
+function aiFailure(err: unknown): { message: string; status: number } {
+  const raw = err instanceof Error ? err.message : String(err)
+  const lower = raw.toLowerCase()
+  if (lower.includes('credit') || lower.includes('quota') || lower.includes('billing') || lower.includes('insufficient')) {
+    return {
+      status: 402,
+      message: 'Anthropic credits or billing are exhausted. Add API credits/billing in Anthropic, then regenerate the memo.',
+    }
+  }
+  if (lower.includes('api key') || lower.includes('unauthorized') || lower.includes('authentication')) {
+    return {
+      status: 401,
+      message: 'Anthropic API key is missing or invalid in Vercel environment variables.',
+    }
+  }
+  return {
+    status: 503,
+    message: 'AI memo generation is temporarily unavailable. The structured artist data is still usable.',
+  }
+}
 
 function fmt(n: number | null | undefined): string {
   if (n == null || isNaN(n)) return 'N/A'
@@ -57,6 +81,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const ext = Array.isArray(row.artist_cm_extended) ? row.artist_cm_extended[0] : row.artist_cm_extended
     const lofi = row.lofi_feel as Record<string, unknown> | null
     const notes = notesRes.data ?? []
+    const milestones = (ext?.milestones as unknown[] | null) ?? []
 
     // Compute 30d Spotify listener delta
     let sp30dDelta: string = 'N/A'
@@ -190,6 +215,9 @@ Data coverage: ${xg?.available_features ?? 'N/A'} / ${xg?.total_features ?? 'N/A
 NOTEWORTHY INSIGHTS (from Chartmetric):
 ${JSON.stringify((ext?.noteworthy_insights as unknown[])?.slice(0, 3) ?? [], null, 2)}
 
+MILESTONES WITH SOURCES:
+${JSON.stringify(milestones.slice(0, 8), null, 2)}
+
 LOFI SOUND FRAMEWORK — BENCHMARK ARTISTS (curated by LOFI team):
 ${soundFrameworkSection}
 
@@ -204,7 +232,12 @@ Based on all this data, generate a booking assessment for LOFI Amsterdam. LOFI b
 - Fits the LOFI sound profile (underground but festival-capable)
 - Has credibility signals (agency tier, label, festival bookings)
 
-IMPORTANT: When suggesting comparable artists in "comparable_past", ONLY reference artists from the LOFI Sound Framework above. These are the benchmark artists LOFI has curated as examples of success in each sound. Do not invent comparables — if no framework artist is a good match, leave comparable_past empty.
+IMPORTANT SCORING CONTEXT:
+- XGBoost predicts Chartmetric CPP score growth over the next 90 days. Do not describe it as a Spotify listener forecast.
+- Booking urgency is separate from LOFI fit. A fast-growing artist can still be a weak LOFI fit; a perfect LOFI fit can still be low urgency.
+- Booking signal weights are Trend Forecast 40%, Scene Evidence 35%, LOFI Fit 25%.
+- Explain every verdict in plain language for non-technical bookers. Use milestone source/date fields when referencing achievements.
+- When suggesting comparable artists in "comparable_past", ONLY reference artists from the LOFI Sound Framework above. These are the benchmark artists LOFI has curated as examples of success in each sound. Do not invent comparables — if no framework artist is a good match, leave comparable_past empty.
 
 Return ONLY valid JSON matching this exact structure (no markdown, no explanation):
 {
@@ -224,6 +257,10 @@ Return ONLY valid JSON matching this exact structure (no markdown, no explanatio
     let memoText: string
 
     try {
+      const anthropic = getAnthropicClient()
+      if (!anthropic) {
+        return NextResponse.json({ error: 'Anthropic API key is missing in Vercel environment variables.' }, { status: 401 })
+      }
       const message = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
@@ -309,6 +346,7 @@ Return ONLY valid JSON matching this exact structure (no markdown, no explanatio
     return NextResponse.json({ ...memo, data_freshness: dataFreshness, generated_at: new Date().toISOString(), autoScheduledDelete: autoDeleteCandidate })
   } catch (err) {
     console.error('[POST /api/artists/[id]/memo]', err)
-    return NextResponse.json({ error: 'Failed to generate memo' }, { status: 500 })
+    const failure = aiFailure(err)
+    return NextResponse.json({ error: failure.message }, { status: failure.status })
   }
 }

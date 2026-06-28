@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useCallback, useEffect, useRef } from 'react'
+import { use, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import ArtistProfile from '@/components/artist/artist-profile'
@@ -22,7 +22,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
 
   const [isFavorite, setIsFavorite] = useState(false)
   const [memoLoading, setMemoLoading] = useState(false)
-  const autoMemoFiredRef = useRef(false)
+  const [memoError, setMemoError] = useState<string | null>(null)
 
   const handleAddNote = useCallback(async (text: string, noteType?: string) => {
     await fetch(`/api/artists/${id}/notes`, {
@@ -35,21 +35,18 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
 
   const handleRegenMemo = useCallback(async () => {
     setMemoLoading(true)
+    setMemoError(null)
     try {
-      await fetch(`/api/artists/${id}/memo`, { method: 'POST' })
+      const res = await fetch(`/api/artists/${id}/memo`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error ?? 'AI assessment failed')
       mutate()
+    } catch (err) {
+      setMemoError(err instanceof Error ? err.message : 'AI assessment failed')
     } finally {
       setMemoLoading(false)
     }
   }, [id, mutate])
-
-  // Auto-generate memo if artist has loaded and has no memo yet
-  useEffect(() => {
-    if (artist && artist.aiMemo === null && !autoMemoFiredRef.current) {
-      autoMemoFiredRef.current = true
-      handleRegenMemo()
-    }
-  }, [artist, handleRegenMemo])
 
   if (isLoading) {
     return (
@@ -132,6 +129,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
       <AIBookingMemo
         memo={memo}
         isLoading={memoLoading}
+        error={memoError}
         onRegenerate={handleRegenMemo}
       />
 
@@ -174,6 +172,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         pfGenres={artist.pfGenres}
         instagramAudience={artist.instagramAudience}
         xgboostGrowth90d={artist.xgboostGrowth90d}
+        xgboostMissingDataPct={artist.missingDataPct}
         albums={artist.albums ?? []}
         cmArtistScore={artist.cmArtistScore}
         cmArtistRank={artist.cmArtistRank}
@@ -188,6 +187,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         traxsourceChartEntries={artist.traxsourceChartEntries ?? []}
         pfEvents={artist.pfEvents ?? []}
         tiktokAudience={artist.tiktokAudience}
+        milestones={artist.milestones}
       />
 
       <ArtistChat
