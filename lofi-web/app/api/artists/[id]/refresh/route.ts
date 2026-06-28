@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
-// Mirrors scoring/five_scores.py exactly — same weights, same tanh logistic mapping.
 function clamp(v: number, lo = 0, hi = 100) { return Math.max(lo, Math.min(hi, isNaN(v) ? 0 : v)) }
 
 function pctToScore(pct: number | null | undefined, scale = 30): number {

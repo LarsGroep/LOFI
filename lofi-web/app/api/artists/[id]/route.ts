@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { ArtistDetail, RaEventSummary, TimeseriesPoint, MultiTimeseriesItem, TrackRow, ValidationEventRow } from '@/types/supabase'
 
-// ─── Five Scores ───────────────────────────────────────────────────────────────
-
 function decodeHtmlEntities(s: string | null): string | null {
   if (!s) return s
   return s.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
@@ -71,8 +69,6 @@ function computeFiveScores(
     breakdown: { sp_30d_pct: sp30, sp_90d_pct: sp90, accel, cross_platform_30d: xpm, platforms_growing: platG, data_filled: filled, data_total: fields.length },
   }
 }
-
-// ─── NL Score (port of compute_nl_score from lofi_pipeline.py) ────────────────
 
 interface NlVenue {
   id: number
@@ -214,8 +210,6 @@ function computeNlScore(
   }]
 }
 
-// ─── Scene Signal (port of _compute_scene_signal from lofi_pipeline.py) ───────
-
 export interface SceneBreakdown {
   validation_score: number
   validation_hits: string[]
@@ -251,7 +245,6 @@ function computeSceneSignal(
   return [scene, { validation_score: valScore, validation_hits: valHits.slice(0, 5), nl_score: nlScore, ra_count: raEventCount, ra_score: raScore }]
 }
 
-// Composite with weight redistribution when a component is null (matches Streamlit exactly)
 function computeComposite(growthScore: number | null, sceneScore: number, lofiScore: number | null): number | null {
   const parts: [number | null, number][] = [[growthScore, 0.40], [sceneScore, 0.35], [lofiScore, 0.25]]
   const filled = parts.filter((p): p is [number, number] => p[0] != null)
@@ -259,8 +252,6 @@ function computeComposite(growthScore: number | null, sceneScore: number, lofiSc
   const wTotal = filled.reduce((s, [, w]) => s + w, 0)
   return Math.round(filled.reduce((s, [score, w]) => s + score * w, 0) / wTotal)
 }
-
-// ─── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params

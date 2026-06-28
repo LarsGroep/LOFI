@@ -8,7 +8,7 @@ import { FiltersBar, type StatusFilter, type SortKey } from "@/components/dashbo
 import { ArtistGrid } from "@/components/dashboard/artist-grid"
 import { AddArtistModal } from "@/components/ui/add-artist-modal"
 import type { ArtistListItem } from "@/types/supabase"
-import { CheckCircle2, PlayCircle, TrendingUp, Plus } from "lucide-react"
+import { CheckCircle2, PlayCircle, TrendingUp, Plus, CalendarDays } from "lucide-react"
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
@@ -154,6 +154,54 @@ function TrendingYoutubeStrip({ sets }: { sets: TrendingSet[] }) {
   )
 }
 
+interface UpcomingEvent {
+  artistId: string
+  artistName: string
+  date: string
+  venue: string | null
+  city: string | null
+  country: string | null
+  imageUrl: string | null
+}
+
+function UpcomingEventsStrip({ events, onArtistClick }: { events: UpcomingEvent[]; onArtistClick: (id: string) => void }) {
+  if (!events.length) return null
+  return (
+    <section>
+      <div className="mb-3 flex items-center gap-2">
+        <CalendarDays size={16} className="text-emerald-400" />
+        <h2 className="text-sm font-semibold text-[#f1f5f9]">Upcoming Events — Next 14 Days</h2>
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-1">
+        {events.map((e, i) => (
+          <button
+            key={`${e.artistId}-${e.date}-${i}`}
+            type="button"
+            onClick={() => onArtistClick(e.artistId)}
+            className="flex shrink-0 items-center gap-3 rounded-xl border border-[#1e2535] bg-[#161b27] px-4 py-3 text-left transition hover:border-emerald-500/40"
+          >
+            <div className="size-10 shrink-0 overflow-hidden rounded-full bg-[#1e2535]">
+              {e.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={e.imageUrl} alt={e.artistName} className="size-full object-cover" crossOrigin="anonymous" />
+              ) : (
+                <div className="flex size-full items-center justify-center text-sm font-bold text-emerald-400">
+                  {e.artistName.charAt(0)}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-[#f1f5f9]">{e.artistName}</p>
+              <p className="text-xs text-emerald-400">{e.venue ?? 'TBA'}</p>
+              <p className="text-xs text-[#64748b]">{e.city ?? ''}{e.city && e.country ? ' · ' : ''}{e.country ?? ''} · {String(e.date).slice(0, 10)}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 interface ServerStats {
   total: number
   pending: number
@@ -178,7 +226,7 @@ export function DashboardView({ artists, onArtistClick, initialSearch = "" }: Da
   const [search, setSearch] = useState(initialSearch)
   const [addModalOpen, setAddModalOpen] = useState(false)
 
-  const { data: overview } = useSWR<{ milestones: Milestone[]; trendingYoutube: TrendingSet[] }>(
+  const { data: overview } = useSWR<{ milestones: Milestone[]; trendingYoutube: TrendingSet[]; upcomingEvents: UpcomingEvent[] }>(
     "/api/dashboard/overview",
     fetcher,
     { revalidateOnFocus: false }
@@ -278,6 +326,11 @@ export function DashboardView({ artists, onArtistClick, initialSearch = "" }: Da
       )}
 
       <StatsRow stats={stats} />
+
+      {/* Upcoming events strip */}
+      {overview?.upcomingEvents?.length ? (
+        <UpcomingEventsStrip events={overview.upcomingEvents} onArtistClick={id => router.push(`/artist/${id}`)} />
+      ) : null}
 
       {/* Milestones strip */}
       {overview?.milestones?.length ? (

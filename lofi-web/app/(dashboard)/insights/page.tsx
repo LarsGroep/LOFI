@@ -195,7 +195,7 @@ export default function InsightsPage() {
           <button
             key={s}
             type="button"
-            onClick={() => setStatusFilter(s)}
+            onClick={() => setStatusFilter(statusFilter === s && s !== 'all' ? 'all' : s)}
             className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
               statusFilter === s
                 ? 'bg-[#6366f1] text-white'

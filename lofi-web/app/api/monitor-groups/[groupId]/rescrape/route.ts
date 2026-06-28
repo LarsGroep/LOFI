@@ -18,7 +18,6 @@ async function getCmToken(): Promise<string | null> {
   } catch { return null }
 }
 
-// Search CM by name → return { cm_id, name }
 async function cmSearchByName(token: string, name: string): Promise<number | null> {
   try {
     const res = await fetch(`${CM_BASE}/search?q=${encodeURIComponent(name)}&type=artists&limit=1`, {
@@ -31,7 +30,6 @@ async function cmSearchByName(token: string, name: string): Promise<number | nul
   } catch { return null }
 }
 
-// Fetch full artist profile from CM → normalize to our DB field names
 async function cmGetArtist(token: string, cmId: number): Promise<Record<string, unknown> | null> {
   try {
     const res = await fetch(`${CM_BASE}/artist/${cmId}`, {
@@ -65,7 +63,6 @@ async function cmGetArtist(token: string, cmId: number): Promise<Record<string, 
   } catch { return null }
 }
 
-// POST /api/monitor-groups/[groupId]/rescrape
 export async function POST(req: Request, { params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params
   const supabase = createServiceClient()
@@ -125,11 +122,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ groupId
         // 5. Recompute five scores from updated data
         await fetch(`${origin}/api/artists/${member.artist_id}/refresh`, {
           method: 'POST',
-        }).catch(() => null) // non-blocking: score refresh is best-effort
+        }).catch(() => null)
 
         results.push({ name: artistName, ok: true })
         // Small delay to stay within CM rate limit (1 req/sec)
-        await new Promise(r => setTimeout(r, 1200))
+        await new Promise(r => setTimeout(r, 1200)) // respect CM rate limit
       } catch (err) {
         results.push({ name: artistName, ok: false, reason: String(err) })
       }
@@ -149,7 +146,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ groupId
   }
 }
 
-// PATCH /api/monitor-groups/[groupId]/rescrape — update interval setting
 export async function PATCH(req: Request, { params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params
   const { interval_hours } = await req.json()
