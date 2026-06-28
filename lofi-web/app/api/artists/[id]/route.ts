@@ -282,7 +282,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             cm_artist_rank, career_stage_score, career_trend_score, fan_base_rank,
             hometown_city, current_city, cm_timeseries, ml_features
           ),
-          artist_ra (event_count),
+          artist_ra (event_count, ra_slug, events),
           artist_partyflock (pf_fans, pf_total_performances, pf_upcoming_performances, pf_past_performances, pf_views, pf_genres, events),
           artist_lastfm (lfm_listeners, tags, similar_artists),
           xgboost_predictions (predicted_growth_90d, missing_pct),
@@ -433,6 +433,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         raEventsData = jsonbEvents.map((e) => ({
           event_id: String(e.event_id ?? e.id ?? ''),
           date: String(e.date ?? ''),
+          title: (e.title as string | null) ?? null,
+          event_url: (e.event_url as string | null) ?? (e.url as string | null) ?? null,
           venue: String(e.venue ?? ''),
           city: (e.city as string | null) ?? null,
           country: (e.country as string | null) ?? null,
