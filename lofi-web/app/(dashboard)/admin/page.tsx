@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import useSWR from 'swr'
-import { Database, AlertTriangle, CheckCircle2, Users, BarChart2, Copy, Tag, Zap } from 'lucide-react'
+import { Database, AlertTriangle, CheckCircle2, Users, BarChart2, Copy, Tag, Zap, Trash2, Calendar } from 'lucide-react'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 
@@ -9,6 +10,7 @@ interface DbHealth {
   total: number
   active: number
   excluded: number
+  scheduledDelete?: number
   excludedByReason: { reason: string; count: number }[]
   missingChartmetric: number
   missingRA: number
@@ -54,6 +56,40 @@ export default function AdminPage() {
     revalidateOnFocus: false,
     refreshInterval: 0,
   })
+  const [deleting, setDeleting] = useState(false)
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null)
+  const [executing, setExecuting] = useState(false)
+  const [executeMsg, setExecuteMsg] = useState<string | null>(null)
+
+  async function handleDeleteExcluded() {
+    if (!confirm(`Hard-delete all ${data?.excluded ?? '?'} excluded artists? This cannot be undone.`)) return
+    setDeleting(true)
+    setDeleteMsg(null)
+    try {
+      const res = await fetch('/api/admin/delete-excluded', { method: 'DELETE' })
+      const d = await res.json()
+      setDeleteMsg(res.ok ? `Deleted ${d.deleted} artists.` : (d.error ?? 'Failed'))
+      mutate()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleExecuteScheduled() {
+    const count = data?.scheduledDelete ?? 0
+    if (!count) { setExecuteMsg('No artists scheduled for deletion.'); return }
+    if (!confirm(`Permanently delete ${count} scheduled artists?`)) return
+    setExecuting(true)
+    setExecuteMsg(null)
+    try {
+      const res = await fetch('/api/admin/schedule-delete', { method: 'DELETE' })
+      const d = await res.json()
+      setExecuteMsg(res.ok ? `Deleted ${d.deleted} artists.` : (d.error ?? 'Failed'))
+      mutate()
+    } finally {
+      setExecuting(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -75,18 +111,30 @@ export default function AdminPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-[#f1f5f9]">Database Health</h1>
           <p className="text-sm text-[#94a3b8]">Artist data quality and coverage report</p>
         </div>
-        <button
-          type="button"
-          onClick={() => mutate()}
-          className="rounded-lg border border-[#1e2535] bg-[#161b27] px-3 py-1.5 text-xs text-[#94a3b8] transition hover:border-indigo-500/40 hover:text-[#f1f5f9]"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => mutate()}
+            className="rounded-lg border border-[#1e2535] bg-[#161b27] px-3 py-1.5 text-xs text-[#94a3b8] transition hover:border-indigo-500/40 hover:text-[#f1f5f9]">
+            Refresh
+          </button>
+          <button type="button" onClick={handleDeleteExcluded} disabled={deleting || !data?.excluded}
+            className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs text-rose-400 transition hover:border-rose-500/60 disabled:opacity-40">
+            <Trash2 size={12} />
+            {deleting ? 'Deleting…' : `Delete ${data?.excluded ?? 0} excluded`}
+          </button>
+          <button type="button" onClick={handleExecuteScheduled} disabled={executing}
+            className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-400 transition hover:border-amber-500/60 disabled:opacity-40">
+            <Calendar size={12} />
+            {executing ? 'Executing…' : `Execute ${data?.scheduledDelete ?? 0} scheduled`}
+          </button>
+        </div>
+        {(deleteMsg || executeMsg) && (
+          <p className="w-full text-xs text-emerald-400">{deleteMsg ?? executeMsg}</p>
+        )}
       </header>
 
       {/* Artist counts */}

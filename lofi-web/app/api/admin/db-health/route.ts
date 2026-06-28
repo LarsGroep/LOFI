@@ -70,10 +70,18 @@ export async function GET() {
       byStatus[s] = (byStatus[s] ?? 0) + 1
     }
 
+    // Scheduled for deletion count
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count: scheduledCount } = await (supabase as any)
+      .from('artists')
+      .select('id', { count: 'exact', head: true })
+      .eq('scheduled_delete', true)
+
     return NextResponse.json({
       total: totalCount,
       active: activeCount,
       excluded: excludedRows.length,
+      scheduledDelete: scheduledCount ?? 0,
       excludedByReason,
       missingChartmetric: missingCm,
       missingRA: missingRa,

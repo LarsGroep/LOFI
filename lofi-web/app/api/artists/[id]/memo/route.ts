@@ -105,7 +105,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       const otherSounds: string[] = []
       for (const [sound] of sounds) {
         const soundLower = sound.toLowerCase()
-        const matches = artistGenres.some(g => soundLower.includes(g) || g.includes(soundLower.split(' ')[0]))
+        const matches = artistGenres.some((g: string) => soundLower.includes(g) || g.includes(soundLower.split(' ')[0]))
         if (matches) relevantSounds.push(sound)
         else otherSounds.push(sound)
       }
@@ -124,7 +124,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     // Build booker notes section
     const notesSection = notes.length
-      ? notes.map(n => `[${n.note_type.toUpperCase()}] ${n.text} (by ${n.author})`).join('\n')
+      ? notes.map((n: any) => `[${n.note_type.toUpperCase()}] ${n.text} (by ${n.author})`).join('\n')
       : 'No booker notes.'
 
     // Build LOFI Fit section
@@ -221,16 +221,43 @@ Return ONLY valid JSON matching this exact structure (no markdown, no explanatio
   "comparable_past": ["Only use artist names from the LOFI Sound Framework above"]
 }`
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    })
+    let memoText: string
 
-    const content = message.content[0]
-    if (content.type !== 'text') throw new Error('Unexpected response type from Claude')
+    try {
+      const message = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const content = message.content[0]
+      if (content.type !== 'text') throw new Error('Unexpected response type from Claude')
+      memoText = content.text
+    } catch (claudeErr) {
+      console.warn('[memo] Claude failed, trying Ollama fallback:', claudeErr)
+      const ollamaUrl = process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434'
+      const ollamaModel = process.env.OLLAMA_MODEL ?? 'llama3.1'
+      try {
+        const ollamaRes = await fetch(`${ollamaUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: ollamaModel,
+            messages: [{ role: 'user', content: prompt }],
+            stream: false,
+          }),
+          signal: AbortSignal.timeout(60_000),
+        })
+        if (!ollamaRes.ok) throw new Error(`Ollama ${ollamaRes.status}`)
+        const ollamaData = await ollamaRes.json()
+        memoText = ollamaData.choices?.[0]?.message?.content ?? ''
+        if (!memoText) throw new Error('Empty Ollama response')
+      } catch (ollamaErr) {
+        console.error('[memo] Ollama fallback also failed:', ollamaErr)
+        throw claudeErr // re-throw original error
+      }
+    }
 
-    const memo = JSON.parse(content.text)
+    const memo = JSON.parse(memoText)
 
     // Upsert into DB
     const { error: upsertError } = await supabase
@@ -259,7 +286,27 @@ Return ONLY valid JSON matching this exact structure (no markdown, no explanatio
         .eq('artist_id', id)
     }
 
-    return NextResponse.json({ ...memo, data_freshness: dataFreshness, generated_at: new Date().toISOString() })
+    // Auto-schedule for deletion if artist is clearly outside LOFI's target cohort.
+    // Condition: Pass verdict + no NL presence + no RA events + signals all Weak/Insufficient
+    const autoDeleteCandidate = (
+      memo.verdict === 'Pass' &&
+      (ra?.event_count ?? 0) === 0 &&
+      (pf?.pf_fans ?? 0) === 0 &&
+      (memo.signals ?? []).every((s: { rating: string }) => ['Weak', 'Insufficient Data'].includes(s.rating))
+    )
+    if (autoDeleteCandidate) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
+        .from('artists')
+        .update({
+          scheduled_delete: true,
+          scheduled_delete_reason: `Auto: AI verdict "Pass" — all signals Weak/Insufficient, no RA or NL presence`,
+        })
+        .eq('id', id)
+      console.log(`[memo] Auto-scheduled ${row.name} (${id}) for deletion — far outlier from LOFI cohort`)
+    }
+
+    return NextResponse.json({ ...memo, data_freshness: dataFreshness, generated_at: new Date().toISOString(), autoScheduledDelete: autoDeleteCandidate })
   } catch (err) {
     console.error('[POST /api/artists/[id]/memo]', err)
     return NextResponse.json({ error: 'Failed to generate memo' }, { status: 500 })

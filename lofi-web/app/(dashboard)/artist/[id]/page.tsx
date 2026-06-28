@@ -105,7 +105,7 @@ export default function ArtistProfilePage({ params }: { params: Promise<{ id: st
         verdict: artist.aiMemo.verdict as ArtistAiMemoRow['verdict'],
         verdictReason: artist.aiMemo.verdict_reason,
         summary: artist.aiMemo.summary,
-        signals: (artist.aiMemo.signals as { label: string; rating: string; detail: string }[]) ?? [],
+        signals: (artist.aiMemo.signals as { label: string; rating: 'Very Strong' | 'Strong' | 'Moderate' | 'Weak' | 'Insufficient Data'; detail: string }[]) ?? [],
         opportunities: artist.aiMemo.opportunities ?? [],
         risks: artist.aiMemo.risks ?? [],
         comparablePast: artist.aiMemo.comparable_past ?? [],

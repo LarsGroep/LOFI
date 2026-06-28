@@ -466,7 +466,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       soundcloudFollowers: cm?.soundcloud_followers ?? null,
       cppScore: cm?.cpp_score ?? null,
       cmArtistScore: cm?.cm_artist_score ?? null,
-      lofiFeel: lofi ? (lofi as ArtistDetail['lofiFeel']) : null,
+      lofiFeel: lofi ? (lofi as unknown as ArtistDetail['lofiFeel']) : null,
       pfFans: pf?.pf_fans ?? null,
       pfTotalPerformances: pf?.pf_total_performances ?? null,
       pfUpcomingPerformances: pf?.pf_upcoming_performances ?? null,

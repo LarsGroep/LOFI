@@ -130,7 +130,8 @@ export default function ScenePage() {
                 <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} width={96} />
                 <Tooltip
                   contentStyle={{ background: "#1e2535", border: "none", borderRadius: 8, color: "#f1f5f9" }}
-                  formatter={(v: number) => [
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(v: any) => [
                     sort === 'avgGrowth' ? `${(v * 100).toFixed(1)}%` : sort === 'avgListeners' ? fmt(v) : v,
                     sort === 'avgGrowth' ? 'Avg 90d Growth' : sort === 'avgListeners' ? 'Avg Listeners' : 'Artists',
                   ]}

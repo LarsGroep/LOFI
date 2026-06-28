@@ -41,13 +41,13 @@ export async function GET(req: Request) {
 
     // Filter by genre client-side (PostgREST cannot filter on embedded JSONB array)
     const data = genre
-      ? (rawData ?? []).filter(row => {
+      ? (rawData ?? []).filter((row: any) => {
           const cm = Array.isArray(row.artist_chartmetric) ? row.artist_chartmetric[0] : row.artist_chartmetric
-          return (cm?.genres as string[] | null)?.some(g => g.toLowerCase() === genre.toLowerCase())
+          return (cm?.genres as string[] | null)?.some((g: string) => g.toLowerCase() === genre.toLowerCase())
         })
       : rawData
 
-    const items: ArtistListItem[] = (data ?? []).map((row) => {
+    const items: ArtistListItem[] = (data ?? []).map((row: any) => {
       const cm = Array.isArray(row.artist_chartmetric) ? row.artist_chartmetric[0] : row.artist_chartmetric
       const ra = Array.isArray(row.artist_ra) ? row.artist_ra[0] : row.artist_ra
       const xg = Array.isArray(row.xgboost_predictions) ? row.xgboost_predictions[0] : row.xgboost_predictions

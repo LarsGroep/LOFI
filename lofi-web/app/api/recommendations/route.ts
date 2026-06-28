@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     }
 
     const artistName = artistRes.data.name
-    const bookedNames = new Set((bookedRes.data ?? []).map(a => a.name.toLowerCase()))
+    const bookedNames = new Set((bookedRes.data ?? []).map((a: any) => (a.name as string).toLowerCase()))
 
     // 2. Get all this artist's RA events with lineups
     const { data: events } = await supabase
@@ -73,7 +73,7 @@ export async function GET(req: Request) {
       .in('name', topNames)
       .limit(limit * 2)
 
-    const matchedMap = new Map((matched ?? []).map(a => [a.name.toLowerCase(), a]))
+    const matchedMap = new Map<string, any>((matched ?? []).map((a: any) => [a.name.toLowerCase(), a]))
 
     // 6. Build recommendations (matched only, sorted by co-count)
     const recs = topNames

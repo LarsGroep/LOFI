@@ -1,11 +1,14 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import {
   ArrowLeft, Star, TrendingUp, Calendar, Sparkles,
   Music2, Users, CheckCircle2, Circle, MapPin, Building2,
   ExternalLink, Globe, Disc3, MessageSquare,
+  Flame, Target, BarChart2, AlertTriangle, Lightbulb, Activity,
+  RefreshCw, Tag, Trash2, ChevronDown,
 } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell,
@@ -148,13 +151,13 @@ function scoreInterpret(key: string, v: number): { label: string; color: string 
   return { label: "Insufficient data", color: "text-slate-500" }
 }
 
-const SCORE_DIMS = [
-  { key: 'momentum',         label: 'Current Buzz',    icon: '🔥', radarLabel: 'Buzz' },
-  { key: 'growth',           label: 'Acceleration',    icon: '📈', radarLabel: 'Accel' },
-  { key: 'market_relevance', label: 'Audience Size',   icon: '👥', radarLabel: 'Size' },
-  { key: 'future_potential', label: '6-Month Outlook', icon: '🎯', radarLabel: 'Outlook' },
-  { key: 'confidence',       label: 'Data Quality',    icon: '📊', radarLabel: 'Data' },
-] as const
+const SCORE_DIMS: { key: 'momentum' | 'growth' | 'market_relevance' | 'future_potential' | 'confidence'; label: string; Icon: LucideIcon; radarLabel: string }[] = [
+  { key: 'momentum',         label: 'Current Buzz',    Icon: Flame,     radarLabel: 'Buzz' },
+  { key: 'growth',           label: 'Acceleration',    Icon: TrendingUp, radarLabel: 'Accel' },
+  { key: 'market_relevance', label: 'Audience Size',   Icon: Users,     radarLabel: 'Size' },
+  { key: 'future_potential', label: '6-Month Outlook', Icon: Target,    radarLabel: 'Outlook' },
+  { key: 'confidence',       label: 'Data Quality',    Icon: BarChart2, radarLabel: 'Data' },
+]
 
 function ScoreRadar({ fiveScores }: {
   fiveScores: { momentum: number; growth: number; market_relevance: number; future_potential: number; confidence: number }
@@ -172,12 +175,12 @@ function ScoreRadar({ fiveScores }: {
         </ResponsiveContainer>
       </div>
       <div className="flex flex-1 flex-col gap-2">
-        {SCORE_DIMS.map(({ key, label, icon }) => {
+        {SCORE_DIMS.map(({ key, label, Icon }) => {
           const v = fiveScores[key]
           const { label: interp, color } = scoreInterpret(key, v)
           return (
             <div key={key} className="flex items-center gap-3 rounded-lg bg-[#1e2535] px-3 py-2">
-              <span className="text-base leading-none">{icon}</span>
+              <Icon size={14} className="shrink-0 text-indigo-400" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-medium text-slate-300">{label}</span>
@@ -196,7 +199,15 @@ function ScoreRadar({ fiveScores }: {
   )
 }
 
+function signalLabel(value: number): { text: string; color: string } {
+  if (value >= 70) return { text: "Strong",   color: "text-emerald-400" }
+  if (value >= 50) return { text: "Moderate", color: "text-indigo-400" }
+  if (value >= 30) return { text: "Low",      color: "text-amber-400" }
+  return { text: "Weak", color: "text-slate-500" }
+}
+
 function SignalBar({ label, weight, value }: { label: string; weight: number; value: number }) {
+  const sig = signalLabel(value)
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-[#1e2535] p-4">
       <div className="flex items-center justify-between">
@@ -207,7 +218,7 @@ function SignalBar({ label, weight, value }: { label: string; weight: number; va
         <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-400"
           style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
-      <span className="text-2xl font-bold text-slate-100">{Math.round(value)}</span>
+      <span className={`text-lg font-semibold ${sig.color}`}>{sig.text}</span>
     </div>
   )
 }
@@ -522,6 +533,68 @@ export default function ArtistProfile({
   const [draft, setDraft] = useState("")
   const [noteType, setNoteType] = useState<'performance' | 'correction' | 'intel'>('performance')
   const [activePlatform, setActivePlatform] = useState<string>(multiTimeseries[0]?.platform ?? "spotify")
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshMsg, setRefreshMsg] = useState<string | null>(null)
+  const [schedulingDelete, setSchedulingDelete] = useState(false)
+  const [monitorGroups, setMonitorGroups] = useState<{ id: string; name: string; color: string }[]>([])
+  const [artistGroups, setArtistGroups] = useState<string[]>([]) // group ids this artist is in
+  const [groupMenuOpen, setGroupMenuOpen] = useState(false)
+  const [groupsLoading, setGroupsLoading] = useState(false)
+
+  // Load monitoring groups
+  const loadGroups = useCallback(async () => {
+    setGroupsLoading(true)
+    try {
+      const [allRes, memberRes] = await Promise.all([
+        fetch('/api/monitor-groups'),
+        fetch(`/api/artists/${artist.id}/monitor`),
+      ])
+      const all = await allRes.json()
+      const memberships = await memberRes.json()
+      setMonitorGroups((all ?? []).map((g: { id: string; name: string; color: string }) => ({ id: g.id, name: g.name, color: g.color })))
+      setArtistGroups((memberships ?? []).map((m: { group_id: string }) => m.group_id))
+    } finally {
+      setGroupsLoading(false)
+    }
+  }, [artist.id])
+
+  useEffect(() => { loadGroups() }, [loadGroups])
+
+  async function handleRefreshScores() {
+    setRefreshing(true)
+    setRefreshMsg(null)
+    try {
+      const res = await fetch(`/api/artists/${artist.id}/refresh`, { method: 'POST' })
+      const data = await res.json()
+      setRefreshMsg(res.ok ? 'Scores refreshed.' : (data.error ?? 'Refresh failed'))
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  async function toggleMonitorGroup(groupId: string) {
+    const inGroup = artistGroups.includes(groupId)
+    await fetch(`/api/monitor-groups/${groupId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ artist_id: artist.id, action: inGroup ? 'remove' : 'add' }),
+    })
+    setArtistGroups(prev => inGroup ? prev.filter(id => id !== groupId) : [...prev, groupId])
+  }
+
+  async function handleScheduleDelete() {
+    if (!confirm(`Schedule ${artist.name} for deletion? This marks them as excluded and queues permanent removal.`)) return
+    setSchedulingDelete(true)
+    try {
+      await fetch('/api/admin/schedule-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artist_id: artist.id, reason: 'Manual: AI outlier verdict' }),
+      })
+    } finally {
+      setSchedulingDelete(false)
+    }
+  }
   const verdict = getVerdict(bookingSignals.composite)
   const firstLetter = artist.name.trim().charAt(0).toUpperCase() || "?"
   const statusClass = STATUS_STYLES[artist.status] ?? STATUS_STYLES.pending
@@ -658,12 +731,11 @@ export default function ArtistProfile({
 
           <div className="flex items-center gap-4">
             <ScoreRing value={bookingSignals.composite} size={104} stroke={9} color={verdict.ring}>
-              <div className="flex flex-col items-center">
-                <span className="text-3xl font-bold text-slate-100">{Math.round(bookingSignals.composite)}</span>
-                <span className="text-[10px] uppercase tracking-wide text-slate-500">Composite</span>
+              <div className="flex flex-col items-center gap-0.5 px-1 text-center">
+                <span className={`text-xs font-bold leading-tight ${verdict.className.replace(/bg-[^\s]+\s/, '')}`}>{verdict.label}</span>
+                <span className="text-[9px] uppercase tracking-wide text-slate-500">AI verdict</span>
               </div>
             </ScoreRing>
-            <span className={`rounded-full px-3 py-1 text-sm font-semibold ${verdict.className}`}>{verdict.label}</span>
           </div>
         </div>
 
@@ -672,6 +744,58 @@ export default function ArtistProfile({
           <p className="mt-4 border-t border-white/5 pt-4 text-sm leading-relaxed text-slate-400 line-clamp-3">
             {artist.description}
           </p>
+        )}
+      </section>
+
+      {/* ACTION BAR */}
+      <section className="flex flex-wrap items-center gap-2 rounded-xl bg-[#161b27] px-4 py-3">
+        {/* Refresh scores */}
+        <button type="button" onClick={handleRefreshScores} disabled={refreshing}
+          className="flex items-center gap-1.5 rounded-lg bg-[#1e2535] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-[#2a3347] transition-colors disabled:opacity-50">
+          <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? 'Refreshing…' : 'Refresh scores'}
+        </button>
+
+        {/* Monitor group dropdown */}
+        <div className="relative">
+          <button type="button" onClick={() => setGroupMenuOpen(v => !v)}
+            className="flex items-center gap-1.5 rounded-lg bg-[#1e2535] px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-[#2a3347] transition-colors">
+            <Tag size={12} />
+            {artistGroups.length > 0 ? `In ${artistGroups.length} group${artistGroups.length > 1 ? 's' : ''}` : 'Add to group'}
+            <ChevronDown size={11} className="opacity-60" />
+          </button>
+          {groupMenuOpen && (
+            <div className="absolute left-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-[#1e2535] bg-[#161b27] shadow-2xl">
+              {groupsLoading ? (
+                <p className="px-3 py-2 text-xs text-slate-500">Loading…</p>
+              ) : monitorGroups.length === 0 ? (
+                <p className="px-3 py-3 text-xs text-slate-500">No groups — create one in Watchlist</p>
+              ) : (
+                monitorGroups.map(g => {
+                  const inGroup = artistGroups.includes(g.id)
+                  return (
+                    <button key={g.id} type="button" onClick={() => toggleMonitorGroup(g.id)}
+                      className="flex w-full items-center gap-2.5 px-3 py-2 text-xs transition-colors hover:bg-[#1e2535]">
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: g.color }} />
+                      <span className={`flex-1 text-left ${inGroup ? 'font-semibold text-slate-100' : 'text-slate-400'}`}>{g.name}</span>
+                      {inGroup && <CheckCircle2 size={12} className="text-emerald-400" />}
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Schedule for deletion */}
+        <button type="button" onClick={handleScheduleDelete} disabled={schedulingDelete}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40 ml-auto">
+          <Trash2 size={12} />
+          {schedulingDelete ? 'Scheduling…' : 'Schedule deletion'}
+        </button>
+
+        {refreshMsg && (
+          <span className="ml-2 text-xs text-emerald-400">{refreshMsg}</span>
         )}
       </section>
 
@@ -721,11 +845,8 @@ export default function ArtistProfile({
           <SignalBar label="LOFI Fit" weight={25} value={bookingSignals.lofiFit} />
         </div>
         <div className="mt-4 flex items-center justify-between rounded-lg bg-[#1e2535] px-4 py-3">
-          <span className="text-sm text-slate-400">Overall Composite</span>
-          <div className="flex items-center gap-3">
-            <span className="text-xl font-bold text-slate-100">{Math.round(bookingSignals.composite)}</span>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${verdict.className}`}>{verdict.label}</span>
-          </div>
+          <span className="text-sm text-slate-400">Overall assessment</span>
+          <span className={`rounded-full px-3 py-1 text-sm font-semibold ${verdict.className}`}>{verdict.label}</span>
         </div>
       </section>
 
@@ -742,17 +863,17 @@ export default function ArtistProfile({
         {/* Type selector */}
         <div className="mb-3 mt-4 flex flex-wrap gap-1">
           {([
-            { type: 'performance', icon: '🎯', label: 'Live feedback' },
-            { type: 'correction',  icon: '⚠️', label: 'Score correction' },
-            { type: 'intel',       icon: '💡', label: 'Industry intel' },
-          ] as const).map(({ type, icon, label }) => (
+            { type: 'performance', Icon: Activity,      label: 'Live feedback' },
+            { type: 'correction',  Icon: AlertTriangle, label: 'Score correction' },
+            { type: 'intel',       Icon: Lightbulb,     label: 'Industry intel' },
+          ] as const).map(({ type, Icon, label }) => (
             <button key={type} type="button" onClick={() => setNoteType(type)}
               className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 noteType === type
                   ? 'bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-500/40'
                   : 'text-slate-500 hover:text-slate-300 ring-1 ring-white/5'
               }`}>
-              {icon} {label}
+              <Icon size={11} /> {label}
             </button>
           ))}
         </div>
@@ -783,9 +904,9 @@ export default function ArtistProfile({
           <div className="mt-4 flex flex-col gap-2 border-t border-white/5 pt-4">
             {notes.map(n => {
               const typeMap: Record<string, { badge: string; cls: string }> = {
-                performance: { badge: '🎯 Live feedback',   cls: 'bg-emerald-500/10 text-emerald-400' },
-                correction:  { badge: '⚠️ Correction',      cls: 'bg-amber-500/10 text-amber-400' },
-                intel:       { badge: '💡 Intel',            cls: 'bg-indigo-500/10 text-indigo-400' },
+                performance: { badge: 'Live feedback', cls: 'bg-emerald-500/10 text-emerald-400' },
+                correction:  { badge: 'Correction',    cls: 'bg-amber-500/10 text-amber-400' },
+                intel:       { badge: 'Intel',          cls: 'bg-indigo-500/10 text-indigo-400' },
               }
               const { badge, cls } = typeMap[n.noteType ?? 'performance'] ?? typeMap.performance
               return (
@@ -920,7 +1041,8 @@ export default function ArtistProfile({
                 <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} width={52} tickFormatter={v => fmt(v)} />
                 <Tooltip contentStyle={{ background: "#1e2535", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#f1f5f9" }}
                   labelStyle={{ color: "#94a3b8" }}
-                  formatter={(v: number, name: string) => [fmt(v), name === 'projected' ? '90d Forecast' : 'Listeners']} />
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(v: any, name?: any) => [fmt(v), name === 'projected' ? '90d Forecast' : 'Listeners']} />
                 <Line type="monotone" dataKey="value" stroke={PLATFORM_COLORS[activePlatform] ?? "#6366f1"} strokeWidth={2} dot={false} connectNulls={false} />
                 {forecastPoints.length > 0 && (
                   <Line type="monotone" dataKey="projected" stroke="#818cf8" strokeWidth={2} strokeDasharray="5 4" dot={false} connectNulls />
@@ -1020,7 +1142,8 @@ export default function ArtistProfile({
                   tickFormatter={v => v > 0 && v < 1 ? `${(v * 100).toFixed(0)}%` : String(v)} />
                 <YAxis type="category" dataKey="city" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} width={80} />
                 <Tooltip contentStyle={{ background: "#1e2535", border: "none", borderRadius: 8, color: "#f1f5f9" }}
-                  formatter={(v: number) => [v < 1 ? `${(v * 100).toFixed(1)}%` : v]} />
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(v: any) => [v < 1 ? `${(v * 100).toFixed(1)}%` : v]} />
                 <Bar dataKey={topCities[0]?.pct != null ? "pct" : "count"} radius={[0, 4, 4, 0]}>
                   {topCities.map((_, i) => (
                     <Cell key={i} fill={i === 0 ? "#6366f1" : "#1e2535"} />

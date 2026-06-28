@@ -66,7 +66,7 @@ def _http_get(url: str, headers: dict | None = None, timeout: int = _DEFAULT_TIM
 # Last.fm
 # ─────────────────────────────────────────────────────────────────────────────
 
-_LFM_KEY      = "5a03e4d23e2fe689339fab0a79438f20"
+_LFM_KEY      = os.environ.get("LASTFM_API_KEY", "")
 _LFM_BASE     = "https://ws.audioscrobbler.com/2.0/"
 _LFM_SLEEP    = 0.25
 

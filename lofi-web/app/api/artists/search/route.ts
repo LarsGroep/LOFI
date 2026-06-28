@@ -11,13 +11,15 @@ export async function GET(req: Request) {
     const supabase = createServiceClient()
     const { data, error } = await supabase
       .from('artists')
-      .select('id, name, candidate_status, artist_chartmetric(image_url, genres, sp_monthly_listeners)')
+      .select('id, name, candidate_status, excluded, artist_chartmetric(image_url, genres, sp_monthly_listeners)')
       .ilike('name', `%${q}%`)
+      .neq('candidate_status', 'rejected')
+      .eq('excluded', false)
       .order('name')
       .limit(20)
 
     if (error) throw error
-    return NextResponse.json((data ?? []).map(a => {
+    return NextResponse.json((data ?? []).map((a: any) => {
       const cm = Array.isArray(a.artist_chartmetric) ? a.artist_chartmetric[0] : a.artist_chartmetric
       return { id: a.id, name: a.name, status: a.candidate_status, imageUrl: cm?.image_url ?? null, genres: cm?.genres ?? null, spMonthlyListeners: cm?.sp_monthly_listeners ?? null }
     }))

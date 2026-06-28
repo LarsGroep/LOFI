@@ -26,7 +26,7 @@ export async function GET() {
         .limit(8),
     ])
 
-    const milestones = (milestonesRes.data ?? []).map(m => {
+    const milestones = (milestonesRes.data ?? []).map((m: any) => {
       const artist = Array.isArray(m.artists) ? m.artists[0] : m.artists
       const cm = Array.isArray(artist?.artist_chartmetric) ? artist.artist_chartmetric[0] : artist?.artist_chartmetric
       return {

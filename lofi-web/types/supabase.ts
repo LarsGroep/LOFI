@@ -381,7 +381,7 @@ export interface ArtistDetail {
   multiTimeseries: MultiTimeseriesItem[]
   raEvents: RaEventSummary[]
   feedback: ArtistFeedbackRow[]
-  artistNotes: { id: string; text: string; created_at: string }[]
+  artistNotes: { id: string; text: string; created_at: string; note_type?: string | null }[]
   aiMemo: ArtistAiMemoRow | null
   updatedAt: string | null
   tracks: TrackRow[]

@@ -1,12 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({
-  variable: '--font-inter',
-  subsets: ['latin'],
-})
 
 export const metadata: Metadata = {
   title: 'LOFI Intelligence',
@@ -26,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} dark`}>
+    <html lang="en" className="dark">
       <body className="bg-[#0e1117] font-sans text-[#f1f5f9] antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

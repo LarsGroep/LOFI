@@ -25,9 +25,12 @@ export async function createClient() {
   })
 }
 
-// Service-role client for API routes (bypasses RLS, tinder schema)
-export function createServiceClient() {
-  return createSupabaseClient<Database>(supabaseUrl, supabaseServiceKey, {
+// Service-role client for API routes (bypasses RLS, tinder schema).
+// Returns `any` because the Database type only covers `public` schema, but all app
+// tables live in `tinder` — the generated type is wrong, so we skip it to avoid `never`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createServiceClient(): any {
+  return createSupabaseClient(supabaseUrl, supabaseServiceKey, {
     db: { schema: 'tinder' },
   })
 }
