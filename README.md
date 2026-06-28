@@ -18,6 +18,23 @@ A composite LOFI Fit score blends these with scene signals (NL venue presence, R
 
 An AI booking memo (on-demand, not auto-generated) gives a structured verdict: **Book Now / Strong Watch / Monitor / Pass**.
 
+## Screenshots
+
+**Dashboard** — upcoming events, recent milestones, trending YouTube sets, artist grid
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Scout** — breaking artists by XGBoost CPP growth, genre swim-lanes
+![Scout](docs/screenshots/scout.png)
+
+**Growth Leaderboard** — sortable table with 90d XGBoost growth, LOFI fit, RA events
+![Leaderboard](docs/screenshots/insights.png)
+
+**Booking Pipeline** — Kanban from Pending → Candidate → Accepted → Booked
+![Pipeline](docs/screenshots/pipeline.png)
+
+**Artist Profile** — platform stats, bio, booking signals breakdown, booker intelligence
+![Artist profile](docs/screenshots/artist-scores.png)
+
 ## Repo structure
 
 ```
