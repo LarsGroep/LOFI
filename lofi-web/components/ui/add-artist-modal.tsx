@@ -49,6 +49,7 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
   const [cmError, setCmError] = useState<string | null>(null)
   const [queued, setQueued] = useState<{ name: string } | null>(null)
   const [adding, setAdding] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -76,6 +77,7 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
     setStep('search')
     setCmResults([])
     setCmError(null)
+    setAddError(null)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => runSearch(v), 280)
   }
@@ -84,6 +86,7 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
     if (!query.trim()) return
     setCmLoading(true)
     setCmError(null)
+    setAddError(null)
     setStep('cm-disambig')
     try {
       const res = await fetch(`/api/artists/chartmetric-search?q=${encodeURIComponent(query.trim())}`)
@@ -101,14 +104,22 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
 
   async function addCmArtist(artist: CmResult) {
     setAdding(true)
+    setAddError(null)
     try {
-      await fetch('/api/artists/chartmetric-search', {
+      const res = await fetch('/api/artists/chartmetric-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cm_artist_id: artist.id, name: artist.name }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setAddError(data.error ?? 'Failed to add artist to queue')
+        return
+      }
       setQueued({ name: artist.name })
       setStep('queued')
+    } catch {
+      setAddError('Failed to add artist to queue')
     } finally {
       setAdding(false)
     }
@@ -117,14 +128,22 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
   async function addManual() {
     if (!query.trim()) return
     setAdding(true)
+    setAddError(null)
     try {
-      await fetch('/api/artists/search', {
+      const res = await fetch('/api/artists/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: query.trim(), source: 'manual' }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setAddError(data.error ?? 'Failed to add artist to queue')
+        return
+      }
       setQueued({ name: query.trim() })
       setStep('queued')
+    } catch {
+      setAddError('Failed to add artist to queue')
     } finally {
       setAdding(false)
     }
@@ -206,6 +225,12 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
         {/* STEP: Chartmetric disambiguation */}
         {step === 'cm-disambig' && (
           <div className="max-h-80 overflow-y-auto">
+            {addError && (
+              <div className="mx-4 mt-3 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3">
+                <AlertCircle size={15} className="mt-0.5 shrink-0 text-red-400" />
+                <p className="text-xs text-red-300">{addError}</p>
+              </div>
+            )}
             {cmLoading ? (
               <div className="flex flex-col gap-3 p-4">
                 <p className="text-xs text-[#64748b]">Searching Chartmetric for &ldquo;{query}&rdquo;…</p>

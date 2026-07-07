@@ -42,7 +42,12 @@ export async function POST(req: Request) {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: `"${name.trim()}" is already in the discovery queue` }, { status: 409 })
+      }
+      throw error
+    }
     return NextResponse.json(data)
   } catch (err) {
     console.error('[POST /api/artists/search]', err)

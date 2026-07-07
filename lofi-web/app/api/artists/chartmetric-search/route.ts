@@ -40,13 +40,13 @@ export async function GET(req: Request) {
   }
 
   try {
-    const res = await fetch(`${CM_BASE}/artist/search?q=${encodeURIComponent(q)}&limit=8&offset=0`, {
+    const res = await fetch(`${CM_BASE}/search?q=${encodeURIComponent(q)}&type=artists&limit=8`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) throw new Error(`CM API ${res.status}`)
     const data = await res.json()
 
-    const artists: CmArtistMatch[] = (data.obj ?? []).map((a: Record<string, unknown>) => ({
+    const artists: CmArtistMatch[] = (data.obj?.artists ?? []).map((a: Record<string, unknown>) => ({
       id: a.id,
       name: a.name,
       image_url: a.image_url ?? null,
@@ -78,13 +78,18 @@ export async function POST(req: Request) {
       .from('discovery_queue')
       .insert({
         artist_name: name,
-        cm_artist_id: cm_artist_id ?? null,
         source: 'manual_cm',
         signal: 'user_add',
+        context: cm_artist_id ? { cm_artist_id } : null,
       })
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: `"${name}" is already in the discovery queue` }, { status: 409 })
+      }
+      throw error
+    }
     return NextResponse.json({ ok: true, queued: data })
   } catch (err) {
     console.error('[POST /api/artists/chartmetric-search]', err)
