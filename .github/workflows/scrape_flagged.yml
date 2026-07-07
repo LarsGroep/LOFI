@@ -27,6 +27,10 @@ on:
         description: 'Timeseries lookback in days (default 365)'
         required: false
         default: '365'
+      artist_id:
+        description: 'Single artist UUID — scrape just this artist and skip batching/chaining'
+        required: false
+        default: ''
 
 permissions:
   actions: write
@@ -64,6 +68,13 @@ jobs:
           LIMIT="${{ github.event.inputs.limit || '50' }}"
           DAYS="${{ github.event.inputs.days || '365' }}"
           MAX_BATCHES="${{ github.event.inputs.batches || '4' }}"
+          ARTIST_ID="${{ github.event.inputs.artist_id }}"
+          if [ -n "$ARTIST_ID" ]; then
+            echo "=== Single-artist scrape: $ARTIST_ID ==="
+            python -u scrapers/scrape_flagged.py --artist-id "$ARTIST_ID" --days "$DAYS"
+            echo "queue_empty=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           QUEUE_EMPTY=false
           for i in $(seq 1 $MAX_BATCHES); do
             echo "=== Batch $i / $MAX_BATCHES ==="

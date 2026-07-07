@@ -47,7 +47,7 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
   const [localLoading, setLocalLoading] = useState(false)
   const [cmLoading, setCmLoading] = useState(false)
   const [cmError, setCmError] = useState<string | null>(null)
-  const [queued, setQueued] = useState<{ name: string } | null>(null)
+  const [queued, setQueued] = useState<{ name: string; id?: string; scrapeStarted?: boolean } | null>(null)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -111,15 +111,15 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cm_artist_id: artist.id, name: artist.name }),
       })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setAddError(data.error ?? 'Failed to add artist to queue')
+        setAddError(data.error ?? 'Failed to add artist')
         return
       }
-      setQueued({ name: artist.name })
+      setQueued({ name: artist.name, id: data.artist?.id, scrapeStarted: data.scrapeStarted })
       setStep('queued')
     } catch {
-      setAddError('Failed to add artist to queue')
+      setAddError('Failed to add artist')
     } finally {
       setAdding(false)
     }
@@ -135,15 +135,15 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: query.trim(), source: 'manual' }),
       })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setAddError(data.error ?? 'Failed to add artist to queue')
+        setAddError(data.error ?? 'Failed to add artist')
         return
       }
-      setQueued({ name: query.trim() })
+      setQueued({ name: query.trim(), id: data.artist?.id, scrapeStarted: data.scrapeStarted })
       setStep('queued')
     } catch {
-      setAddError('Failed to add artist to queue')
+      setAddError('Failed to add artist')
     } finally {
       setAdding(false)
     }
@@ -301,12 +301,24 @@ export function AddArtistModal({ onClose, onNavigate }: { onClose: () => void; o
         {step === 'queued' && (
           <div className="p-6 text-center">
             <CheckCircle2 size={32} className="mx-auto mb-3 text-emerald-400" />
-            <p className="text-sm font-semibold text-[#f1f5f9]">{queued?.name} added to queue</p>
-            <p className="mt-1 text-xs text-[#64748b]">The artist will be scraped and enriched on the next pipeline run.</p>
-            <button type="button" onClick={onClose}
-              className="mt-4 rounded-lg bg-[#1e2535] px-4 py-2 text-sm text-[#f1f5f9] hover:bg-[#2a3347] transition-colors">
-              Close
-            </button>
+            <p className="text-sm font-semibold text-[#f1f5f9]">{queued?.name} added</p>
+            <p className="mt-1 text-xs text-[#64748b]">
+              {queued?.scrapeStarted
+                ? 'Profile created — scraping started, data will appear within a few minutes.'
+                : 'Profile created — it will be scraped and enriched on the next pipeline run.'}
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {queued?.id && (
+                <button type="button" onClick={() => { onNavigate(queued.id!); onClose() }}
+                  className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 transition-colors">
+                  View profile
+                </button>
+              )}
+              <button type="button" onClick={onClose}
+                className="rounded-lg bg-[#1e2535] px-4 py-2 text-sm text-[#f1f5f9] hover:bg-[#2a3347] transition-colors">
+                Close
+              </button>
+            </div>
           </div>
         )}
 

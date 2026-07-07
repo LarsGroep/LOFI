@@ -29,28 +29,35 @@ export async function GET(req: Request) {
   }
 }
 
-// POST — add new artist to discovery queue
+// POST — create the artist profile and immediately trigger a scrape
 export async function POST(req: Request) {
   try {
-    const { name, source = 'manual' } = await req.json()
+    const { name } = await req.json()
     if (!name?.trim()) return NextResponse.json({ error: 'name required' }, { status: 400 })
 
+    const { slugify, dispatchArtistScrape } = await import('@/lib/scrape-dispatch')
     const supabase = createServiceClient()
     const { data, error } = await supabase
-      .from('discovery_queue')
-      .insert({ artist_name: name.trim(), source, signal: 'manual_add' })
-      .select()
+      .from('artists')
+      .insert({
+        name: name.trim(),
+        slug: slugify(name),
+        candidate_status: 'pending',
+        needs_scraping: true,
+      })
+      .select('id, name')
       .single()
 
     if (error) {
       if (error.code === '23505') {
-        return NextResponse.json({ error: `"${name.trim()}" is already in the discovery queue` }, { status: 409 })
+        return NextResponse.json({ error: `"${name.trim()}" is already being tracked` }, { status: 409 })
       }
       throw error
     }
-    return NextResponse.json(data)
+    const scrapeStarted = await dispatchArtistScrape(data.id)
+    return NextResponse.json({ ok: true, artist: data, scrapeStarted })
   } catch (err) {
     console.error('[POST /api/artists/search]', err)
-    return NextResponse.json({ error: 'Failed to add to queue' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to add artist' }, { status: 500 })
   }
 }

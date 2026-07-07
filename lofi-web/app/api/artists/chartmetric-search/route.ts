@@ -63,36 +63,37 @@ export async function GET(req: Request) {
   }
 }
 
-// POST: commit a Chartmetric artist to the DB and trigger enrichment
+// POST: create the artist profile and immediately trigger a scrape
 export async function POST(req: Request) {
   const { cm_artist_id, name } = await req.json()
-  if (!cm_artist_id && !name) {
-    return NextResponse.json({ error: 'cm_artist_id or name required' }, { status: 400 })
+  if (!name?.trim()) {
+    return NextResponse.json({ error: 'name required' }, { status: 400 })
   }
   try {
-    // Add to discovery queue — the pipeline will pick it up and scrape
     const { createServiceClient } = await import('@/lib/supabase/server')
+    const { slugify, dispatchArtistScrape } = await import('@/lib/scrape-dispatch')
     const supabase = createServiceClient()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
-      .from('discovery_queue')
+    const { data, error } = await supabase
+      .from('artists')
       .insert({
-        artist_name: name,
-        source: 'manual_cm',
-        signal: 'user_add',
-        context: cm_artist_id ? { cm_artist_id } : null,
+        name: name.trim(),
+        slug: slugify(name),
+        chartmetric_id: cm_artist_id ? String(cm_artist_id) : null,
+        candidate_status: 'pending',
+        needs_scraping: true,
       })
-      .select()
+      .select('id, name')
       .single()
     if (error) {
       if (error.code === '23505') {
-        return NextResponse.json({ error: `"${name}" is already in the discovery queue` }, { status: 409 })
+        return NextResponse.json({ error: `"${name}" is already being tracked` }, { status: 409 })
       }
       throw error
     }
-    return NextResponse.json({ ok: true, queued: data })
+    const scrapeStarted = await dispatchArtistScrape(data.id)
+    return NextResponse.json({ ok: true, artist: data, scrapeStarted })
   } catch (err) {
     console.error('[POST /api/artists/chartmetric-search]', err)
-    return NextResponse.json({ error: 'Failed to queue artist' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to add artist' }, { status: 500 })
   }
 }
